@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 type LegalContentProps = {
   content: string;
@@ -12,7 +12,7 @@ type LegalContentProps = {
 export default function LegalContent({ content }: LegalContentProps) {
   const parsedContent = useMemo(() => {
     const lines = content.split("\n");
-    const elements: JSX.Element[] = [];
+    const elements: ReactNode[] = [];
     let key = 0;
     let inList = false;
     let listItems: string[] = [];
