@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "lottie-react": "^2.4.1",
-    "next": "16.0.1",
+    "next": "16.0.10",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
