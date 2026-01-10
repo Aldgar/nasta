@@ -1,0 +1,416 @@
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { BackgroundCheckResult, BackgroundCheckStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { FileUploadService } from './file-upload.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
+@Injectable()
+export class BackgroundCheckService {
+  constructor(
+    private prisma: PrismaService,
+    private fileUploadService: FileUploadService,
+    private notifications: NotificationsService, // Change to type-only import
+  ) {}
+
+  async initiate(
+    userId: string,
+    consent?: { accepted: boolean; version?: string; textHash?: string },
+  ) {
+    // Check if user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if user already has a pending/valid check
+    const existingCheck = await this.prisma.backgroundCheck.findFirst({
+      where: {
+        userId,
+        status: {
+          in: ['PENDING', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED'],
+        },
+      },
+    });
+
+    if (existingCheck) {
+      if (existingCheck.status === 'APPROVED' && existingCheck.expiryDate) {
+        // Check if still valid (not expired)
+        if (existingCheck.expiryDate > new Date()) {
+          throw new BadRequestException(
+            'You already have a valid background check',
+          );
+        }
+      }
+
+      if (
+        ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(existingCheck.status)
+      ) {
+        throw new BadRequestException(
+          'You already have a background check in progress',
+        );
+      }
+    }
+
+    if (!consent || consent.accepted !== true) {
+      throw new BadRequestException('Consent is required to initiate');
+    }
+
+    // Create new background check
+    const newCheck = await this.prisma.backgroundCheck.create({
+      data: {
+        userId,
+        status: 'PENDING',
+        certificateType: 'INDIVIDUAL',
+        consentAcceptedAt: new Date(),
+        consentVersion: consent.version || null,
+        consentTextHash: consent.textHash || null,
+      },
+    });
+
+    // Update user's background check status
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        backgroundCheckStatus: 'PENDING',
+      },
+    });
+
+    return {
+      id: newCheck.id,
+      status: newCheck.status,
+      message:
+        'Background check initiated. Please upload your Portuguese criminal record certificate.',
+    };
+  }
+
+  async getCertificatePathByCheckId(checkId: string) {
+    const check = await this.prisma.backgroundCheck.findUnique({
+      where: { id: checkId },
+      select: { uploadedDocument: true },
+    });
+
+    if (!check) {
+      throw new NotFoundException('Background check not found');
+    }
+
+    return check.uploadedDocument ?? null;
+  }
+
+  async getCertificatePathForUser(checkId: string, userId: string) {
+    const check = await this.prisma.backgroundCheck.findFirst({
+      where: { id: checkId, userId },
+      select: { uploadedDocument: true },
+    });
+    if (!check) {
+      throw new ForbiddenException(
+        'You do not have access to this certificate',
+      );
+    }
+    return check.uploadedDocument ?? null;
+  }
+
+  async uploadDocument(
+    checkId: string,
+    file: Express.Multer.File,
+    certificateNumber?: string,
+  ) {
+    // Find the background check
+    const backgroundCheck = await this.prisma.backgroundCheck.findUnique({
+      where: { id: checkId },
+      include: { user: true },
+    });
+
+    if (!backgroundCheck) {
+      throw new NotFoundException('Background check not found');
+    }
+
+    if (backgroundCheck.status !== 'PENDING') {
+      throw new BadRequestException(
+        'Can only upload document for pending background checks',
+      );
+    }
+
+    try {
+      // Save the file using FileUploadService
+      const filePath = await this.fileUploadService.saveFile(file);
+
+      // Calculate expiry date (3 months from now for Portuguese certificates)
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 3);
+
+      // Update background check with document info
+      const updatedCheck = await this.prisma.backgroundCheck.update({
+        where: { id: checkId },
+        data: {
+          uploadedDocument: filePath,
+          certificateNumber: certificateNumber || null,
+          status: 'SUBMITTED',
+          submittedAt: new Date(),
+          expiryDate: expiryDate,
+          assignedCapability: 'BACKGROUND_CHECK_REVIEWER',
+        },
+      });
+
+      // Update user status
+      await this.prisma.user.update({
+        where: { id: backgroundCheck.userId },
+        data: {
+          backgroundCheckStatus: 'SUBMITTED',
+        },
+      });
+      // Emit event after successful upload and status update
+      this.notifications.emitBackgroundCheckSubmitted({
+        userId: backgroundCheck.userId,
+        checkId,
+      });
+
+      return {
+        message:
+          'Document uploaded successfully. Your background check will be reviewed within 2-3 business days.',
+        checkId: updatedCheck.id,
+        status: updatedCheck.status,
+        expiryDate: updatedCheck.expiryDate,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException(
+        `Failed to upload document: ${errorMessage}`,
+      );
+    }
+  }
+  async getUserStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isBackgroundVerified: true,
+        backgroundCheckStatus: true,
+        backgroundCheckResult: true,
+        backgroundCheckExpiry: true,
+        canWorkWithChildren: true,
+        canWorkWithElderly: true,
+        canWorkGeneralJobs: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Get current background check details
+    const currentCheck = await this.prisma.backgroundCheck.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        overallResult: true,
+        expiryDate: true,
+        rejectionReason: true,
+        submittedAt: true,
+        verifiedAt: true,
+      },
+    });
+
+    return {
+      userId: user.id,
+      isBackgroundVerified: user.isBackgroundVerified,
+      backgroundCheckStatus: user.backgroundCheckStatus,
+      backgroundCheckResult: user.backgroundCheckResult,
+      canWorkWithChildren: user.canWorkWithChildren,
+      canWorkWithElderly: user.canWorkWithElderly,
+      canWorkGeneralJobs: user.canWorkGeneralJobs,
+      currentCheck: currentCheck || undefined,
+    };
+  }
+  async reviewBackgroundCheck(
+    checkId: string,
+    adminId: string,
+    reviewData: {
+      result: BackgroundCheckResult;
+      hasCriminalRecord: boolean;
+      rejectionReason?: string;
+      adminNotes?: string;
+      canWorkWithChildren?: boolean;
+      canWorkWithElderly?: boolean;
+    },
+  ) {
+    // Find the background check
+    const backgroundCheck = await this.prisma.backgroundCheck.findUnique({
+      where: { id: checkId },
+      include: { user: true },
+    });
+
+    if (!backgroundCheck) {
+      throw new NotFoundException('Background check not found');
+    }
+
+    if (
+      backgroundCheck.status !== 'SUBMITTED' &&
+      backgroundCheck.status !== 'UNDER_REVIEW'
+    ) {
+      throw new BadRequestException(
+        'Can only review submitted or under-review background checks',
+      );
+    }
+
+    const isApproved =
+      reviewData.result === BackgroundCheckResult.CLEAN ||
+      reviewData.result === BackgroundCheckResult.HAS_RECORDS;
+    const newStatus: BackgroundCheckStatus = isApproved
+      ? BackgroundCheckStatus.APPROVED
+      : BackgroundCheckStatus.REJECTED;
+
+    // Update background check
+    const updatedCheck = await this.prisma.backgroundCheck.update({
+      where: { id: checkId },
+      data: {
+        status: newStatus,
+        overallResult: reviewData.result,
+        hasCriminalRecord: reviewData.hasCriminalRecord,
+        rejectionReason: reviewData.rejectionReason,
+        adminNotes: reviewData.adminNotes,
+        verifiedBy: adminId,
+        verifiedAt: new Date(),
+      },
+    });
+
+    // Update user permissions
+    await this.prisma.user.update({
+      where: { id: backgroundCheck.userId },
+      data: {
+        isBackgroundVerified: isApproved,
+        backgroundCheckStatus: newStatus,
+        backgroundCheckResult: reviewData.result,
+        backgroundCheckExpiry: isApproved ? backgroundCheck.expiryDate : null,
+        canWorkWithChildren: reviewData.canWorkWithChildren || false,
+        canWorkWithElderly: reviewData.canWorkWithElderly || false,
+        canWorkGeneralJobs: true, // Always allow general jobs
+      },
+    });
+
+    return {
+      id: updatedCheck.id,
+      status: updatedCheck.status,
+      result: updatedCheck.overallResult,
+      message: isApproved
+        ? 'Background check approved successfully'
+        : 'Background check rejected',
+    };
+  }
+
+  async getPendingReviews() {
+    return await this.prisma.backgroundCheck.findMany({
+      where: {
+        status: {
+          in: ['SUBMITTED', 'UNDER_REVIEW'],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        submittedAt: 'asc', // Oldest first
+      },
+    });
+  }
+
+  // Capability-scoped listings and assignment controls
+  async listReviewsScoped(
+    adminId: string,
+    isSuperAdmin: boolean,
+    scope: 'all' | 'mine' | 'unassigned',
+    status?: 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED',
+  ) {
+    const where: Prisma.BackgroundCheckWhereInput = {
+      assignedCapability: 'BACKGROUND_CHECK_REVIEWER',
+    };
+    if (status) where.status = status;
+    if (scope === 'mine') where.assignedTo = adminId;
+    if (scope === 'unassigned') where.assignedTo = null;
+
+    return this.prisma.backgroundCheck.findMany({
+      where,
+      orderBy: { submittedAt: 'asc' },
+      select: {
+        id: true,
+        status: true,
+        overallResult: true,
+        submittedAt: true,
+        verifiedAt: true,
+        assignedTo: true,
+        assignedCapability: true,
+        assignedAt: true,
+        user: {
+          select: {
+            id: true,
+            publicId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            isBackgroundVerified: true,
+            backgroundCheckStatus: true,
+          },
+        },
+      },
+    });
+  }
+
+  async assignBackgroundCheck(adminId: string, checkId: string) {
+    const check = await this.prisma.backgroundCheck.findUnique({
+      where: { id: checkId },
+      select: { id: true, assignedTo: true },
+    });
+    if (!check) throw new NotFoundException('Background check not found');
+    if (check.assignedTo && check.assignedTo !== adminId) {
+      throw new BadRequestException('Background check already assigned');
+    }
+    const updated = await this.prisma.backgroundCheck.update({
+      where: { id: checkId },
+      data: { assignedTo: adminId, assignedAt: new Date() },
+      select: { id: true, assignedTo: true, assignedAt: true },
+    });
+    return { check: updated, message: 'Assigned to you' };
+  }
+
+  async unassignBackgroundCheck(
+    adminId: string,
+    checkId: string,
+    isSuperAdmin: boolean,
+  ) {
+    const check = await this.prisma.backgroundCheck.findUnique({
+      where: { id: checkId },
+      select: { id: true, assignedTo: true },
+    });
+    if (!check) throw new NotFoundException('Background check not found');
+    if (check.assignedTo && check.assignedTo !== adminId && !isSuperAdmin) {
+      throw new BadRequestException(
+        "You cannot unassign another admin's background check",
+      );
+    }
+    const updated = await this.prisma.backgroundCheck.update({
+      where: { id: checkId },
+      data: { assignedTo: null, assignedAt: null },
+      select: { id: true, assignedTo: true, assignedAt: true },
+    });
+    return { check: updated, message: 'Unassigned' };
+  }
+}

@@ -1,0 +1,28 @@
+# Dependencies
+**/node_modules
+**/.pnpm-store
+
+# Build outputs
+**/dist
+**/.next
+**/.expo
+**/.turbo
+**/coverage
+
+# Mobile native
+**/ios/Pods
+**/ios/build
+**/android/.gradle
+**/android/build
+
+# Tooling
+**/.DS_Store
+**/*.log
+**/.cache
+
+# Secrets
+**/.env
+**/.env.*
+
+# Uploads (persist via volume in prod)
+**/uploads

@@ -1,0 +1,279 @@
+{
+  "info": {
+    "name": "Cumprido Server API (fixed)",
+    "description": "Clean Postman collection for Cumprido Server (NestJS). Set {{baseUrl}}, {{authToken}}, and {{adminAuthToken}} in a Postman Environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{authToken}}", "type": "string" } ] },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" },
+    { "key": "authToken", "value": "" },
+    { "key": "adminAuthToken", "value": "" },
+    { "key": "jobId", "value": "" },
+    { "key": "applicationId", "value": "" },
+    { "key": "notificationId", "value": "" },
+    { "key": "backgroundCheckId", "value": "" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "Password123!" },
+    { "key": "testEmployerEmail", "value": "employer@example.com" },
+    { "key": "testEmail", "value": "" },
+    { "key": "testPassword", "value": "" },
+    { "key": "categoryId_general", "value": "" },
+    { "key": "categoryId_driving", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const ts = Date.now();",
+              "pm.collectionVariables.set('testEmail', `user_${ts}@example.com`);",
+              "pm.collectionVariables.set('testPassword', 'Password123!');"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('register: 201', function () { pm.response.to.have.status(201); });",
+              "const json = pm.response.json();",
+              "pm.test('register: has user id & email', function () { pm.expect(json.user && json.user.id).to.be.ok; pm.expect(json.user.email).to.eql(pm.variables.get('testEmail')); });"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/register" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"role\": \"JOB_SEEKER\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('login: 200', function () { pm.response.to.have.status(200); });",
+            "const json = pm.response.json();",
+            "pm.test('login: sets authToken', function () { pm.expect(json.accessToken).to.be.a('string'); });",
+            "pm.environment.set('authToken', json.accessToken || '');"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/login" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}" }
+          }
+        },
+        {
+          "name": "User Login",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('user login: 200', function () { pm.response.to.have.status(200); });",
+            "const json = pm.response.json();",
+            "pm.test('user login: token set', function () { pm.expect(json.accessToken).to.be.a('string'); });",
+            "pm.environment.set('authToken', json.accessToken || '');"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/user/login" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}" }
+          }
+        },
+        {
+          "name": "Employer Login",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('employer login: 200', function () { pm.response.to.have.status(200); });",
+            "const json = pm.response.json();",
+            "pm.test('employer login: token set', function () { pm.expect(json.accessToken).to.be.a('string'); });",
+            "pm.environment.set('authToken', json.accessToken || '');"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/employer/login" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{testEmployerEmail}}\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        {
+          "name": "Admin Login",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('admin login: 200', function () { pm.response.to.have.status(200); });",
+            "const json = pm.response.json();",
+            "pm.test('admin login: sets adminAuthToken', function () { pm.expect(json.accessToken).to.be.a('string'); });",
+            "pm.environment.set('adminAuthToken', json.accessToken || '');"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/admin/login" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}" }
+          }
+        },
+        {
+          "name": "Admin Register (first time)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/admin/register" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Admin\",\n  \"lastName\": \"User\"\n}" }
+          }
+        },
+        {
+          "name": "Admin WhoAmI",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/auth/admin/whoami" }
+          }
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/auth/profile" }
+          }
+        },
+        { "name": "Request Email Verify", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/auth/email/request-verify" } } },
+        { "name": "Verify Email (token)", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/email/verify" }, "body": { "mode": "raw", "raw": "{ \"token\": \"<token>\" }" } } },
+        { "name": "Request Phone Verify", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/auth/phone/request-verify" } } },
+        { "name": "Verify Phone (code)", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/phone/verify" }, "body": { "mode": "raw", "raw": "{ \"code\": \"123456\" }" } } },
+        { "name": "Password: Request Reset", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/password/request-reset" }, "body": { "mode": "raw", "raw": "{ \"email\": \"user@example.com\" }" } } },
+        { "name": "Password: Reset", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/password/reset" }, "body": { "mode": "raw", "raw": "{ \"token\": \"<token>\", \"newPassword\": \"NewPassword123!\" }" } } },
+        { "name": "Password: Change", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/password/change" }, "body": { "mode": "raw", "raw": "{ \"currentPassword\": \"Password123!\", \"newPassword\": \"NewerPassword123!\" }" } } },
+        { "name": "Email: Request Change", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/email/request-change" }, "body": { "mode": "raw", "raw": "{ \"newEmail\": \"new@example.com\" }" } } },
+        { "name": "Email: Confirm Change", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/auth/email/confirm-change" }, "body": { "mode": "raw", "raw": "{ \"token\": \"<token>\" }" } } }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        { "name": "Update Me", "request": { "method": "PATCH", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/users/me" }, "body": { "mode": "raw", "raw": "{ \"email\": \"user2@example.com\", \"phone\": \"+351900000000\" }" } } },
+        { "name": "Update Address", "request": { "method": "PATCH", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/users/me/address" }, "body": { "mode": "raw", "raw": "{ \"location\": \"Av. da Liberdade 10\", \"city\": \"Lisboa\", \"country\": \"PT\", \"lat\": 38.716, \"lng\": -9.139 }" } } },
+        { "name": "Request Deletion", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/users/me/deletion-request" }, "body": { "mode": "raw", "raw": "{ \"reason\": \"Please remove my account\" }" } } }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        { "name": "List Jobs (latest)", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/jobs" } } },
+        { "name": "List Jobs (near me)", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/jobs?lat=38.7223&lng=-9.1393&radiusKm=10&limit=50" } } },
+        { "name": "Get Job", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}" } } },
+        { "name": "Post Job (Employer)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "if (pm.response.code === 201) {",
+          "  const json = pm.response.json();",
+          "  pm.environment.set('jobId', json.job && json.job.id ? json.job.id : '');",
+          "} else if (pm.response.code === 422) {",
+          "  const json = pm.response.json();",
+          "  pm.test('employer phone gating 422', function () { pm.expect(json.code).to.eql('ERR_PHONE_VERIFICATION_REQUIRED'); });",
+          "} else {",
+          "  pm.test('unexpected status', function () { pm.expect([201,422]).to.include(pm.response.code); });",
+          "}"
+  ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/jobs" }, "body": { "mode": "raw", "raw": "{\n  \"title\": \"Mover needed\",\n  \"description\": \"2 hours moving boxes\",\n  \"categoryName\": \"General\",\n  \"location\": \"Rua Augusta 100\",\n  \"city\": \"Lisboa\",\n  \"country\": \"PT\",\n  \"lat\": 38.713,\n  \"lng\": -9.139,\n  \"workMode\": \"ON_SITE\",\n  \"isInstantBook\": true\n}" } } },
+  { "name": "Post Job (Employer - Driving)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+    "if (pm.response.code === 201) {",
+    "  const json = pm.response.json();",
+    "  pm.environment.set('jobId', json.job && json.job.id ? json.job.id : '');",
+    "} else if (pm.response.code === 422) {",
+    "  const json = pm.response.json();",
+    "  pm.test('employer phone gating 422', function () { pm.expect(json.code).to.eql('ERR_PHONE_VERIFICATION_REQUIRED'); });",
+    "} else {",
+    "  pm.test('unexpected status', function () { pm.expect([201,422]).to.include(pm.response.code); });",
+    "}"
+  ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/jobs" }, "body": { "mode": "raw", "raw": "{\n  \"title\": \"Driver needed\",\n  \"description\": \"Deliver packages within city limits\",\n  \"categoryName\": \"Driving\",\n  \"location\": \"Rua Augusta 100\",\n  \"city\": \"Lisboa\",\n  \"country\": \"PT\",\n  \"lat\": 38.713,\n  \"lng\": -9.139,\n  \"workMode\": \"ON_SITE\",\n  \"isInstantBook\": true\n}" } } },
+  { "name": "Post Job (Admin)", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/jobs" }, "body": { "mode": "raw", "raw": "{\n  \"title\": \"Admin posted job\",\n  \"description\": \"Smoke test\",\n  \"categoryName\": \"General\",\n  \"location\": \"Rua Augusta 100\",\n  \"city\": \"Lisboa\",\n  \"country\": \"PT\",\n  \"lat\": 38.713,\n  \"lng\": -9.139,\n  \"workMode\": \"ON_SITE\",\n  \"isInstantBook\": true\n}" } } },
+        { "name": "Apply to Job (Seeker)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('apply: 201 or 409', function () { pm.expect([201, 409]).to.include(pm.response.code); });",
+          "const jobId = pm.environment.get('jobId');",
+          "if (pm.response.code === 201) {",
+          "  const json = pm.response.json();",
+          "  if (json && json.application && json.application.id) {",
+          "    pm.environment.set('applicationId', json.application.id);",
+          "  }",
+          "} else if (pm.response.code === 409) {",
+          "  // Already applied; fetch my applications and pick the one for current jobId",
+          "  pm.sendRequest({",
+          "    url: pm.environment.get('baseUrl') + '/applications/me',",
+          "    method: 'GET',",
+          "    header: { 'Authorization': 'Bearer ' + pm.environment.get('authToken') }",
+          "  }, function (err, res) {",
+          "    if (!err && res && res.code === 200) {",
+          "      const arr = res.json();",
+          "      if (Array.isArray(arr)) {",
+          "        const match = arr.find(a => a && a.job && a.job.id === jobId);",
+          "        if (match && match.id) pm.environment.set('applicationId', match.id);",
+          "      }",
+          "    }",
+          "  });",
+          "}"
+        ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}/apply" }, "body": { "mode": "raw", "raw": "{ \"coverLetter\": \"I can start today\" }" } } }
+      ]
+    },
+    {
+      "name": "Admin Jobs",
+      "item": [
+        { "name": "List All Jobs (Admin)", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/admin/jobs?page=1&limit=20" } } },
+        { "name": "Get Job (Admin)", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/admin/jobs/{{jobId}}" } } },
+        { "name": "Update Job Status (Admin)", "request": { "method": "PATCH", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/admin/jobs/{{jobId}}/status" }, "body": { "mode": "raw", "raw": "{\n  \"status\": \"PAUSED\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Admin Dev",
+      "item": [
+        { "name": "Seed Minimal Categories", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('seed: 200 or 201', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+          "const json = pm.response.json();",
+          "if (json && json.categories) {",
+          "  pm.environment.set('categoryId_general', json.categories.generalLaborId || '');",
+          "  pm.environment.set('categoryId_driving', json.categories.drivingId || '');",
+          "}"
+        ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/admin/dev/seed-minimal" } } },
+        { "name": "Get Last Phone OTP", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/admin/dev/last-phone-otp?email={{testEmployerEmail}}" } } }
+      ]
+    },
+    {
+      "name": "Applications",
+      "item": [
+        { "name": "My Applications (Seeker)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('my applications: 200', function () { pm.response.to.have.status(200); });" ] } } ], "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/applications/me" } } },
+        { "name": "Employer Applications (Employer)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('employer applications: 200', function () { pm.response.to.have.status(200); });", "const json = pm.response.json();", "if (Array.isArray(json) && json.length) { pm.environment.set('applicationId', json[0].id); }" ] } } ], "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/applications/employer" } } },
+  { "name": "Get Application (Detail)", "event": [ { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [ "if (!pm.environment.get(\"applicationId\")) { throw new Error(\"applicationId is not set. Run Employer Applications (Employer) or Apply first.\"); }" ] } } ], "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/applications/{{applicationId}}" } } },
+        { "name": "Update Status (Employer)", "event": [ { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+          "if (!pm.environment.get(\"applicationId\")) { throw new Error(\"applicationId is not set. Run Employer Applications (Employer) first.\"); }"
+        ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/applications/{{applicationId}}/status" }, "body": { "mode": "raw", "raw": "{\n  \"status\": \"REVIEWING\"\n}" } } },
+        { "name": "Update Status (Employer - Accept)", "event": [ { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+          "if (!pm.environment.get(\"applicationId\")) { throw new Error(\"applicationId is not set. Run Employer Applications (Employer) first.\"); }"
+        ] } }, { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('status updated: 200', function () { pm.response.to.have.status(201).or.to.have.status(200); });" ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/applications/{{applicationId}}/status" }, "body": { "mode": "raw", "raw": "{\n  \"status\": \"ACCEPTED\",\n  \"message\": \"Congrats!\"\n}" } } },
+        { "name": "Update Status (Employer - Reject)", "event": [ { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+          "if (!pm.environment.get(\"applicationId\")) { throw new Error(\"applicationId is not set. Run Employer Applications (Employer) first.\"); }"
+        ] } }, { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('status updated: 200', function () { pm.response.to.have.status(201).or.to.have.status(200); });" ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/applications/{{applicationId}}/status" }, "body": { "mode": "raw", "raw": "{\n  \"status\": \"REJECTED\",\n  \"message\": \"Sorry, not a fit at this time.\"\n}" } } },
+        { "name": "Update Status (Employer - Ask Info)", "event": [ { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+          "if (!pm.environment.get(\"applicationId\")) { throw new Error(\"applicationId is not set. Run Employer Applications (Employer) first.\"); }"
+        ] } }, { "listen": "test", "script": { "type": "text/javascript", "exec": [ "pm.test('status updated: 200', function () { pm.response.to.have.status(201).or.to.have.status(200); });" ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/applications/{{applicationId}}/status" }, "body": { "mode": "raw", "raw": "{\n  \"status\": \"REVIEWING\",\n  \"message\": \"Please share references and availability.\"\n}" } } },
+        { "name": "Admin: List All Applications", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/admin/applications" } } },
+        { "name": "Admin: Update Status", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/admin/applications/{{applicationId}}/status" }, "body": { "mode": "raw", "raw": "{\n  \"status\": \"SHORTLISTED\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        { "name": "List Notifications (all)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('notifications: 200', function () { pm.response.to.have.status(200); });",
+          "const json = pm.response.json();",
+          "if (Array.isArray(json.items) && json.items.length) { pm.environment.set('notificationId', json.items[0].id); }"
+        ] } } ], "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/notifications?status=all&page=1&limit=20" } } },
+        { "name": "Mark Notification Read", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/notifications/{{notificationId}}/read" } } },
+        { "name": "Mark All Read", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/notifications/read-all" } } }
+      ]
+    },
+    {
+      "name": "Background Checks",
+      "item": [
+        { "name": "Initiate (requires consent)", "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('initiate: 201 or 400', function () { pm.expect([201, 400]).to.include(pm.response.code); });",
+          "if (pm.response.code === 201) { const json = pm.response.json(); pm.environment.set('backgroundCheckId', json.id || ''); }"
+        ] } } ], "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/background-checks/initiate" }, "body": { "mode": "raw", "raw": "{\n  \"consent\": { \"accepted\": true, \"version\": \"v1\", \"textHash\": \"abc123\" }\n}" } } },
+        { "name": "My Status", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/background-checks/my-status" } } },
+        { "name": "Admin: User Status", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" } ], "url": { "raw": "{{baseUrl}}/background-checks/status/{{userId}}" } } },
+        { "name": "Upload Certificate", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{authToken}}" } ], "url": { "raw": "{{baseUrl}}/background-checks/{{backgroundCheckId}}/upload-document" }, "body": { "mode": "formdata", "formdata": [ { "key": "certificate", "type": "file", "src": [] }, { "key": "certificateNumber", "type": "text", "value": "123456" } ] } } },
+        { "name": "Admin: Review (Approve)", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/background-checks/admin/{{backgroundCheckId}}/review" }, "body": { "mode": "raw", "raw": "{\n  \"result\": \"CLEAN\",\n  \"hasCriminalRecord\": false,\n  \"canWorkWithChildren\": true,\n  \"canWorkWithElderly\": true\n}" } } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "info": {
+    "name": "Profiles",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "d1f6a6f8-4e9a-4d8a-9f5d-000000000001"
+  },
+  "item": [
+    {
+      "name": "User Login",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let json;",
+              "try { json = pm.response.json(); } catch (e) { json = {}; }",
+              "if (json && json.accessToken) {",
+              "  pm.environment.set('userAccessToken', json.accessToken);",
+              "  pm.environment.set('accessToken', json.accessToken);",
+              "}",
+              "if (json && json.user && json.user.id) { pm.environment.set('userId', json.user.id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "User: GET /profiles/me",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{userAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/me", "host": ["{{baseUrl}}"], "path": ["profiles","me"] }
+      }
+    },
+    {
+      "name": "User: PATCH /profiles/me",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/me", "host": ["{{baseUrl}}"], "path": ["profiles","me"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bio\": \"Hi, I’m testing profiles.\",\n  \"headline\": \"React + Node\"\n}"
+        }
+      }
+    },
+    {
+      "name": "User: PATCH /profiles/me/address",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Authorization", "value": "Bearer {{userAccessToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/me/address", "host": ["{{baseUrl}}"], "path": ["profiles","me","address"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"addressLine1\": \"123 Main St\",\n  \"city\": \"Lisbon\",\n  \"country\": \"PT\",\n  \"lat\": 38.7223,\n  \"lng\": -9.1393\n}"
+        }
+      }
+    },
+    {
+      "name": "User: POST /profiles/me/avatar",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{userAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/me/avatar", "host": ["{{baseUrl}}"], "path": ["profiles","me","avatar"] },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "{{avatarPath}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Employer Login",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/auth/employer/login", "host": ["{{baseUrl}}"], "path": ["auth","employer","login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{employerEmail}}\",\n  \"password\": \"{{employerPassword}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let json; try { json = pm.response.json(); } catch (e) { json = {}; }",
+              "if (json && json.accessToken) { pm.environment.set('employerAccessToken', json.accessToken); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employer: GET /profiles/employer/me",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{employerAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/employer/me", "host": ["{{baseUrl}}"], "path": ["profiles","employer","me"] }
+      }
+    },
+    {
+      "name": "Employer: PATCH /profiles/employer/me",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Authorization", "value": "Bearer {{employerAccessToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/employer/me", "host": ["{{baseUrl}}"], "path": ["profiles","employer","me"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contactName\": \"Hiring Manager\",\n  \"description\": \"We hire great people.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Employer: PATCH /profiles/employer/me/address",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Authorization", "value": "Bearer {{employerAccessToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/employer/me/address", "host": ["{{baseUrl}}"], "path": ["profiles","employer","me","address"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"addressLine1\": \"456 Company Way\",\n  \"city\": \"Porto\",\n  \"country\": \"PT\",\n  \"lat\": 41.1579,\n  \"lng\": -8.6291\n}"
+        }
+      }
+    },
+    {
+      "name": "Employer: POST /profiles/employer/me/avatar",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{employerAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/profiles/employer/me/avatar", "host": ["{{baseUrl}}"], "path": ["profiles","employer","me","avatar"] },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "{{employerLogoPath}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin Login",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/auth/admin/login", "host": ["{{baseUrl}}"], "path": ["auth","admin","login"] },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let json; try { json = pm.response.json(); } catch (e) { json = {}; }",
+              "if (json && json.accessToken) { pm.environment.set('adminAccessToken', json.accessToken); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin: GET /auth/admin/whoami",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/auth/admin/whoami", "host": ["{{baseUrl}}"], "path": ["auth","admin","whoami"] }
+      }
+    },
+    {
+      "name": "Admin: GET /admin/profile",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/profile", "host": ["{{baseUrl}}"], "path": ["admin","profile"] }
+      }
+    },
+    {
+      "name": "Admin: PATCH /admin/profile",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "url": { "raw": "{{baseUrl}}/admin/profile", "host": ["{{baseUrl}}"], "path": ["admin","profile"] },
+        "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Reviewing profiles.\"\n}" }
+      }
+    },
+    {
+      "name": "Admin: POST /admin/profile/avatar",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+        "url": { "raw": "{{baseUrl}}/admin/profile/avatar", "host": ["{{baseUrl}}"], "path": ["admin","profile","avatar"] },
+        "body": { "mode": "formdata", "formdata": [ { "key": "file", "type": "file", "src": "{{adminAvatarPath}}" } ] }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" },
+    { "key": "userEmail", "value": "user@cumprido.com" },
+    { "key": "userPassword", "value": "user123" },
+    { "key": "employerEmail", "value": "employer@cumprido.com" },
+    { "key": "employerPassword", "value": "employer123" },
+    { "key": "adminEmail", "value": "admin@cumprido.com" },
+    { "key": "adminPassword", "value": "admin123" },
+    { "key": "avatarPath", "value": "/absolute/path/to/avatar.jpg" },
+    { "key": "employerLogoPath", "value": "/absolute/path/to/logo.png" },
+    { "key": "adminAvatarPath", "value": "/absolute/path/to/admin.jpg" }
+  ]
+}

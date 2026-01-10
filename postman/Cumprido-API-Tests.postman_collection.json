@@ -1,0 +1,264 @@
+{
+  "info": {
+    "name": "Cumprido API (Server) - Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection to test Auth and Background Check endpoints with throttling and secure streaming."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" },
+    { "key": "userEmail", "value": "user1@example.com" },
+    { "key": "userPassword", "value": "P@ssw0rd123" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "AdminP@ssw0rd123" },
+    { "key": "adminInviteCode", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "checkId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin register (invite)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/admin/register", "host": ["{{baseUrl}}"], "path": ["auth", "admin", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"firstName\": \"Admin\",\n  \"lastName\": \"User\",\n  \"inviteCode\": \"{{adminInviteCode}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const res = pm.response.json();",
+              "pm.test('201/200 admin register', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "pm.test('admin object present', function () { pm.expect(res).to.have.property('admin'); });",
+              "if (res.accessToken) { pm.collectionVariables.set('adminAccessToken', res.accessToken); }"
+            ] } }
+          ]
+        },
+        {
+          "name": "Register user",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('201/200 register', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                  "pm.test('user object present', function () { pm.expect(res).to.have.property('user'); });",
+                  "if (res.user && res.user.id) { pm.collectionVariables.set('userId', res.user.id); }",
+                  "if (res.accessToken) { pm.collectionVariables.set('accessToken', res.accessToken); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login user",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('200 login', function () { pm.response.to.have.status(200); });",
+                  "pm.test('tokens present', function () { pm.expect(res).to.have.property('accessToken'); pm.expect(res).to.have.property('refreshToken'); });",
+                  "if (res.user && res.user.id) { pm.collectionVariables.set('userId', res.user.id); }",
+                  "pm.collectionVariables.set('accessToken', res.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/auth/profile", "host": ["{{baseUrl}}"], "path": ["auth", "profile"] }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const res = pm.response.json();",
+            "pm.test('200 profile', function () { pm.response.to.have.status(200); });",
+            "pm.test('has user in response', function () { pm.expect(res).to.have.property('user'); });"
+          ] } } ]
+        },
+        {
+          "name": "Validate token",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/auth/validate", "host": ["{{baseUrl}}"], "path": ["auth", "validate"] }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const res = pm.response.json();",
+            "pm.test('200 validate', function () { pm.response.to.have.status(200); });",
+            "pm.test('valid true', function () { pm.expect(res.valid).to.be.true; });"
+          ] } } ]
+        },
+        {
+          "name": "Admin login",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/admin/login", "host": ["{{baseUrl}}"], "path": ["auth", "admin", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const res = pm.response.json();",
+            "pm.test('200 admin login', function () { pm.response.to.have.status(200); });",
+            "pm.test('admin token present', function () { pm.expect(res).to.have.property('accessToken'); });",
+            "pm.collectionVariables.set('adminAccessToken', res.accessToken);"
+          ] } } ]
+        },
+        {
+          "name": "Admin profile",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/auth/admin/profile", "host": ["{{baseUrl}}"], "path": ["auth", "admin", "profile"] }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 admin profile', function () { pm.response.to.have.status(200); });"
+          ] } } ]
+        }
+      ]
+    },
+    {
+      "name": "Background Checks (User)",
+      "item": [
+        {
+          "name": "Initiate background check",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/initiate", "host": ["{{baseUrl}}"], "path": ["background-checks", "initiate"] }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const res = pm.response.json();",
+            "pm.test('200 initiate', function () { pm.response.to.have.status(200); });",
+            "pm.test('has check id', function () { pm.expect(res).to.have.property('id'); });",
+            "if (res.id) { pm.collectionVariables.set('checkId', res.id); }"
+          ] } } ]
+        },
+        {
+          "name": "My status",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/my-status", "host": ["{{baseUrl}}"], "path": ["background-checks", "my-status"] }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 my-status', function () { pm.response.to.have.status(200); });"
+          ] } } ]
+        },
+        {
+          "name": "Upload certificate (PDF)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/{{checkId}}/upload-document", "host": ["{{baseUrl}}"], "path": ["background-checks", "{{checkId}}", "upload-document"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "certificate", "type": "file", "src": [] },
+                { "key": "certificateNumber", "type": "text", "value": "ABC-12345" }
+              ]
+            }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const res = pm.response.json();",
+            "pm.test('200 upload', function () { pm.response.to.have.status(200); });",
+            "pm.test('status is SUBMITTED', function () { pm.expect(res.status).to.eql('SUBMITTED'); });"
+          ] } } ]
+        },
+        {
+          "name": "My certificate (stream)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/my/certificate/{{checkId}}", "host": ["{{baseUrl}}"], "path": ["background-checks", "my", "certificate", "{{checkId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Background Checks (Admin)",
+      "item": [
+        {
+          "name": "Pending reviews",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/admin/pending", "host": ["{{baseUrl}}"], "path": ["background-checks", "admin", "pending"] }
+          }
+        },
+        {
+          "name": "Review check (approve)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }, { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/admin/{{checkId}}/review", "host": ["{{baseUrl}}"], "path": ["background-checks", "admin", "{{checkId}}", "review"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": \"CLEAN\",\n  \"hasCriminalRecord\": false,\n  \"adminNotes\": \"All good\",\n  \"canWorkWithChildren\": true,\n  \"canWorkWithElderly\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const res = pm.response.json();",
+            "pm.test('200 review', function () { pm.response.to.have.status(200); });",
+            "pm.test('status updated', function () { pm.expect(res.status).to.be.oneOf(['APPROVED','REJECTED']); });"
+          ] } } ]
+        },
+        {
+          "name": "Admin certificate (stream)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/admin/{{checkId}}/certificate", "host": ["{{baseUrl}}"], "path": ["background-checks", "admin", "{{checkId}}", "certificate"] }
+          }
+        },
+        {
+          "name": "User status by ID (admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/status/{{userId}}", "host": ["{{baseUrl}}"], "path": ["background-checks", "status", "{{userId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

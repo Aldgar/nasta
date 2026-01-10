@@ -5,6 +5,9 @@ node_modules
 .pnp
 .pnp.js
 
+# Expo (local state)
+.expo/
+
 # Local env files
 .env
 .env.local
@@ -26,6 +29,23 @@ coverage
 out/
 build
 dist
+
+# Native mobile build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+ios/Pods/
+ios/build/
+ios/DerivedData/
+
+# Server runtime artifacts
+apps/server/uploads/
+apps/server/generated/
+
+# Lockfiles (this repo uses pnpm)
+**/package-lock.json
 
 
 # Debug

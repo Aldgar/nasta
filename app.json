@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "bundleIdentifier": "com.anonymous.cumprido"
+  },
+  "android": {
+    "package": "com.anonymous.cumprido"
+  }
+}

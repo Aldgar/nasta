@@ -1,0 +1,109 @@
+{
+  "info": {
+    "name": "Cumprido Admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Admin management and background-check review endpoints"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/auth/admin/login", "host": ["{{baseUrl}}"], "path": ["auth","admin","login"]},
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password123!\"\n}"}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.environment.set('adminAuthToken', res.accessToken || '');",
+                  "if (res.admin && res.admin.id) { pm.environment.set('adminId', res.admin.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Profile",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{adminAuthToken}}"}],
+            "url": {"raw": "{{baseUrl}}/auth/admin/profile", "host": ["{{baseUrl}}"], "path": ["auth","admin","profile"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Management",
+      "item": [
+        {
+          "name": "Create Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{adminAuthToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/auth/admin/create", "host": ["{{baseUrl}}"], "path": ["auth","admin","create"]},
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"ops@example.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Ops\",\n  \"lastName\": \"Admin\",\n  \"adminCapabilities\": [\"BACKGROUND_CHECK_REVIEWER\",\"SUPPORT\"]\n}"}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.admin && res.admin.id) { pm.environment.set('targetAdminId', res.admin.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Capabilities",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{adminAuthToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/auth/admin/{{targetAdminId}}/capabilities", "host": ["{{baseUrl}}"], "path": ["auth","admin","{{targetAdminId}}","capabilities"]},
+            "body": {"mode": "raw", "raw": "{\n  \"adminCapabilities\": [\"SUPER_ADMIN\",\"BACKGROUND_CHECK_REVIEWER\",\"DELETION_REQUEST_REVIEWER\"]\n}"}
+          }
+        },
+        {
+          "name": "List Admins",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{adminAuthToken}}"}],
+            "url": {"raw": "{{baseUrl}}/auth/admin/list", "host": ["{{baseUrl}}"], "path": ["auth","admin","list"]}
+          }
+        },
+        {
+          "name": "Delete Admin",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{adminAuthToken}}"}],
+            "url": {"raw": "{{baseUrl}}/auth/admin/{{targetAdminId}}/delete", "host": ["{{baseUrl}}"], "path": ["auth","admin","{{targetAdminId}}","delete"]}
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:3001"},
+    {"key": "adminAuthToken", "value": ""},
+    {"key": "adminId", "value": ""},
+    {"key": "targetAdminId", "value": ""}
+  ]
+}

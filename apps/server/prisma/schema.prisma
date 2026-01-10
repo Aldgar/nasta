@@ -1,0 +1,1144 @@
+// This is Cumprido Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// User model - supports job seekers, employers, and admins
+model User {
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  publicId           String? @default(cuid())
+  email              String  @unique
+  password           String
+  firstName          String
+  lastName           String
+  language           String?
+  phone              String?
+  avatar             String?
+  // Stripe Connect
+  connectedAccountId String?
+  stripeCustomerId   String? // For employers (paying users)
+
+  role              UserRole          @default(JOB_SEEKER)
+  adminCapabilities AdminCapability[]
+
+  // Profile information
+  bio         String?
+  location    String?
+  country     String?
+  city        String?
+  coordinates Float[] // [latitude, longitude] for geo-search
+
+  // Basic verification
+  isVerified Boolean @default(false)
+  isActive   Boolean @default(true)
+
+  // Email/Phone verification timestamps
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+
+  // Push notification token
+  pushToken         String?
+  pushTokenPlatform String? // 'ios' | 'android' | 'web'
+
+  // Background Check Status
+  isBackgroundVerified  Boolean                @default(false)
+  backgroundCheckStatus BackgroundCheckStatus  @default(PENDING)
+  backgroundCheckResult BackgroundCheckResult?
+  backgroundCheckExpiry DateTime?
+  canWorkWithChildren   Boolean                @default(false)
+  canWorkWithElderly    Boolean                @default(false)
+  canWorkGeneralJobs    Boolean                @default(true)
+
+  // ID Verification fields
+  isIdVerified         Boolean              @default(false)
+  idVerificationStatus IdVerificationStatus @default(PENDING)
+  idVerificationData   Json? // Store verification details
+
+  // Business verification (for employers)
+  isBusinessVerified         Boolean                    @default(false)
+  businessVerificationStatus BusinessVerificationStatus @default(PENDING)
+  businessVerificationData   Json?
+
+  // Legal document acceptance (required for Stripe Connect and platform compliance)
+  termsAcceptedAt        DateTime?
+  privacyAcceptedAt      DateTime?
+  platformRulesAcceptedAt DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Company relation
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?  @db.ObjectId
+
+  // Job seeker relations
+  skills           UserSkill[]
+  appliedJobs      Application[]
+  bookedJobs       Booking[]     @relation("BookingJobSeeker")
+  employerBookings Booking[]     @relation("BookingEmployer")
+  reviewsGiven     Review[]      @relation("ReviewGiver")
+  reviewsReceived  Review[]      @relation("ReviewReceiver")
+  jobCompletionRatings JobCompletionRating[] @relation("JobCompletionRatingRater")
+
+  // Employer relations
+  postedJobs     Job[]
+  referralsGiven JobReferral[] @relation("JobReferralEmployer")
+
+  // Candidate relations (for referrals)
+  referralsReceived JobReferral[] @relation("JobReferralCandidate")
+
+  // Verification relations
+  backgroundChecks      BackgroundCheck[]
+  idVerifications       IdVerification[]
+  businessVerifications BusinessVerification[]
+
+  deletionRequests         DeletionRequest[]
+  verificationTokens       VerificationToken[]
+  notifications            Notification[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages             Message[]                 @relation("MessageSender")
+  timesheetEntries         TimesheetEntry[]
+  availabilities           Availability[]
+  supportTickets           SupportTicket[]
+
+  // Profiles (1:1)
+  userProfile     UserProfile?
+  employerProfile EmployerProfile?
+
+  @@map("users")
+}
+
+// --- Profiles (separate collections) ---
+// Note: User still contains some profile fields for backwards compatibility.
+// These dedicated profile collections will be the canonical place for rich profile data going forward.
+
+model UserProfile {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Presentation
+  bio       String?
+  headline  String?
+  avatarUrl String?
+
+  // Address
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String?
+  lat          Float?
+  lng          Float?
+
+  // Date of birth (for Stripe Connect verification)
+  dateOfBirth DateTime?
+
+  // Optional summary of skills for quick display (authoritative skills remain in UserSkill)
+  skillsSummary String[]
+
+  // Social / external links
+  links Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+model EmployerProfile {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  employerId String @unique @db.ObjectId
+  employer   User   @relation(fields: [employerId], references: [id], onDelete: Cascade)
+
+  // Company-facing presentation (complements Company model when present)
+  contactName String?
+  description String?
+  logoUrl     String?
+  website     String?
+
+  // Address (required for employer verification policy)
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String?
+  lat          Float?
+  lng          Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employer_profiles")
+}
+
+model AdminProfile {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  adminId String @unique @db.ObjectId
+  admin   Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  bio       String?
+  avatarUrl String?
+  contact   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_profiles")
+}
+
+// Platform administrators (separate collection)
+model Admin {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  email             String            @unique
+  password          String
+  firstName         String
+  lastName          String
+  isActive          Boolean           @default(true)
+  adminCapabilities AdminCapability[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile (1:1)
+  profile AdminProfile?
+
+  @@map("admins")
+}
+
+// GDPR Account Deletion Requests
+model DeletionRequest {
+  id         String                @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String                @db.ObjectId
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason     String?
+  status     DeletionRequestStatus @default(PENDING)
+  adminNotes String?
+  reviewedBy String?               @db.ObjectId
+  reviewedAt DateTime?
+
+  // Assignment routing
+  assignedTo         String?          @db.ObjectId
+  assignedCapability AdminCapability?
+  assignedAt         DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("deletion_requests")
+}
+
+// Support Tickets model
+model SupportTicket {
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId String? @db.ObjectId // Optional - can be anonymous
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Ticket details
+  ticketNumber String  @unique // Human-readable ticket number (e.g., TKT-2025-001234)
+  subject      String
+  message      String
+  category     SupportCategory @default(GENERAL)
+  priority     SupportPriority @default(NORMAL)
+  status       SupportStatus   @default(OPEN)
+
+  // Admin assignment
+  assignedTo         String?          @db.ObjectId
+  assignedCapability AdminCapability?
+  assignedAt         DateTime?
+
+  // Resolution
+  resolvedBy String?   @db.ObjectId
+  resolvedAt DateTime?
+  resolution String?
+  adminNotes String?
+
+  // Metadata
+  email     String? // For anonymous submissions
+  name      String? // For anonymous submissions
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("support_tickets")
+}
+
+// Company/Organization model
+model Company {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  industry    String?
+  size        CompanySize?
+  website     String?
+  logo        String?
+
+  // Location
+  location    String?
+  country     String?
+  city        String?
+  coordinates Float[] // [latitude, longitude]
+
+  // Verification
+  isVerified Boolean @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  employees User[]
+  jobs      Job[]
+
+  @@map("companies")
+}
+
+// Job Categories (Tech, Manual Labor, Services, etc.)
+model JobCategory {
+  id                    String  @id @default(auto()) @map("_id") @db.ObjectId
+  name                  String  @unique
+  description           String?
+  icon                  String?
+  color                 String?
+  isActive              Boolean @default(true)
+  requiresDriverLicense Boolean @default(false)
+
+  // Hierarchy support
+  parentId String?       @db.ObjectId
+  parent   JobCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children JobCategory[] @relation("CategoryHierarchy")
+
+  // Relations
+  jobs   Job[]
+  skills Skill[]
+
+  @@map("job_categories")
+}
+
+// Skills model
+model Skill {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  name        String     @unique
+  description String?
+  level       SkillLevel @default(BEGINNER)
+
+  // Relations
+  category   JobCategory @relation(fields: [categoryId], references: [id])
+  categoryId String      @db.ObjectId
+  users      UserSkill[]
+  jobs       JobSkill[]
+
+  @@map("skills")
+}
+
+// User skills with proficiency level
+model UserSkill {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  proficiency SkillLevel @default(BEGINNER)
+  yearsExp    Int?
+
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String @db.ObjectId
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillId String @db.ObjectId
+
+  @@unique([userId, skillId])
+  @@map("user_skills")
+}
+
+// Jobs model - supports all types of work
+model Job {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  description      String
+  requirements     String[] // Array of requirements
+  responsibilities String[] // Array of responsibilities
+
+  // Job details
+  type     JobType    @default(FULL_TIME)
+  workMode WorkMode   @default(ON_SITE)
+  urgency  JobUrgency @default(NORMAL)
+  status   JobStatus  @default(ACTIVE)
+
+  // Compensation
+  salaryMin   Float?
+  salaryMax   Float?
+  currency    String      @default("EUR")
+  paymentType PaymentType @default(MONTHLY)
+  // Optional explicit rate in minor units (e.g., cents). If null, use salary ranges as guidance.
+  rateAmount  Int?
+
+  // Location
+  location    String
+  country     String
+  city        String
+  coordinates Float[] // [latitude, longitude]
+  isRemote    Boolean @default(false)
+
+  // Timing
+  startDate DateTime?
+  endDate   DateTime?
+  duration  String? // "2 hours", "1 week", "permanent"
+
+  // Quick booking (Uber-style)
+  isInstantBook Boolean @default(false)
+  maxApplicants Int?
+
+  // Deletion reason (if job was deleted)
+  deletionReason String?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
+
+  // Relations
+  employer   User        @relation(fields: [employerId], references: [id])
+  employerId String      @db.ObjectId
+  company    Company?    @relation(fields: [companyId], references: [id])
+  companyId  String?     @db.ObjectId
+  category   JobCategory @relation(fields: [categoryId], references: [id])
+  categoryId String      @db.ObjectId
+
+  skills       JobSkill[]
+  applications Application[]
+  bookings     Booking[]
+  referrals    JobReferral[]
+
+  @@map("jobs")
+}
+
+// Job required skills
+model JobSkill {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  isRequired Boolean    @default(true)
+  minLevel   SkillLevel @default(BEGINNER)
+
+  job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId   String @db.ObjectId
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillId String @db.ObjectId
+
+  @@unique([jobId, skillId])
+  @@map("job_skills")
+}
+
+// Applications model
+model Application {
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  coverLetter      String?
+  cvUrl            String?
+  proposedRate     Float?
+  currency         String?
+  status           ApplicationStatus @default(PENDING)
+  withdrawalReason String? // Reason for withdrawing application
+
+  // Interview details (stored as JSON for flexibility)
+  interviewDetails Json? // { dateTime: string, meetingProvider?: string, meetingLink?: string, message?: string }
+
+  // Payment for this application (one-to-many: one payment can have multiple applications for additional payments)
+  paymentId String?  @db.ObjectId
+  payment   Payment? @relation("ApplicationPayments", fields: [paymentId], references: [id])
+
+  // Additional rate requests from service provider
+  additionalRateRequests Json? // Array of { id: string, rates: Array<{rate: number, paymentType: string, otherSpecification?: string}>, totalAmount: number, status: 'PENDING' | 'APPROVED' | 'REJECTED', requestedAt: string, respondedAt?: string, message?: string }
+  
+  // Negotiation requests from employer (suggesting lower rates)
+  negotiationRequests Json? // Array of { id: string, rates: Array<{rate: number, paymentType: string, otherSpecification?: string}>, totalAmount: number, status: 'PENDING' | 'ACCEPTED' | 'REJECTED', suggestedAt: string, respondedAt?: string, message: string, responseMessage?: string }
+  
+  // Additional time requests (employer requests more time, service provider responds with days needed)
+  additionalTimeRequests Json? // Array of { id: string, requestedBy: 'EMPLOYER' | 'JOB_SEEKER', message: string, status: 'PENDING' | 'PENDING_EMPLOYER_APPROVAL' | 'ACCEPTED' | 'REJECTED', requestedAt: string, additionalDays?: number, explanation?: string, respondedAt?: string, employerResponseAt?: string, employerResponseMessage?: string }
+  
+  // Selected rates by employer (before payment)
+  selectedRates Json? // Array of { rate: number, paymentType: string, otherSpecification?: string } - stored temporarily before payment
+
+  // Service verification code (4-digit code for employer to share with service provider)
+  verificationCode String? // 4-digit code generated when application is accepted
+  verificationCodeVerifiedAt DateTime? // When service provider verified the code (service started)
+  verificationCodeLastVerifiedAt DateTime? // Latest time the verification code was verified (includes re-verifications)
+
+  // Verification code versioning (post-acceptance scope changes)
+  verificationCodeVersion Int @default(1)
+  verificationCodeVerifiedVersion Int? // The latest verificationCodeVersion verified by the service provider
+  pendingVerificationCodeVersion Int? // Next code version to activate after outstanding post-acceptance payments are completed
+  pendingVerificationCodeLockMode String? // 'SOFT' | 'HARD'
+
+  // Timestamps
+  appliedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime? // When the job was marked as complete by employer
+  serviceProviderMarkedDoneAt DateTime? // When the service provider marked the job as done
+
+  // Relations
+  applicant   User         @relation(fields: [applicantId], references: [id])
+  applicantId String       @db.ObjectId
+  job         Job          @relation(fields: [jobId], references: [id])
+  jobId       String       @db.ObjectId
+  referral    JobReferral? // If this application was created from a referral
+  completionRatings JobCompletionRating[] // Ratings after job completion
+
+  @@unique([applicantId, jobId])
+  @@map("applications")
+}
+
+// Job Referrals model - tracks when employers refer candidates to jobs
+model JobReferral {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  employerId  String @db.ObjectId
+  employer    User   @relation("JobReferralEmployer", fields: [employerId], references: [id])
+  candidateId String @db.ObjectId
+  candidate   User   @relation("JobReferralCandidate", fields: [candidateId], references: [id])
+  jobId       String @db.ObjectId
+  job         Job    @relation(fields: [jobId], references: [id])
+
+  // Application created from this referral (if any)
+  applicationId String?      @unique @db.ObjectId
+  application   Application? @relation(fields: [applicationId], references: [id])
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employerId, candidateId, jobId])
+  @@index([candidateId, jobId])
+  @@map("job_referrals")
+}
+
+// Booking model (Uber-style instant job matching)
+model Booking {
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  status           BookingStatus @default(PENDING)
+  startTime        DateTime?
+  endTime          DateTime?
+  actualRate       Float?
+  currency         String?
+  // Agreed terms at acceptance (frozen)
+  agreedPayUnit    PaymentType?
+  agreedRateAmount Int?
+  agreedCurrency   String?
+  // Optional title/notes for direct bookings
+  title            String?
+  notes            String?
+
+  // Timestamps
+  bookedAt    DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  // Relations
+  jobSeeker   User    @relation("BookingJobSeeker", fields: [jobSeekerId], references: [id])
+  jobSeekerId String  @db.ObjectId
+  // For marketplace jobs (existing flow)
+  job         Job?    @relation(fields: [jobId], references: [id])
+  jobId       String? @db.ObjectId
+  // For direct bookings (employer -> seeker without a Job)
+  employer    User?   @relation("BookingEmployer", fields: [employerId], references: [id])
+  employerId  String? @db.ObjectId
+
+  // Payment hold/capture flow
+  holdIntentId     String?
+  holdAmount       Int?
+  capturedAmount   Int?
+  capturedAt       DateTime?
+  approvedUnits    Int? // e.g., hours/days; used to calculate final amount
+  finalAmount      Int?
+  // Stripe transfer tracking
+  stripeTransferId String? // Stripe transfer ID for tracking payouts
+  payoutStatus     String? // 'pending' | 'paid' | 'failed' | null
+  payoutDate       DateTime? // When funds were paid out to service provider
+  timesheetEntries TimesheetEntry[]
+
+  @@map("bookings")
+}
+
+// Availability slots for job seekers
+model Availability {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @db.ObjectId
+  start       DateTime
+  end         DateTime
+  timezone    String?
+  isRecurring Boolean  @default(false)
+  rrule       String? // Optional iCal RRULE for recurrence
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, start, end])
+  @@map("availabilities")
+}
+
+// Reviews model
+model Review {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  rating  Int // 1-5 stars
+  comment String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  reviewer   User   @relation("ReviewGiver", fields: [reviewerId], references: [id])
+  reviewerId String @db.ObjectId
+  reviewee   User   @relation("ReviewReceiver", fields: [revieweeId], references: [id])
+  revieweeId String @db.ObjectId
+
+  @@map("reviews")
+}
+
+// Job Completion Rating model - Uber/Bolt style ratings after job completion
+model JobCompletionRating {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String   @db.ObjectId
+  application  Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  // Who is rating (employer or service provider)
+  raterId      String   @db.ObjectId
+  rater        User     @relation("JobCompletionRatingRater", fields: [raterId], references: [id])
+  
+  // Ratings (1-5 stars)
+  platformRating      Int // Rating for the platform
+  easeOfServiceRating  Int? // For employers: How easy was the service to use
+  otherPartyRating     Int // For employers: Service provider rating, For service providers: Employer rating
+  
+  // Optional feedback
+  platformComment      String?
+  easeOfServiceComment String?
+  otherPartyComment    String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([applicationId, raterId]) // One rating per application per user
+  @@index([applicationId])
+  @@index([raterId])
+  @@map("job_completion_ratings")
+}
+
+// Background Check model for Portuguese criminal records
+model BackgroundCheck {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Portuguese Certificate Details
+  certificateType   PortugueseCertificateType @default(INDIVIDUAL)
+  certificateNumber String? // Official Portuguese certificate number
+  issuedDate        DateTime? // When Portuguese authorities issued it
+  expiryDate        DateTime? // Portuguese certificates expire after 3 months
+
+  // Document Management  
+  uploadedDocument String? // Secure file URL/path to uploaded PDF
+
+  // Process Status
+  status            BackgroundCheckStatus  @default(PENDING)
+  overallResult     BackgroundCheckResult?
+  hasCriminalRecord Boolean? // Does person have criminal records?
+
+  // Admin Review
+  verifiedBy        String?   @db.ObjectId // Admin who verified
+  verifiedAt        DateTime?
+  rejectionReason   String? // If rejected, specific reason
+  adminNotes        String? // Internal admin notes
+  // Consent tracking
+  consentAcceptedAt DateTime?
+  consentVersion    String?
+  consentTextHash   String?
+
+  // Assignment routing
+  assignedTo         String?          @db.ObjectId
+  assignedCapability AdminCapability?
+  assignedAt         DateTime?
+
+  // Timestamps
+  submittedAt DateTime? // When user submitted document
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("background_checks")
+}
+
+// ID Verification model
+model IdVerification {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Verification details
+  verificationType  IdVerificationType
+  status            IdVerificationStatus @default(PENDING)
+  provider          String? // "onfido", "jumio", "veriff", etc.
+  providerReference String? // External provider's reference ID
+
+  // Document details
+  documentType    DocumentType?
+  documentNumber  String?
+  documentCountry String?
+  documentExpiry  DateTime?
+
+  // Verification results
+  confidence    Float? // 0-1 confidence score
+  fraudChecks   Json? // Fraud detection results
+  faceMatch     Float? // Face matching score
+  livenessCheck Boolean?
+
+  // File references
+  documentFrontUrl String?
+  documentBackUrl  String?
+  selfieUrl        String?
+
+  // Certifications (JSON array: [{ url: string, status: string, uploadedAt: DateTime }])
+  certifications Json?
+
+  // CV documents (JSON array: [{ url: string, status: string, uploadedAt: DateTime }])
+  cvDocuments Json?
+
+  // Individual document statuses (JSON: { documentFront: 'APPROVED'|'REJECTED'|'PENDING', documentBack: ..., selfie: ..., certifications: [...], cvDocuments: [...] })
+  documentStatuses Json?
+
+  // Metadata
+  ipAddress         String?
+  userAgent         String?
+  deviceInfo        Json?
+  // Consent tracking
+  consentAcceptedAt DateTime?
+  consentVersion    String?
+  consentTextHash   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("id_verifications")
+}
+
+// Business Verification model (for employers)
+model BusinessVerification {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Business details
+  businessName       String
+  businessType       BusinessType
+  taxId              String?
+  registrationNumber String?
+  businessAddress    Json?
+
+  // Verification details
+  status            BusinessVerificationStatus @default(PENDING)
+  provider          String?
+  providerReference String?
+
+  // Document references
+  businessLicenseUrl  String?
+  taxDocumentUrl      String?
+  incorporationUrl    String?
+  representativeIdUrl String?
+
+  // Verification results
+  businessVerified       Boolean @default(false)
+  taxIdVerified          Boolean @default(false)
+  addressVerified        Boolean @default(false)
+  representativeVerified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("business_verifications")
+}
+
+// Enums
+enum UserRole {
+  JOB_SEEKER
+  EMPLOYER
+  ADMIN // kept for backward-compatibility; not used in User when Admin model is present
+}
+
+enum CompanySize {
+  STARTUP // 1-10
+  SMALL // 11-50
+  MEDIUM // 51-200
+  LARGE // 201-1000
+  ENTERPRISE // 1000+
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERNSHIP
+  FREELANCE
+  GIG
+}
+
+enum WorkMode {
+  ON_SITE
+  REMOTE
+  HYBRID
+}
+
+enum JobUrgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  ASSIGNED
+  COMPLETED
+  PAUSED
+  CLOSED
+  EXPIRED
+}
+
+enum PaymentType {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  PROJECT
+}
+
+// Timesheet entries for hourly calculation
+model TimesheetEntry {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId          String    @db.ObjectId
+  booking            Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId             String    @db.ObjectId
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clockIn            DateTime
+  clockOut           DateTime?
+  approvedByEmployer Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([bookingId])
+  @@map("timesheet_entries")
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  SHORTLISTED
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum BackgroundCheckStatus {
+  PENDING // User hasn't submitted document yet
+  SUBMITTED // Document uploaded, waiting for admin review
+  UNDER_REVIEW // Admin is currently reviewing
+  APPROVED // Clean record, approved for platform
+  REJECTED // Has disqualifying records or invalid document
+  EXPIRED // Certificate expired, needs renewal
+}
+
+enum BackgroundCheckResult {
+  CLEAN // No criminal records found
+  HAS_RECORDS // Has criminal records but may be acceptable
+  DISQUALIFYING // Has records that disqualify from platform
+  INVALID_DOCUMENT // Document is fake/invalid
+}
+
+enum PortugueseCertificateType {
+  INDIVIDUAL // Basic individual certificate
+  ENHANCED // Enhanced individual certificate
+}
+
+enum IdVerificationStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  FAILED
+  EXPIRED
+  MANUAL_REVIEW
+}
+
+enum BusinessVerificationStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  FAILED
+  MANUAL_REVIEW
+}
+
+enum IdVerificationType {
+  GOVERNMENT_ID
+  PASSPORT
+  DRIVERS_LICENSE
+  NATIONAL_ID
+  RESIDENCE_PERMIT
+}
+
+enum DocumentType {
+  DRIVERS_LICENSE
+  PASSPORT
+  NATIONAL_ID
+  RESIDENCE_PERMIT
+}
+
+enum BusinessType {
+  CORPORATION
+  LLC
+  PARTNERSHIP
+  SOLE_PROPRIETORSHIP
+  NON_PROFIT
+}
+
+enum DeletionRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum AdminCapability {
+  SUPER_ADMIN
+  BACKGROUND_CHECK_REVIEWER
+  DELETION_REQUEST_REVIEWER
+  SUPPORT
+}
+
+enum SupportCategory {
+  GENERAL
+  TECHNICAL
+  BILLING
+  VERIFICATION
+  ACCOUNT
+  REPORT
+  ABUSE
+  SECURITY
+  EMPLOYER_SURVEY
+  PROVIDER_SURVEY
+}
+
+enum SupportPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// Verification tokens (email and phone OTP)
+model VerificationToken {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      VerificationType
+  token     String           @unique
+  expiresAt DateTime
+  consumed  Boolean          @default(false)
+  payload   Json?
+  createdAt DateTime         @default(now())
+
+  @@map("verification_tokens")
+}
+
+enum VerificationType {
+  EMAIL
+  PHONE
+  PASSWORD_RESET
+  EMAIL_CHANGE
+}
+
+// In-app notifications for users
+model Notification {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String           @db.ObjectId
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String?
+  body      String?
+  payload   Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  NEARBY_JOB
+  JOB_MESSAGE
+  APPLICATION_UPDATE
+  SYSTEM
+  LEGAL_ACTION
+  WARNING
+  ACTION_FORM
+}
+
+// Payments for Stripe integration
+enum StripePaymentType {
+  CHECKOUT_SESSION
+  PAYMENT_INTENT
+  SUBSCRIPTION
+}
+
+enum PaymentStatusDb {
+  CREATED
+  REQUIRES_ACTION
+  SUCCEEDED
+  CANCELED
+  FAILED
+}
+
+model Payment {
+  id                    String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String?           @db.ObjectId
+  type                  StripePaymentType
+  status                PaymentStatusDb   @default(CREATED)
+  amount                Int?
+  currency              String?
+  stripePaymentIntentId String?
+  stripeSessionId       String?
+  stripeSubscriptionId  String?
+  metadata              Json?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relation to Application (for job application payments) - one-to-many for additional payments
+  applications Application[] @relation("ApplicationPayments")
+
+  @@map("payments")
+}
+
+// Newsfeed posts (announcements, job updates)
+model FeedPost {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  authorType   FeedAuthorType
+  authorUserId String?        @db.ObjectId
+  jobId        String?        @db.ObjectId
+  title        String?
+  body         String
+  visibility   FeedVisibility @default(ALL)
+  // Optional rich content and attachments
+  attachments  String[]
+  rich         Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("feed_posts")
+}
+
+enum FeedAuthorType {
+  ADMIN
+  EMPLOYER
+  SYSTEM
+}
+
+enum FeedVisibility {
+  ALL
+  JOB_SEEKERS
+  EMPLOYERS
+}
+
+// Reactions to feed posts (e.g., acknowledge)
+model FeedReaction {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String           @db.ObjectId
+  userId    String           @db.ObjectId
+  type      FeedReactionType @default(ACK)
+  createdAt DateTime         @default(now())
+
+  @@unique([postId, userId, type])
+  @@map("feed_reactions")
+}
+
+enum FeedReactionType {
+  ACK
+}
+
+// Chat/conversation scaffolding
+model Conversation {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  type        ConversationType
+  title       String?
+  jobId       String?          @db.ObjectId
+  createdById String           @db.ObjectId
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String          @db.ObjectId
+  conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String          @db.ObjectId
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           ParticipantRole
+  joinedAt       DateTime        @default(now())
+  leftAt         DateTime?
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String           @db.ObjectId
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUserId   String?          @db.ObjectId
+  sender         User?            @relation(name: "MessageSender", fields: [senderUserId], references: [id])
+  senderRole     ParticipantRole?
+  body           String
+  payload        Json?
+  createdAt      DateTime         @default(now())
+
+  @@map("messages")
+}
+
+enum ConversationType {
+  SUPPORT
+  JOB
+}
+
+enum ParticipantRole {
+  ADMIN
+  EMPLOYER
+  JOB_SEEKER
+  BOT
+}

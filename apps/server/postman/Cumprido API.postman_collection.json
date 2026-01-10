@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "Cumprido API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Background Checks",
+      "item": [
+        {
+          "name": "Initiate (User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/background-checks/initiate", "host": ["{{baseUrl}}"], "path": ["background-checks", "initiate"] }
+          }
+        },
+        {
+          "name": "Upload Document (User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "certificate", "type": "file", "src": [] },
+                { "key": "certificateNumber", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/background-checks/:checkId/upload-document", "host": ["{{baseUrl}}"], "path": ["background-checks", ":checkId", "upload-document"] }
+          }
+        },
+        {
+          "name": "Admin Reviews (Scoped)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/background-checks/admin/reviews?scope=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["background-checks", "admin", "reviews"],
+              "query": [ { "key": "scope", "value": "all" } ]
+            }
+          }
+        },
+        {
+          "name": "Assign Review (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/admin/:checkId/assign", "host": ["{{baseUrl}}"], "path": ["background-checks", "admin", ":checkId", "assign"] }
+          }
+        },
+        {
+          "name": "Unassign Review (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/background-checks/admin/:checkId/unassign", "host": ["{{baseUrl}}"], "path": ["background-checks", "admin", ":checkId", "unassign"] }
+          }
+        },
+        {
+          "name": "Review Approve/Reject (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": \"CLEAN\",\n  \"hasCriminalRecord\": false,\n  \"adminNotes\": \"Looks good\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/background-checks/admin/:checkId/review", "host": ["{{baseUrl}}"], "path": ["background-checks", "admin", ":checkId", "review"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deletion Requests",
+      "item": [
+        {
+          "name": "Request Deletion (User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"GDPR account deletion\"\n}" },
+            "url": { "raw": "{{baseUrl}}/users/me/deletion-request", "host": ["{{baseUrl}}"], "path": ["users", "me", "deletion-request"] }
+          }
+        },
+        {
+          "name": "List Requests (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/admin/users/deletion-requests?scope=all&status=PENDING", "host": ["{{baseUrl}}"], "path": ["admin", "users", "deletion-requests"], "query": [ {"key":"scope","value":"all"}, {"key":"status","value":"PENDING"} ] }
+          }
+        },
+        {
+          "name": "Assign (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/admin/users/deletion-requests/:id/assign", "host": ["{{baseUrl}}"], "path": ["admin", "users", "deletion-requests", ":id", "assign"] }
+          }
+        },
+        {
+          "name": "Unassign (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{adminToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/admin/users/deletion-requests/:id/unassign", "host": ["{{baseUrl}}"], "path": ["admin", "users", "deletion-requests", ":id", "unassign"] }
+          }
+        },
+        {
+          "name": "Approve (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Approved by reviewer\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/users/deletion-requests/:id/approve", "host": ["{{baseUrl}}"], "path": ["admin", "users", "deletion-requests", ":id", "approve"] }
+          }
+        },
+        {
+          "name": "Deny (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Insufficient info\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/users/deletion-requests/:id/deny", "host": ["{{baseUrl}}"], "path": ["admin", "users", "deletion-requests", ":id", "deny"] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" },
+    { "key": "userToken", "value": "" },
+    { "key": "adminToken", "value": "" }
+  ]
+}

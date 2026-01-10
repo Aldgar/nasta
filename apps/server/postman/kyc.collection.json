@@ -1,0 +1,294 @@
+{
+  "info": {
+    "name": "KYC ID Verification",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "8e673f7d-2d7b-4f8f-94a0-kyc-tests"
+  },
+  "item": [
+    {
+      "name": "User Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/user/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "user", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201/200', function(){ pm.expect(pm.response.code).to.be.within(200,201) });",
+              "const json = pm.response.json();",
+              "pm.expect(json).to.have.property('accessToken');",
+              "pm.environment.set('userAuthToken', json.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Initiate KYC",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{userAuthToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/initiate",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "initiate"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"verificationType\": \"{{verificationType}}\",\n  \"consent\": { \n    \"accepted\": true, \n    \"version\": \"1\" \n  }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201/200', function(){ pm.expect(pm.response.code).to.be.within(200,201) });",
+              "const json = pm.response.json();",
+              "pm.expect(json).to.have.property('id');",
+              "pm.environment.set('verificationId', json.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Initiate Driver License KYC",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{userAuthToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/initiate",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "initiate"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"verificationType\": \"DRIVERS_LICENSE\",\n  \"consent\": { \n    \"accepted\": true, \n    \"version\": \"1\" \n  }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201/200', function(){ pm.expect(pm.response.code).to.be.within(200,201) });",
+              "const json = pm.response.json();",
+              "pm.expect(json).to.have.property('id');",
+              "pm.environment.set('verificationId', json.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload Driver License (front/back)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{userAuthToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/{{verificationId}}/upload",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "{{verificationId}}", "upload"]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "documentFront", "type": "file", "src": [] },
+            { "key": "documentBack", "type": "file", "src": [] }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200) });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload KYC Documents (manual file selection)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{userAuthToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/{{verificationId}}/upload",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "{{verificationId}}", "upload"]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "documentFront", "type": "file", "src": [] },
+            { "key": "documentBack", "type": "file", "src": [] },
+            { "key": "selfie", "type": "file", "src": [] }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200) });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "My KYC Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{userAuthToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/my-status",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "my-status"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200) });",
+              "const json = pm.response.json();",
+              "pm.expect(json).to.have.property('user');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/admin/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "admin", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.be.within(200,201) });",
+              "const json = pm.response.json();",
+              "pm.expect(json).to.have.property('accessToken');",
+              "pm.environment.set('adminAuthToken', json.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin: List KYC Queue",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/admin/list",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "admin", "list"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200) });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin: Review (VERIFY)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminAuthToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/kyc/admin/{{verificationId}}/review",
+          "host": ["{{baseUrl}}"],
+          "path": ["kyc", "admin", "{{verificationId}}", "review"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"VERIFIED\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200) });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" },
+    { "key": "userEmail", "value": "user@example.com" },
+    { "key": "userPassword", "value": "password123" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "password123" },
+    { "key": "verificationType", "value": "DRIVERS_LICENSE" }
+  ]
+}
