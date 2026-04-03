@@ -57,7 +57,6 @@ COPY --from=build /repo/apps/server/dist ./apps/server/dist
 
 # Ensure uploads directory exists (served at /uploads/)
 RUN mkdir -p /repo/apps/server/uploads
-VOLUME ["/repo/apps/server/uploads"]
 
 WORKDIR /repo/apps/server
 EXPOSE 3001
