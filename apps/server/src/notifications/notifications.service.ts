@@ -84,7 +84,7 @@ export class NotificationsService {
   }
 
   private buildVerifyEmailRedirectLink(token: string): string {
-    const base = this.getClientUrl();
+    const base = this.getServerPublicUrl();
     const url = new URL('/verify-email', base);
     url.searchParams.set('token', token);
     return url.toString();

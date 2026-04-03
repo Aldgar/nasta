@@ -874,10 +874,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 4,
     paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    minHeight: 48,
+    minHeight: 56,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -887,7 +888,8 @@ const styles = StyleSheet.create({
   toggleActive: {},
   toggleText: {
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: "center",
   },
   button: {
     borderRadius: 4,
