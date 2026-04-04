@@ -350,15 +350,11 @@ export default function KycCapture() {
   const pickImage = async (
     setter: (doc: DocumentInfo) => void,
     useCamera = true,
+    useFrontCamera = false,
   ) => {
-    // Check if we're in a simulator/emulator (camera not available)
+    // Only treat as simulator on iOS when Constants.isDevice is explicitly false
     const isSimulator =
-      (Platform.OS === "ios" &&
-        (!Constants.isDevice || Constants.deviceName?.includes("Simulator"))) ||
-      (Platform.OS === "android" &&
-        (Constants.deviceName?.includes("emulator") ||
-          Constants.deviceName?.includes("sdk") ||
-          Constants.deviceName?.includes("Emulator")));
+      Platform.OS === "ios" && Constants.isDevice === false;
 
     // If camera is requested but we're in a simulator, automatically use file picker
     if (useCamera && isSimulator) {
@@ -375,7 +371,23 @@ export default function KycCapture() {
     }
 
     if (perm.status !== "granted") {
-      Alert.alert(t("kyc.permissionRequired"), t("kyc.pleaseAllowAccess"));
+      // If permanently denied, guide user to settings
+      if (!perm.canAskAgain) {
+        Alert.alert(
+          t("kyc.permissionRequired"),
+          t("kyc.pleaseAllowAccess") +
+            "\n\n" +
+            (useCamera
+              ? "Please go to Settings and enable Camera access for Nasta."
+              : "Please go to Settings and enable Photo Library access for Nasta."),
+          [
+            { text: t("common.cancel"), style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ],
+        );
+      } else {
+        Alert.alert(t("kyc.permissionRequired"), t("kyc.pleaseAllowAccess"));
+      }
       return;
     }
 
@@ -387,6 +399,9 @@ export default function KycCapture() {
           allowsEditing: false,
           exif: false,
           base64: false,
+          cameraType: useFrontCamera
+            ? ImagePicker.CameraType.front
+            : ImagePicker.CameraType.back,
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
@@ -1229,7 +1244,9 @@ export default function KycCapture() {
             <View style={styles.row}>
               <TouchableOpacity
                 style={styles.button}
-                onPress={() => pickImage(setter, true)}
+                onPress={() =>
+                  pickImage(setter, true, documentType === "selfie")
+                }
               >
                 <Text style={styles.buttonLabel}>{t("kyc.useCamera")}</Text>
               </TouchableOpacity>
