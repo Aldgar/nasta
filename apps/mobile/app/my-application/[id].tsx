@@ -10,6 +10,8 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -1031,6 +1033,10 @@ export default function MyApplicationDetailScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <Stack.Screen
           options={{
             headerShown: false,
@@ -1064,6 +1070,7 @@ export default function MyApplicationDetailScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Job Information Card */}
           <View
@@ -1809,13 +1816,29 @@ export default function MyApplicationDetailScreen() {
 
                     return (
                       <View key={`selected-${idx}`} style={styles.summaryRow}>
-                        <Text
-                          style={[styles.summaryText, { color: textColor }]}
-                        >
-                          €{rate.rate}/{paymentTypeLabel}
-                          {isPaid && ` ✓ ${t("applications.paid")}`}
-                          {isUnpaid && ` (${t("applications.unpaid")})`}
-                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[styles.summaryText, { color: textColor }]}
+                          >
+                            €{rate.rate}/{paymentTypeLabel}
+                            {isPaid && ` ✓ ${t("applications.paid")}`}
+                            {isUnpaid && ` (${t("applications.unpaid")})`}
+                          </Text>
+                          {rate.description ? (
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                marginTop: 2,
+                                lineHeight: 16,
+                                color: isDark
+                                  ? "rgba(255,250,240,0.5)"
+                                  : "#8A7B68",
+                              }}
+                            >
+                              {rate.description}
+                            </Text>
+                          ) : null}
+                        </View>
                       </View>
                     );
                   })}
@@ -3234,6 +3257,7 @@ export default function MyApplicationDetailScreen() {
             setNegotiationRequestMessage("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -3630,6 +3654,7 @@ export default function MyApplicationDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Negotiation Respond Modal */}
@@ -3639,6 +3664,7 @@ export default function MyApplicationDetailScreen() {
           transparent={true}
           onRequestClose={() => setShowNegotiationRespondModal(false)}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -3789,6 +3815,7 @@ export default function MyApplicationDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Counter Offer Modal */}
@@ -3803,6 +3830,7 @@ export default function MyApplicationDetailScreen() {
             setSelectedNegotiationId(null);
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback
               onPress={() => {
@@ -4136,6 +4164,7 @@ export default function MyApplicationDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Service Verification Code Modal */}
@@ -4148,6 +4177,7 @@ export default function MyApplicationDetailScreen() {
             setVerificationCode("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={{
               flex: 1,
@@ -4393,6 +4423,7 @@ export default function MyApplicationDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Respond to Additional Time Request Modal */}
@@ -4407,6 +4438,7 @@ export default function MyApplicationDetailScreen() {
             setAdditionalTimeExplanation("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -4605,7 +4637,9 @@ export default function MyApplicationDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
   );

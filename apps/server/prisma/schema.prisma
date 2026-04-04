@@ -118,6 +118,7 @@ model User {
   employerProfile EmployerProfile?
 
   noShowRecords NoShowRecord[]
+  vehicles      Vehicle[]
 
   @@map("users")
 }
@@ -401,6 +402,10 @@ model Job {
   // Quick booking (Uber-style)
   isInstantBook Boolean @default(false)
   maxApplicants Int?
+
+  // Employer-declared job requirements
+  requiresVehicle       Boolean @default(false)
+  requiresDriverLicense Boolean @default(false)
 
   // Deletion reason (if job was deleted)
   deletionReason String?
@@ -1176,4 +1181,53 @@ model NoShowRecord {
 enum NoShowSeverity {
   WARNING
   PENALTY
+}
+
+// Vehicle verification for service providers (transport, moving, delivery, etc.)
+model Vehicle {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  vehicleType            VehicleType
+  otherTypeSpecification String?
+  make                   String
+  model                  String
+  year                   Int
+  color                  String?
+  licensePlate           String
+  capacity               String? // e.g. "2 tons", "Large van"
+
+  // 4 vehicle photos + vehicle registration document
+  photoFrontUrl     String?
+  photoBackUrl      String?
+  photoLeftUrl      String?
+  photoRightUrl     String?
+  vehicleLicenseUrl String?
+
+  // Verification
+  status     VehicleVerificationStatus @default(PENDING)
+  adminNotes String?
+  reviewedBy String?                   @db.ObjectId
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("vehicles")
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  CAR
+  MOTORCYCLE
+  OTHER
+}
+
+enum VehicleVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
 }

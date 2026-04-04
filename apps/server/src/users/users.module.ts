@@ -5,9 +5,10 @@ import { AdminDashboardController } from './admin-dashboard.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ConfigModule } from '@nestjs/config';
+import { VehiclesModule } from '../vehicles/vehicles.module';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, ConfigModule],
+  imports: [PrismaModule, NotificationsModule, ConfigModule, VehiclesModule],
   controllers: [
     UsersController,
     AdminUsersController,

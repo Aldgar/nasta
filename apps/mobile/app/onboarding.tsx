@@ -2978,6 +2978,10 @@ export default function OnboardingScreen() {
           setOtherInputValue("");
         }}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <View
           style={[
             styles.modalOverlay,
@@ -3074,6 +3078,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Skill Selection Modal */}
@@ -3083,6 +3088,10 @@ export default function OnboardingScreen() {
         animationType="slide"
         onRequestClose={() => setShowSkillSelectModal(false)}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <View
           style={[
             styles.modalOverlay,
@@ -3195,6 +3204,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Custom Skill Modal */}
@@ -3207,6 +3217,10 @@ export default function OnboardingScreen() {
           setCustomSkillInput("");
         }}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <View
           style={[
             styles.modalOverlay,
@@ -3293,6 +3307,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </GradientBackground>
   );

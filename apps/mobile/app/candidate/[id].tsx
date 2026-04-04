@@ -80,9 +80,23 @@ interface Candidate {
   hourlyRate?: number; // Keep for backward compatibility
   rates?: Array<{
     rate: number;
+    description?: string;
     paymentType: string;
     otherSpecification?: string;
   }>;
+  vehicles?: Array<{
+    id: string;
+    vehicleType: string;
+    otherTypeSpecification?: string;
+    make: string;
+    model: string;
+    year: number;
+    color?: string;
+    capacity?: number;
+    photoFrontUrl?: string;
+  }>;
+  hasVerifiedVehicle?: boolean;
+  hasVerifiedDriversLicense?: boolean;
   // Verification statuses
   isIdVerified?: boolean;
   idVerificationStatus?: string;
@@ -837,12 +851,27 @@ export default function CandidateProfileScreen() {
                       : rate.paymentType.charAt(0) +
                         rate.paymentType.slice(1).toLowerCase();
                   return (
-                    <Text
-                      key={index}
-                      style={[styles.hourlyRate, { color: colors.tint }]}
-                    >
-                      €{rate.rate}/{paymentTypeLabel}
-                    </Text>
+                    <View key={index} style={styles.rateItem}>
+                      <Text
+                        style={[styles.hourlyRate, { color: colors.tint }]}
+                      >
+                        €{rate.rate}/{paymentTypeLabel}
+                      </Text>
+                      {rate.description ? (
+                        <Text
+                          style={[
+                            styles.rateDescription,
+                            {
+                              color: isDark
+                                ? "rgba(255,250,240,0.6)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {rate.description}
+                        </Text>
+                      ) : null}
+                    </View>
                   );
                 })}
               </View>
@@ -963,6 +992,131 @@ export default function CandidateProfileScreen() {
                   </View>
                 )}
               </View>
+            </View>
+          )}
+
+          {/* Vehicles */}
+          {candidate.vehicles && candidate.vehicles.length > 0 && (
+            <View
+              style={[
+                styles.section,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.85)"
+                    : "#FFFAF0",
+                  borderWidth: isDark ? 1 : 0,
+                  borderColor: isDark
+                    ? "rgba(255,250,240,0.12)"
+                    : "transparent",
+                },
+              ]}
+            >
+              <View style={styles.sectionHeader}>
+                <Feather name="truck" size={20} color={colors.tint} />
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  {t("vehicles.vehicleVerification")}
+                </Text>
+              </View>
+              {candidate.vehicles.map((vehicle, idx) => (
+                <View
+                  key={vehicle.id || idx}
+                  style={[
+                    styles.vehicleCard,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(201, 150, 63, 0.1)"
+                        : "rgba(201, 150, 63, 0.05)",
+                      borderColor: isDark
+                        ? "rgba(201, 150, 63, 0.3)"
+                        : "rgba(201, 150, 63, 0.2)",
+                      marginBottom:
+                        idx < candidate.vehicles!.length - 1 ? 12 : 0,
+                    },
+                  ]}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Feather
+                      name="truck"
+                      size={18}
+                      color={colors.tint}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text
+                      style={[styles.vehicleCardTitle, { color: colors.text }]}
+                    >
+                      {vehicle.make} {vehicle.model} ({vehicle.year})
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.vehicleCardDetail,
+                      { color: isDark ? "rgba(240,232,213,0.7)" : "#8A7B68" },
+                    ]}
+                  >
+                    {t(`vehicles.type.${vehicle.vehicleType}`)}
+                    {vehicle.otherTypeSpecification
+                      ? ` – ${vehicle.otherTypeSpecification}`
+                      : ""}
+                  </Text>
+                  {vehicle.color && (
+                    <Text
+                      style={[
+                        styles.vehicleCardDetail,
+                        {
+                          color: isDark ? "rgba(240,232,213,0.7)" : "#8A7B68",
+                        },
+                      ]}
+                    >
+                      {t("vehicles.color")}: {vehicle.color}
+                    </Text>
+                  )}
+                  {vehicle.capacity != null && (
+                    <Text
+                      style={[
+                        styles.vehicleCardDetail,
+                        {
+                          color: isDark ? "rgba(240,232,213,0.7)" : "#8A7B68",
+                        },
+                      ]}
+                    >
+                      {t("vehicles.capacity")}: {vehicle.capacity}
+                    </Text>
+                  )}
+                  {candidate.hasVerifiedVehicle && (
+                    <View
+                      style={[
+                        styles.verificationBadge,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(16, 185, 129, 0.15)"
+                            : "rgba(16, 185, 129, 0.1)",
+                          borderColor: isDark
+                            ? "rgba(16, 185, 129, 0.3)"
+                            : "rgba(16, 185, 129, 0.2)",
+                          marginTop: 10,
+                          alignSelf: "flex-start",
+                        },
+                      ]}
+                    >
+                      <Feather name="check-circle" size={14} color={colors.tint} />
+                      <Text
+                        style={[
+                          styles.verificationText,
+                          { color: colors.tint },
+                        ]}
+                      >
+                        {t("vehicles.statusVerified")}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
             </View>
           )}
 
@@ -2179,15 +2333,21 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   ratesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    flexDirection: "column",
+    gap: 12,
     marginTop: 8,
+  },
+  rateItem: {
+    gap: 2,
   },
   hourlyRate: {
     fontSize: 18,
     fontWeight: "700",
-    marginTop: 8,
+  },
+  rateDescription: {
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
   },
   experienceItem: {
     marginTop: 12,
@@ -2381,6 +2541,21 @@ const styles = StyleSheet.create({
   verificationText: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  vehicleCard: {
+    borderRadius: 4,
+    padding: 14,
+    borderWidth: 1,
+  },
+  vehicleCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    flex: 1,
+  },
+  vehicleCardDetail: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 2,
   },
   modalOverlay: {
     flex: 1,

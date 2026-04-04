@@ -243,7 +243,7 @@ export default function UserDetailScreen() {
       }
     } catch (error) {
       console.error("Error fetching user details:", error);
-      Alert.alert("Error", "Failed to connect to server");
+      Alert.alert(t("common.error"), t("common.failedToConnectToServer"));
       router.back();
     } finally {
       setLoading(false);
@@ -286,7 +286,7 @@ export default function UserDetailScreen() {
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      Alert.alert("Error", "Failed to connect to server");
+      Alert.alert(t("common.error"), t("common.failedToConnectToServer"));
     } finally {
       setDeleting(false);
       setShowDeleteModal(false);
@@ -347,7 +347,7 @@ export default function UserDetailScreen() {
       }
     } catch (error) {
       console.error("Error sending request:", error);
-      Alert.alert("Error", "Failed to connect to server");
+      Alert.alert(t("common.error"), t("common.failedToConnectToServer"));
     } finally {
       setSendingRequest(false);
     }
@@ -398,7 +398,7 @@ export default function UserDetailScreen() {
       }
     } catch (error) {
       console.error("Error submitting legal action:", error);
-      Alert.alert("Error", "Failed to connect to server");
+      Alert.alert(t("common.error"), t("common.failedToConnectToServer"));
     } finally {
       setSubmittingLegalAction(false);
     }
@@ -449,7 +449,7 @@ export default function UserDetailScreen() {
       }
     } catch (error) {
       console.error("Error issuing warning:", error);
-      Alert.alert("Error", "Failed to connect to server");
+      Alert.alert(t("common.error"), t("common.failedToConnectToServer"));
     } finally {
       setSubmittingWarning(false);
     }
@@ -500,7 +500,7 @@ export default function UserDetailScreen() {
       }
     } catch (error) {
       console.error("Error submitting action form:", error);
-      Alert.alert("Error", "Failed to connect to server");
+      Alert.alert(t("common.error"), t("common.failedToConnectToServer"));
     } finally {
       setSubmittingActionForm(false);
     }

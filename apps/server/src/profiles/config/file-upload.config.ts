@@ -1,5 +1,9 @@
+import * as path from 'path';
+
+const baseUploads = process.env.UPLOADS_DIR || 'uploads';
+
 export const profileUploadConfig = {
-  uploadPath: 'uploads/profiles',
+  uploadPath: path.join(baseUploads, 'profiles'),
   maxFileSize: 5 * 1024 * 1024, // 5MB
   allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
   allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp'],

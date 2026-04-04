@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import GradientBackground from "../components/GradientBackground";
+import VehicleVerificationSection from "../components/VehicleVerificationSection";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as SecureStore from "expo-secure-store";
@@ -353,8 +354,7 @@ export default function KycCapture() {
     useFrontCamera = false,
   ) => {
     // Only treat as simulator on iOS when Constants.isDevice is explicitly false
-    const isSimulator =
-      Platform.OS === "ios" && Constants.isDevice === false;
+    const isSimulator = Platform.OS === "ios" && Constants.isDevice === false;
 
     // If camera is requested but we're in a simulator, automatically use file picker
     if (useCamera && isSimulator) {
@@ -1312,1089 +1312,1126 @@ export default function KycCapture() {
 
   return (
     <GradientBackground>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={async () => {
-              // Navigate to appropriate home screen based on user role
-              try {
-                const token = await SecureStore.getItemAsync("auth_token");
-                if (token) {
-                  const payload = decodeJwtPayload(token);
-                  if (payload) {
-                    const role = String(payload?.role || "").toUpperCase();
-                    if (role === "EMPLOYER") {
-                      router.push("/employer-home" as any);
-                      return;
-                    } else if (role === "ADMIN") {
-                      router.push("/admin-home" as any);
-                      return;
-                    } else {
-                      router.push("/user-home" as any);
-                      return;
-                    }
-                  }
-                }
-              } catch (err) {
-                console.warn("Error navigating back:", err);
-              }
-              // Fallback: try to go back, or navigate to user-home
-              try {
-                if (router.canGoBack()) {
-                  router.back();
-                } else {
-                  router.push("/user-home" as any);
-                }
-              } catch {
-                // If all else fails, try to navigate to tabs
-                router.push("/(tabs)" as any);
-              }
-            }}
-            style={styles.backButton}
-          >
-            <Feather name="arrow-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.container}>
-            <Text style={styles.title}>{t("kyc.captureYourDocuments")}</Text>
-            <Text style={styles.subtitle}>
-              {t("kyc.uploadDocumentsSubtitle")}
-            </Text>
-
-            {/* ID Type Selection */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>
-                {t("kyc.idType")} <Text style={styles.required}>*</Text>
-              </Text>
-              <TouchableOpacity
-                style={styles.dropdown}
-                onPress={() => {
-                  console.log(
-                    "Dropdown pressed, opening modal. Current state:",
-                    showIdTypeModal,
-                  );
-                  setShowIdTypeModal(true);
-                  console.log("Modal state set to true");
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.dropdownText,
-                    !idType && { color: "rgba(255,250,240,0.5)" },
-                  ]}
-                >
-                  {idType
-                    ? idTypeOptions.find((opt) => opt.value === idType)?.label
-                    : t("kyc.selectIdType")}
-                </Text>
-                <Feather name="chevron-down" size={20} color={colors.text} />
-              </TouchableOpacity>
-
-              {showOtherInput && (
-                <TextInput
-                  style={styles.otherInput}
-                  placeholder={t("kyc.specifyDocumentType")}
-                  placeholderTextColor="rgba(255,250,240,0.5)"
-                  value={otherIdType}
-                  onChangeText={setOtherIdType}
-                />
-              )}
-            </View>
-
-            {/* ID Documents */}
-            {idType && (
-              <>
-                {renderDocumentCard(
-                  t("kyc.frontOfId"),
-                  frontDoc,
-                  setFrontDoc,
-                  true,
-                  "front",
-                )}
-                {shouldShowBackOfId &&
-                  renderDocumentCard(
-                    t("kyc.backOfId"),
-                    backDoc,
-                    setBackDoc,
-                    true,
-                    "back",
-                  )}
-              </>
-            )}
-
-            {/* Selfie */}
-            {renderDocumentCard(
-              t("kyc.selfie"),
-              selfieDoc,
-              setSelfieDoc,
-              true,
-              "selfie",
-            )}
-
-            {/* Driver's License Section (Optional) */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>
-                  {t("kyc.driversLicenseOptional")}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    const newValue = !includeDriversLicense;
-                    setIncludeDriversLicense(newValue);
-                    if (!newValue) {
-                      // Clear documents when toggling off
-                      setDriversLicenseFront({ uri: null, status: null });
-                      setDriversLicenseBack({ uri: null, status: null });
-                    }
-                  }}
-                  style={styles.toggle}
-                >
-                  <View
-                    style={[
-                      styles.toggleTrack,
-                      includeDriversLicense && styles.toggleTrackActive,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.toggleThumb,
-                        includeDriversLicense && styles.toggleThumbActive,
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
-              </View>
-              {includeDriversLicense && (
-                <>
-                  <Text style={[styles.cardText, { marginBottom: 12 }]}>
-                    {t("kyc.driversLicenseDescription")}
-                  </Text>
-                  <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.cardTitle}>
-                        {t("kyc.frontOfDriversLicense")} *
-                      </Text>
-                      {driversLicenseFront.status && (
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor: getStatusColor(
-                                driversLicenseFront.status,
-                              ),
-                            },
-                          ]}
-                        >
-                          <Text style={styles.statusText}>
-                            {getStatusLabel(driversLicenseFront.status)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    {driversLicenseFront.url && !driversLicenseFront.uri ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.previewButton,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(201, 150, 63, 0.25)"
-                              : "rgba(201, 150, 63, 0.15)",
-                            borderColor: isDark
-                              ? "rgba(201, 150, 63, 0.6)"
-                              : "rgba(201, 150, 63, 0.4)",
-                          },
-                        ]}
-                        onPress={() => {
-                          const fullUrl = driversLicenseFront.url?.startsWith(
-                            "http",
-                          )
-                            ? driversLicenseFront.url
-                            : `${getApiBase()}${driversLicenseFront.url?.startsWith("/") ? "" : "/"}${driversLicenseFront.url}`;
-                          setPreviewModal({
-                            visible: true,
-                            uri: fullUrl,
-                            title: t("kyc.frontOfDriversLicense"),
-                            isPdf: false,
-                          });
-                        }}
-                      >
-                        <View style={styles.previewButtonContent}>
-                          <Feather name="eye" size={20} color={colors.tint} />
-                          <Text
-                            style={[
-                              styles.previewButtonText,
-                              { color: colors.tint },
-                            ]}
-                          >
-                            View Uploaded Document
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ) : driversLicenseFront.uri ? (
-                      <Image
-                        source={{ uri: driversLicenseFront.uri }}
-                        style={styles.preview}
-                      />
-                    ) : (
-                      <Text style={styles.cardText}>
-                        {t("kyc.noDocumentUploaded")}
-                      </Text>
-                    )}
-                    <View style={styles.row}>
-                      <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => pickImage(setDriversLicenseFront, true)}
-                      >
-                        <Text style={styles.buttonLabel}>Use Camera</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => pickImage(setDriversLicenseFront, false)}
-                      >
-                        <Text style={styles.buttonLabel}>
-                          {t("kyc.pickFile")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    {(driversLicenseFront.uri ||
-                      (driversLicenseFront.url &&
-                        !driversLicenseFront.uri)) && (
-                      <TouchableOpacity
-                        style={[
-                          styles.button,
-                          styles.buttonPrimary,
-                          styles.uploadButton,
-                          uploadingDocument === "driversLicenseFront" && {
-                            opacity: 0.7,
-                          },
-                        ]}
-                        onPress={() => {
-                          if (driversLicenseFront.uri) {
-                            uploadDriversLicenseDocument("front");
-                          } else {
-                            pickImage(setDriversLicenseFront, false);
-                          }
-                        }}
-                        disabled={uploadingDocument === "driversLicenseFront"}
-                      >
-                        <Text style={styles.buttonLabel}>
-                          {uploadingDocument === "driversLicenseFront"
-                            ? t("kyc.uploading")
-                            : driversLicenseFront.url &&
-                                !driversLicenseFront.uri
-                              ? t("kyc.uploadAnotherDocument")
-                              : t("kyc.upload")}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.cardTitle}>
-                        {t("kyc.backOfDriversLicense")} *
-                      </Text>
-                      {driversLicenseBack.status && (
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor: getStatusColor(
-                                driversLicenseBack.status,
-                              ),
-                            },
-                          ]}
-                        >
-                          <Text style={styles.statusText}>
-                            {getStatusLabel(driversLicenseBack.status)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    {driversLicenseBack.url && !driversLicenseBack.uri ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.previewButton,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(201, 150, 63, 0.25)"
-                              : "rgba(201, 150, 63, 0.15)",
-                            borderColor: isDark
-                              ? "rgba(201, 150, 63, 0.6)"
-                              : "rgba(201, 150, 63, 0.4)",
-                          },
-                        ]}
-                        onPress={() => {
-                          if (!driversLicenseBack.url) return;
-                          const fullUrl =
-                            driversLicenseBack.url.startsWith("http://") ||
-                            driversLicenseBack.url.startsWith("https://")
-                              ? driversLicenseBack.url
-                              : `${getApiBase()}${driversLicenseBack.url.startsWith("/") ? "" : "/"}${driversLicenseBack.url}`;
-                          setPreviewModal({
-                            visible: true,
-                            uri: fullUrl,
-                            title: t("kyc.backOfDriversLicense"),
-                            isPdf: false,
-                          });
-                        }}
-                      >
-                        <View style={styles.previewButtonContent}>
-                          <Feather name="eye" size={20} color={colors.tint} />
-                          <Text
-                            style={[
-                              styles.previewButtonText,
-                              { color: colors.tint },
-                            ]}
-                          >
-                            View Uploaded Document
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ) : driversLicenseBack.uri ? (
-                      <Image
-                        source={{ uri: driversLicenseBack.uri }}
-                        style={styles.preview}
-                      />
-                    ) : (
-                      <Text style={styles.cardText}>
-                        {t("kyc.noDocumentUploaded")}
-                      </Text>
-                    )}
-                    <View style={styles.row}>
-                      <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => pickImage(setDriversLicenseBack, true)}
-                      >
-                        <Text style={styles.buttonLabel}>Use Camera</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => pickImage(setDriversLicenseBack, false)}
-                      >
-                        <Text style={styles.buttonLabel}>
-                          {t("kyc.pickFile")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    {(driversLicenseBack.uri ||
-                      (driversLicenseBack.url && !driversLicenseBack.uri)) && (
-                      <TouchableOpacity
-                        style={[
-                          styles.button,
-                          styles.buttonPrimary,
-                          styles.uploadButton,
-                          uploadingDocument === "driversLicenseBack" && {
-                            opacity: 0.7,
-                          },
-                        ]}
-                        onPress={() => {
-                          if (driversLicenseBack.uri) {
-                            uploadDriversLicenseDocument("back");
-                          } else {
-                            pickImage(setDriversLicenseBack, false);
-                          }
-                        }}
-                        disabled={uploadingDocument === "driversLicenseBack"}
-                      >
-                        <Text style={styles.buttonLabel}>
-                          {uploadingDocument === "driversLicenseBack"
-                            ? t("kyc.uploading")
-                            : driversLicenseBack.url && !driversLicenseBack.uri
-                              ? t("kyc.uploadAnotherDocument")
-                              : t("kyc.upload")}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </>
-              )}
-            </View>
-
-            {/* Criminal Record */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>
-                  {t("kyc.criminalRecordCertificate")}
-                </Text>
-                {criminalRecordDoc.status && (
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor: getStatusColor(
-                          criminalRecordDoc.status,
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text style={styles.statusText}>
-                      {getStatusLabel(criminalRecordDoc.status)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Show preview button if uploaded, otherwise show selection UI */}
-              {criminalRecordDoc.url && !criminalRecordDoc.uri ? (
-                <TouchableOpacity
-                  style={[
-                    styles.previewButton,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.25)"
-                        : "rgba(201, 150, 63, 0.15)",
-                      borderColor: isDark
-                        ? "rgba(201, 150, 63, 0.6)"
-                        : "rgba(201, 150, 63, 0.4)",
-                    },
-                  ]}
-                  onPress={() => {
-                    if (!criminalRecordDoc.url) return;
-                    const fullUrl =
-                      criminalRecordDoc.url.startsWith("http://") ||
-                      criminalRecordDoc.url.startsWith("https://")
-                        ? criminalRecordDoc.url
-                        : `${getApiBase()}${criminalRecordDoc.url.startsWith("/") ? "" : "/"}${criminalRecordDoc.url}`;
-                    setPreviewModal({
-                      visible: true,
-                      uri: fullUrl,
-                      title: t("kyc.criminalRecordCertificate"),
-                      isPdf: true,
-                    });
-                  }}
-                >
-                  <View style={styles.previewButtonContent}>
-                    <Feather name="file-text" size={20} color={colors.tint} />
-                    <Text
-                      style={[styles.previewButtonText, { color: colors.tint }]}
-                    >
-                      View Uploaded Document
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ) : criminalRecordDoc.uri ? (
-                <Text style={styles.cardText}>
-                  {t("kyc.pdfDocumentSelected")}
-                </Text>
-              ) : (
-                <Text style={styles.cardText}>
-                  {t("kyc.noDocumentUploaded")}
-                </Text>
-              )}
-
-              <View style={styles.row}>
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={() => pickDocument(setCriminalRecordDoc)}
-                >
-                  <Text style={styles.buttonLabel}>{t("kyc.pickPdfFile")}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Upload Button for Criminal Record */}
-              {(criminalRecordDoc.uri ||
-                (criminalRecordDoc.url && !criminalRecordDoc.uri)) && (
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    styles.buttonPrimary,
-                    styles.uploadButton,
-                    uploadingDocument === "criminalRecord" && { opacity: 0.7 },
-                  ]}
-                  onPress={() => {
-                    if (criminalRecordDoc.uri) {
-                      uploadCriminalRecord();
-                    } else {
-                      // If already uploaded, allow selecting new document
-                      pickDocument(setCriminalRecordDoc);
-                    }
-                  }}
-                  disabled={uploadingDocument === "criminalRecord"}
-                >
-                  <Text style={styles.buttonLabel}>
-                    {uploadingDocument === "criminalRecord"
-                      ? t("kyc.uploading")
-                      : criminalRecordDoc.url && !criminalRecordDoc.uri
-                        ? t("kyc.uploadAnotherDocument")
-                        : t("kyc.uploadCriminalRecord")}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Certifications Section */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{t("kyc.certifications")}</Text>
-              </View>
-              <Text style={[styles.cardText, { marginBottom: 12 }]}>
-                {t("kyc.certificationsDescription")}
-              </Text>
-
-              {certifications.map((cert, index) => (
-                <View
-                  key={index}
-                  style={[styles.card, { marginBottom: 12, marginTop: 0 }]}
-                >
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>
-                      {t("kyc.certification")} {index + 1}
-                    </Text>
-                    {cert.status && (
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          { backgroundColor: getStatusColor(cert.status) },
-                        ]}
-                      >
-                        <Text style={styles.statusText}>
-                          {getStatusLabel(cert.status)}
-                        </Text>
-                      </View>
-                    )}
-                    {certifications.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => removeCertification(index)}
-                        style={styles.removeButton}
-                      >
-                        <Feather name="trash-2" size={18} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {cert.url && !cert.uri ? (
-                    <TouchableOpacity
-                      style={[
-                        styles.previewButton,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(201, 150, 63, 0.25)"
-                            : "rgba(201, 150, 63, 0.15)",
-                          borderColor: isDark
-                            ? "rgba(201, 150, 63, 0.6)"
-                            : "rgba(201, 150, 63, 0.4)",
-                        },
-                      ]}
-                      onPress={() => {
-                        if (!cert.url) return;
-                        const fullUrl =
-                          cert.url.startsWith("http://") ||
-                          cert.url.startsWith("https://")
-                            ? cert.url
-                            : `${getApiBase()}${cert.url.startsWith("/") ? "" : "/"}${cert.url}`;
-                        setPreviewModal({
-                          visible: true,
-                          uri: fullUrl,
-                          title: `${t("kyc.certification")} ${index + 1}`,
-                          isPdf: true,
-                        });
-                      }}
-                    >
-                      <View style={styles.previewButtonContent}>
-                        <Feather
-                          name="file-text"
-                          size={20}
-                          color={colors.tint}
-                        />
-                        <Text
-                          style={[
-                            styles.previewButtonText,
-                            { color: colors.tint },
-                          ]}
-                        >
-                          View Uploaded Document
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ) : cert.uri ? (
-                    <Text style={styles.cardText}>
-                      {t("kyc.pdfDocumentSelected")}
-                    </Text>
-                  ) : (
-                    <Text style={styles.cardText}>
-                      {t("kyc.noDocumentUploaded")}
-                    </Text>
-                  )}
-
-                  <View style={styles.row}>
-                    <TouchableOpacity
-                      style={styles.button}
-                      onPress={() => {
-                        const updated = [...certifications];
-                        pickDocument((doc) => {
-                          updated[index] = doc;
-                          setCertifications(updated);
-                        });
-                      }}
-                    >
-                      <Text style={styles.buttonLabel}>
-                        {t("kyc.pickPdfFile")}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {(cert.uri || (cert.url && !cert.uri)) && (
-                    <TouchableOpacity
-                      style={[
-                        styles.button,
-                        styles.buttonPrimary,
-                        styles.uploadButton,
-                        uploadingDocument === `certification-${index}` && {
-                          opacity: 0.7,
-                        },
-                      ]}
-                      onPress={() => {
-                        if (cert.uri) {
-                          uploadCertification(index);
-                        } else {
-                          pickDocument((doc) => {
-                            const updated = [...certifications];
-                            updated[index] = doc;
-                            setCertifications(updated);
-                          });
-                        }
-                      }}
-                      disabled={uploadingDocument === `certification-${index}`}
-                    >
-                      <Text style={styles.buttonLabel}>
-                        {uploadingDocument === `certification-${index}`
-                          ? t("kyc.uploading")
-                          : cert.url && !cert.uri
-                            ? t("kyc.uploadAnotherDocument")
-                            : t("kyc.uploadCertification")}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSecondary]}
-                onPress={addCertification}
-              >
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={colors.tint}
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={[styles.buttonLabel, { color: colors.tint }]}>
-                  {t("kyc.addAnotherCertification")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* CV Documents Section */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{t("kyc.cvResume")}</Text>
-              </View>
-              <Text style={[styles.cardText, { marginBottom: 12 }]}>
-                {t("kyc.cvResumeDescription")}
-              </Text>
-
-              {cvDocuments.map((cv, index) => (
-                <View
-                  key={index}
-                  style={[styles.card, { marginBottom: 12, marginTop: 0 }]}
-                >
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>CV {index + 1}</Text>
-                    {cv.status && (
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          { backgroundColor: getStatusColor(cv.status) },
-                        ]}
-                      >
-                        <Text style={styles.statusText}>
-                          {getStatusLabel(cv.status)}
-                        </Text>
-                      </View>
-                    )}
-                    {cvDocuments.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => removeCvDocument(index)}
-                        style={styles.removeButton}
-                      >
-                        <Feather name="trash-2" size={18} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {cv.url && !cv.uri ? (
-                    <TouchableOpacity
-                      style={[
-                        styles.previewButton,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(201, 150, 63, 0.25)"
-                            : "rgba(201, 150, 63, 0.15)",
-                          borderColor: isDark
-                            ? "rgba(201, 150, 63, 0.6)"
-                            : "rgba(201, 150, 63, 0.4)",
-                        },
-                      ]}
-                      onPress={() => {
-                        if (!cv.url) return;
-                        const fullUrl =
-                          cv.url.startsWith("http://") ||
-                          cv.url.startsWith("https://")
-                            ? cv.url
-                            : `${getApiBase()}${cv.url.startsWith("/") ? "" : "/"}${cv.url}`;
-                        setPreviewModal({
-                          visible: true,
-                          uri: fullUrl,
-                          title: `${t("kyc.cv")} ${index + 1}`,
-                          isPdf: true,
-                        });
-                      }}
-                    >
-                      <View style={styles.previewButtonContent}>
-                        <Feather
-                          name="file-text"
-                          size={20}
-                          color={colors.tint}
-                        />
-                        <Text
-                          style={[
-                            styles.previewButtonText,
-                            { color: colors.tint },
-                          ]}
-                        >
-                          View Uploaded Document
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ) : cv.uri ? (
-                    <Text style={styles.cardText}>
-                      {t("kyc.pdfDocumentSelected")}
-                    </Text>
-                  ) : (
-                    <Text style={styles.cardText}>
-                      {t("kyc.noDocumentUploaded")}
-                    </Text>
-                  )}
-
-                  <View style={styles.row}>
-                    <TouchableOpacity
-                      style={styles.button}
-                      onPress={() => {
-                        const updated = [...cvDocuments];
-                        pickDocument((doc) => {
-                          updated[index] = doc;
-                          setCvDocuments(updated);
-                        });
-                      }}
-                    >
-                      <Text style={styles.buttonLabel}>
-                        {t("kyc.pickPdfFile")}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {(cv.uri || (cv.url && !cv.uri)) && (
-                    <TouchableOpacity
-                      style={[
-                        styles.button,
-                        styles.buttonPrimary,
-                        styles.uploadButton,
-                        uploadingDocument === `cv-${index}` && { opacity: 0.7 },
-                      ]}
-                      onPress={() => {
-                        if (cv.uri) {
-                          uploadCvDocument(index);
-                        } else {
-                          pickDocument((doc) => {
-                            const updated = [...cvDocuments];
-                            updated[index] = doc;
-                            setCvDocuments(updated);
-                          });
-                        }
-                      }}
-                      disabled={uploadingDocument === `cv-${index}`}
-                    >
-                      <Text style={styles.buttonLabel}>
-                        {uploadingDocument === `cv-${index}`
-                          ? t("kyc.uploading")
-                          : cv.url && !cv.uri
-                            ? t("kyc.uploadAnotherDocument")
-                            : t("kyc.uploadCv")}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSecondary]}
-                onPress={addCvDocument}
-              >
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={colors.tint}
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={[styles.buttonLabel, { color: colors.tint }]}>
-                  {t("kyc.addAnotherCv")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
-
-        {/* Document Preview Modal */}
-        <Modal
-          visible={previewModal.visible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() =>
-            setPreviewModal({
-              visible: false,
-              uri: null,
-              title: "",
-              isPdf: false,
-            })
-          }
-        >
-          <View
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: "rgba(0,0,0,0.95)" },
-            ]}
-          >
-            <SafeAreaView style={{ flex: 1 }}>
-              <View
-                style={[
-                  styles.modalHeader,
-                  { paddingHorizontal: 20, paddingTop: 20 },
-                ]}
-              >
-                <TouchableOpacity
-                  onPress={() =>
-                    setPreviewModal({
-                      visible: false,
-                      uri: null,
-                      title: "",
-                      isPdf: false,
-                    })
-                  }
-                  style={styles.modalBackButton}
-                >
-                  <Feather name="arrow-left" size={24} color="#FFFAF0" />
-                </TouchableOpacity>
-                <Text
-                  style={[
-                    styles.modalTitle,
-                    { color: "#FFFAF0", flex: 1, textAlign: "center" },
-                  ]}
-                >
-                  {previewModal.title}
-                </Text>
-                <TouchableOpacity
-                  onPress={() =>
-                    setPreviewModal({
-                      visible: false,
-                      uri: null,
-                      title: "",
-                      isPdf: false,
-                    })
-                  }
-                  style={styles.modalCloseButton}
-                >
-                  <Feather name="x" size={24} color="#FFFAF0" />
-                </TouchableOpacity>
-              </View>
-              {previewModal.isPdf && previewModal.uri ? (
-                <View style={styles.previewModalContent}>
-                  <View
-                    style={[
-                      styles.pdfPreviewContainer,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.80)"
-                          : "rgba(201,150,63,0.12)",
-                      },
-                    ]}
-                  >
-                    <Feather name="file-text" size={64} color={colors.tint} />
-                    <Text style={[styles.pdfPreviewText, { color: "#FFFAF0" }]}>
-                      {t("kyc.pdfDocument")}
-                    </Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.openPdfButton,
-                        {
-                          backgroundColor: isDark ? "#10B981" : "#059669",
-                          borderWidth: 1,
-                          borderColor: isDark ? "#10B981" : "#059669",
-                        },
-                      ]}
-                      onPress={async () => {
-                        try {
-                          const fullUrl = previewModal.uri?.startsWith("http")
-                            ? previewModal.uri
-                            : `${getApiBase()}${previewModal.uri?.startsWith("/") ? "" : "/"}${previewModal.uri}`;
-                          await Linking.openURL(fullUrl);
-                        } catch (err) {
-                          Alert.alert(
-                            t("common.error"),
-                            t("kyc.couldNotOpenPdf"),
-                          );
-                        }
-                      }}
-                    >
-                      <Feather name="external-link" size={18} color="#FFFAF0" />
-                      <Text style={styles.openPdfButtonText}>
-                        {t("kyc.openPdfInBrowser")}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : previewModal.uri &&
-                (previewModal.uri.startsWith("http://") ||
-                  previewModal.uri.startsWith("https://") ||
-                  previewModal.uri.startsWith("file://") ||
-                  previewModal.uri.startsWith("content://")) ? (
-                <ScrollView
-                  contentContainerStyle={styles.previewModalImageContainer}
-                  maximumZoomScale={3}
-                  minimumZoomScale={1}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  <Image
-                    source={{ uri: previewModal.uri }}
-                    style={styles.previewModalImage}
-                    resizeMode="contain"
-                    onError={(error) => {
-                      console.warn(
-                        "Image load error:",
-                        error.nativeEvent.error,
-                      );
-                    }}
-                  />
-                </ScrollView>
-              ) : previewModal.uri ? (
-                <View style={styles.previewModalImageContainer}>
-                  <Text style={{ color: "#FFFAF0", textAlign: "center" }}>
-                    {t("kyc.invalidImageUri")}
-                  </Text>
-                </View>
-              ) : null}
-
-              {/* Back Button at Bottom */}
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={[
-                    styles.modalBackButtonBottom,
-                    {
-                      backgroundColor: isDark ? "#10B981" : "#059669",
-                      borderWidth: 1,
-                      borderColor: isDark ? "#10B981" : "#059669",
-                    },
-                  ]}
-                  onPress={() =>
-                    setPreviewModal({
-                      visible: false,
-                      uri: null,
-                      title: "",
-                      isPdf: false,
-                    })
-                  }
-                >
-                  <Feather name="arrow-left" size={20} color="#FFFAF0" />
-                  <Text
-                    style={[styles.modalBackButtonText, { color: "#FFFAF0" }]}
-                  >
-                    {t("common.back")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </SafeAreaView>
-          </View>
-        </Modal>
-      </SafeAreaView>
-
-      {/* ID Type Modal - Outside SafeAreaView for proper rendering */}
-      <Modal
-        visible={showIdTypeModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
-          console.log("Modal onRequestClose called");
-          setShowIdTypeModal(false);
-        }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
       >
-        <View style={styles.modalOverlay} pointerEvents="box-none">
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => {
-              console.log("Overlay background pressed, closing modal");
-              setShowIdTypeModal(false);
-            }}
-          />
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: isDark ? "#1A1710" : "#FFFAF0" },
-            ]}
-            pointerEvents="box-none"
-          >
-            <View style={styles.modalHeader} pointerEvents="auto">
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {t("kyc.selectIdType")}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log("Close button pressed");
-                  setShowIdTypeModal(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Feather name="x" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              pointerEvents="auto"
-              keyboardShouldPersistTaps="handled"
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={async () => {
+                // Navigate to appropriate home screen based on user role
+                try {
+                  const token = await SecureStore.getItemAsync("auth_token");
+                  if (token) {
+                    const payload = decodeJwtPayload(token);
+                    if (payload) {
+                      const role = String(payload?.role || "").toUpperCase();
+                      if (role === "EMPLOYER") {
+                        router.push("/employer-home" as any);
+                        return;
+                      } else if (role === "ADMIN") {
+                        router.push("/admin-home" as any);
+                        return;
+                      } else {
+                        router.push("/user-home" as any);
+                        return;
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn("Error navigating back:", err);
+                }
+                // Fallback: try to go back, or navigate to user-home
+                try {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.push("/user-home" as any);
+                  }
+                } catch {
+                  // If all else fails, try to navigate to tabs
+                  router.push("/(tabs)" as any);
+                }
+              }}
+              style={styles.backButton}
             >
-              {idTypeOptions.map((option) => (
+              <Feather name="arrow-left" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.container}>
+              <Text style={styles.title}>{t("kyc.captureYourDocuments")}</Text>
+              <Text style={styles.subtitle}>
+                {t("kyc.uploadDocumentsSubtitle")}
+              </Text>
+
+              {/* ID Type Selection */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>
+                  {t("kyc.idType")} <Text style={styles.required}>*</Text>
+                </Text>
                 <TouchableOpacity
-                  key={option.value}
-                  style={styles.modalOption}
+                  style={styles.dropdown}
                   onPress={() => {
-                    console.log("Option selected:", option.value);
-                    setIdType(option.value);
-                    setShowOtherInput(option.value === "OTHER");
-                    setShowIdTypeModal(false);
+                    console.log(
+                      "Dropdown pressed, opening modal. Current state:",
+                      showIdTypeModal,
+                    );
+                    setShowIdTypeModal(true);
+                    console.log("Modal state set to true");
                   }}
                   activeOpacity={0.7}
                 >
                   <Text
-                    style={[styles.modalOptionText, { color: colors.text }]}
+                    style={[
+                      styles.dropdownText,
+                      !idType && { color: "rgba(255,250,240,0.5)" },
+                    ]}
                   >
-                    {option.label}
+                    {idType
+                      ? idTypeOptions.find((opt) => opt.value === idType)?.label
+                      : t("kyc.selectIdType")}
                   </Text>
-                  {idType === option.value && (
-                    <Feather name="check" size={20} color={colors.tint} />
-                  )}
+                  <Feather name="chevron-down" size={20} color={colors.text} />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+
+                {showOtherInput && (
+                  <TextInput
+                    style={styles.otherInput}
+                    placeholder={t("kyc.specifyDocumentType")}
+                    placeholderTextColor="rgba(255,250,240,0.5)"
+                    value={otherIdType}
+                    onChangeText={setOtherIdType}
+                  />
+                )}
+              </View>
+
+              {/* ID Documents */}
+              {idType && (
+                <>
+                  {renderDocumentCard(
+                    t("kyc.frontOfId"),
+                    frontDoc,
+                    setFrontDoc,
+                    true,
+                    "front",
+                  )}
+                  {shouldShowBackOfId &&
+                    renderDocumentCard(
+                      t("kyc.backOfId"),
+                      backDoc,
+                      setBackDoc,
+                      true,
+                      "back",
+                    )}
+                </>
+              )}
+
+              {/* Selfie */}
+              {renderDocumentCard(
+                t("kyc.selfie"),
+                selfieDoc,
+                setSelfieDoc,
+                true,
+                "selfie",
+              )}
+
+              {/* Driver's License Section (Optional) */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>
+                    {t("kyc.driversLicenseOptional")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const newValue = !includeDriversLicense;
+                      setIncludeDriversLicense(newValue);
+                      if (!newValue) {
+                        // Clear documents when toggling off
+                        setDriversLicenseFront({ uri: null, status: null });
+                        setDriversLicenseBack({ uri: null, status: null });
+                      }
+                    }}
+                    style={styles.toggle}
+                  >
+                    <View
+                      style={[
+                        styles.toggleTrack,
+                        includeDriversLicense && styles.toggleTrackActive,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.toggleThumb,
+                          includeDriversLicense && styles.toggleThumbActive,
+                        ]}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+                {includeDriversLicense && (
+                  <>
+                    <Text style={[styles.cardText, { marginBottom: 12 }]}>
+                      {t("kyc.driversLicenseDescription")}
+                    </Text>
+                    <View style={styles.card}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>
+                          {t("kyc.frontOfDriversLicense")} *
+                        </Text>
+                        {driversLicenseFront.status && (
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              {
+                                backgroundColor: getStatusColor(
+                                  driversLicenseFront.status,
+                                ),
+                              },
+                            ]}
+                          >
+                            <Text style={styles.statusText}>
+                              {getStatusLabel(driversLicenseFront.status)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {driversLicenseFront.url && !driversLicenseFront.uri ? (
+                        <TouchableOpacity
+                          style={[
+                            styles.previewButton,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(201, 150, 63, 0.25)"
+                                : "rgba(201, 150, 63, 0.15)",
+                              borderColor: isDark
+                                ? "rgba(201, 150, 63, 0.6)"
+                                : "rgba(201, 150, 63, 0.4)",
+                            },
+                          ]}
+                          onPress={() => {
+                            const fullUrl = driversLicenseFront.url?.startsWith(
+                              "http",
+                            )
+                              ? driversLicenseFront.url
+                              : `${getApiBase()}${driversLicenseFront.url?.startsWith("/") ? "" : "/"}${driversLicenseFront.url}`;
+                            setPreviewModal({
+                              visible: true,
+                              uri: fullUrl,
+                              title: t("kyc.frontOfDriversLicense"),
+                              isPdf: false,
+                            });
+                          }}
+                        >
+                          <View style={styles.previewButtonContent}>
+                            <Feather name="eye" size={20} color={colors.tint} />
+                            <Text
+                              style={[
+                                styles.previewButtonText,
+                                { color: colors.tint },
+                              ]}
+                            >
+                              View Uploaded Document
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ) : driversLicenseFront.uri ? (
+                        <Image
+                          source={{ uri: driversLicenseFront.uri }}
+                          style={styles.preview}
+                        />
+                      ) : (
+                        <Text style={styles.cardText}>
+                          {t("kyc.noDocumentUploaded")}
+                        </Text>
+                      )}
+                      <View style={styles.row}>
+                        <TouchableOpacity
+                          style={styles.button}
+                          onPress={() =>
+                            pickImage(setDriversLicenseFront, true)
+                          }
+                        >
+                          <Text style={styles.buttonLabel}>Use Camera</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.button}
+                          onPress={() =>
+                            pickImage(setDriversLicenseFront, false)
+                          }
+                        >
+                          <Text style={styles.buttonLabel}>
+                            {t("kyc.pickFile")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {(driversLicenseFront.uri ||
+                        (driversLicenseFront.url &&
+                          !driversLicenseFront.uri)) && (
+                        <TouchableOpacity
+                          style={[
+                            styles.button,
+                            styles.buttonPrimary,
+                            styles.uploadButton,
+                            uploadingDocument === "driversLicenseFront" && {
+                              opacity: 0.7,
+                            },
+                          ]}
+                          onPress={() => {
+                            if (driversLicenseFront.uri) {
+                              uploadDriversLicenseDocument("front");
+                            } else {
+                              pickImage(setDriversLicenseFront, false);
+                            }
+                          }}
+                          disabled={uploadingDocument === "driversLicenseFront"}
+                        >
+                          <Text style={styles.buttonLabel}>
+                            {uploadingDocument === "driversLicenseFront"
+                              ? t("kyc.uploading")
+                              : driversLicenseFront.url &&
+                                  !driversLicenseFront.uri
+                                ? t("kyc.uploadAnotherDocument")
+                                : t("kyc.upload")}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <View style={styles.card}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>
+                          {t("kyc.backOfDriversLicense")} *
+                        </Text>
+                        {driversLicenseBack.status && (
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              {
+                                backgroundColor: getStatusColor(
+                                  driversLicenseBack.status,
+                                ),
+                              },
+                            ]}
+                          >
+                            <Text style={styles.statusText}>
+                              {getStatusLabel(driversLicenseBack.status)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {driversLicenseBack.url && !driversLicenseBack.uri ? (
+                        <TouchableOpacity
+                          style={[
+                            styles.previewButton,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(201, 150, 63, 0.25)"
+                                : "rgba(201, 150, 63, 0.15)",
+                              borderColor: isDark
+                                ? "rgba(201, 150, 63, 0.6)"
+                                : "rgba(201, 150, 63, 0.4)",
+                            },
+                          ]}
+                          onPress={() => {
+                            if (!driversLicenseBack.url) return;
+                            const fullUrl =
+                              driversLicenseBack.url.startsWith("http://") ||
+                              driversLicenseBack.url.startsWith("https://")
+                                ? driversLicenseBack.url
+                                : `${getApiBase()}${driversLicenseBack.url.startsWith("/") ? "" : "/"}${driversLicenseBack.url}`;
+                            setPreviewModal({
+                              visible: true,
+                              uri: fullUrl,
+                              title: t("kyc.backOfDriversLicense"),
+                              isPdf: false,
+                            });
+                          }}
+                        >
+                          <View style={styles.previewButtonContent}>
+                            <Feather name="eye" size={20} color={colors.tint} />
+                            <Text
+                              style={[
+                                styles.previewButtonText,
+                                { color: colors.tint },
+                              ]}
+                            >
+                              View Uploaded Document
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ) : driversLicenseBack.uri ? (
+                        <Image
+                          source={{ uri: driversLicenseBack.uri }}
+                          style={styles.preview}
+                        />
+                      ) : (
+                        <Text style={styles.cardText}>
+                          {t("kyc.noDocumentUploaded")}
+                        </Text>
+                      )}
+                      <View style={styles.row}>
+                        <TouchableOpacity
+                          style={styles.button}
+                          onPress={() => pickImage(setDriversLicenseBack, true)}
+                        >
+                          <Text style={styles.buttonLabel}>Use Camera</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.button}
+                          onPress={() =>
+                            pickImage(setDriversLicenseBack, false)
+                          }
+                        >
+                          <Text style={styles.buttonLabel}>
+                            {t("kyc.pickFile")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {(driversLicenseBack.uri ||
+                        (driversLicenseBack.url &&
+                          !driversLicenseBack.uri)) && (
+                        <TouchableOpacity
+                          style={[
+                            styles.button,
+                            styles.buttonPrimary,
+                            styles.uploadButton,
+                            uploadingDocument === "driversLicenseBack" && {
+                              opacity: 0.7,
+                            },
+                          ]}
+                          onPress={() => {
+                            if (driversLicenseBack.uri) {
+                              uploadDriversLicenseDocument("back");
+                            } else {
+                              pickImage(setDriversLicenseBack, false);
+                            }
+                          }}
+                          disabled={uploadingDocument === "driversLicenseBack"}
+                        >
+                          <Text style={styles.buttonLabel}>
+                            {uploadingDocument === "driversLicenseBack"
+                              ? t("kyc.uploading")
+                              : driversLicenseBack.url &&
+                                  !driversLicenseBack.uri
+                                ? t("kyc.uploadAnotherDocument")
+                                : t("kyc.upload")}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+
+              {/* Criminal Record */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>
+                    {t("kyc.criminalRecordCertificate")}
+                  </Text>
+                  {criminalRecordDoc.status && (
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor: getStatusColor(
+                            criminalRecordDoc.status,
+                          ),
+                        },
+                      ]}
+                    >
+                      <Text style={styles.statusText}>
+                        {getStatusLabel(criminalRecordDoc.status)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Show preview button if uploaded, otherwise show selection UI */}
+                {criminalRecordDoc.url && !criminalRecordDoc.uri ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.previewButton,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(201, 150, 63, 0.25)"
+                          : "rgba(201, 150, 63, 0.15)",
+                        borderColor: isDark
+                          ? "rgba(201, 150, 63, 0.6)"
+                          : "rgba(201, 150, 63, 0.4)",
+                      },
+                    ]}
+                    onPress={() => {
+                      if (!criminalRecordDoc.url) return;
+                      const fullUrl =
+                        criminalRecordDoc.url.startsWith("http://") ||
+                        criminalRecordDoc.url.startsWith("https://")
+                          ? criminalRecordDoc.url
+                          : `${getApiBase()}${criminalRecordDoc.url.startsWith("/") ? "" : "/"}${criminalRecordDoc.url}`;
+                      setPreviewModal({
+                        visible: true,
+                        uri: fullUrl,
+                        title: t("kyc.criminalRecordCertificate"),
+                        isPdf: true,
+                      });
+                    }}
+                  >
+                    <View style={styles.previewButtonContent}>
+                      <Feather name="file-text" size={20} color={colors.tint} />
+                      <Text
+                        style={[
+                          styles.previewButtonText,
+                          { color: colors.tint },
+                        ]}
+                      >
+                        View Uploaded Document
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : criminalRecordDoc.uri ? (
+                  <Text style={styles.cardText}>
+                    {t("kyc.pdfDocumentSelected")}
+                  </Text>
+                ) : (
+                  <Text style={styles.cardText}>
+                    {t("kyc.noDocumentUploaded")}
+                  </Text>
+                )}
+
+                <View style={styles.row}>
+                  <TouchableOpacity
+                    style={styles.button}
+                    onPress={() => pickDocument(setCriminalRecordDoc)}
+                  >
+                    <Text style={styles.buttonLabel}>
+                      {t("kyc.pickPdfFile")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Upload Button for Criminal Record */}
+                {(criminalRecordDoc.uri ||
+                  (criminalRecordDoc.url && !criminalRecordDoc.uri)) && (
+                  <TouchableOpacity
+                    style={[
+                      styles.button,
+                      styles.buttonPrimary,
+                      styles.uploadButton,
+                      uploadingDocument === "criminalRecord" && {
+                        opacity: 0.7,
+                      },
+                    ]}
+                    onPress={() => {
+                      if (criminalRecordDoc.uri) {
+                        uploadCriminalRecord();
+                      } else {
+                        // If already uploaded, allow selecting new document
+                        pickDocument(setCriminalRecordDoc);
+                      }
+                    }}
+                    disabled={uploadingDocument === "criminalRecord"}
+                  >
+                    <Text style={styles.buttonLabel}>
+                      {uploadingDocument === "criminalRecord"
+                        ? t("kyc.uploading")
+                        : criminalRecordDoc.url && !criminalRecordDoc.uri
+                          ? t("kyc.uploadAnotherDocument")
+                          : t("kyc.uploadCriminalRecord")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Certifications Section */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>
+                    {t("kyc.certifications")}
+                  </Text>
+                </View>
+                <Text style={[styles.cardText, { marginBottom: 12 }]}>
+                  {t("kyc.certificationsDescription")}
+                </Text>
+
+                {certifications.map((cert, index) => (
+                  <View
+                    key={index}
+                    style={[styles.card, { marginBottom: 12, marginTop: 0 }]}
+                  >
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.cardTitle}>
+                        {t("kyc.certification")} {index + 1}
+                      </Text>
+                      {cert.status && (
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: getStatusColor(cert.status) },
+                          ]}
+                        >
+                          <Text style={styles.statusText}>
+                            {getStatusLabel(cert.status)}
+                          </Text>
+                        </View>
+                      )}
+                      {certifications.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => removeCertification(index)}
+                          style={styles.removeButton}
+                        >
+                          <Feather name="trash-2" size={18} color="#ef4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {cert.url && !cert.uri ? (
+                      <TouchableOpacity
+                        style={[
+                          styles.previewButton,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(201, 150, 63, 0.25)"
+                              : "rgba(201, 150, 63, 0.15)",
+                            borderColor: isDark
+                              ? "rgba(201, 150, 63, 0.6)"
+                              : "rgba(201, 150, 63, 0.4)",
+                          },
+                        ]}
+                        onPress={() => {
+                          if (!cert.url) return;
+                          const fullUrl =
+                            cert.url.startsWith("http://") ||
+                            cert.url.startsWith("https://")
+                              ? cert.url
+                              : `${getApiBase()}${cert.url.startsWith("/") ? "" : "/"}${cert.url}`;
+                          setPreviewModal({
+                            visible: true,
+                            uri: fullUrl,
+                            title: `${t("kyc.certification")} ${index + 1}`,
+                            isPdf: true,
+                          });
+                        }}
+                      >
+                        <View style={styles.previewButtonContent}>
+                          <Feather
+                            name="file-text"
+                            size={20}
+                            color={colors.tint}
+                          />
+                          <Text
+                            style={[
+                              styles.previewButtonText,
+                              { color: colors.tint },
+                            ]}
+                          >
+                            View Uploaded Document
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : cert.uri ? (
+                      <Text style={styles.cardText}>
+                        {t("kyc.pdfDocumentSelected")}
+                      </Text>
+                    ) : (
+                      <Text style={styles.cardText}>
+                        {t("kyc.noDocumentUploaded")}
+                      </Text>
+                    )}
+
+                    <View style={styles.row}>
+                      <TouchableOpacity
+                        style={styles.button}
+                        onPress={() => {
+                          const updated = [...certifications];
+                          pickDocument((doc) => {
+                            updated[index] = doc;
+                            setCertifications(updated);
+                          });
+                        }}
+                      >
+                        <Text style={styles.buttonLabel}>
+                          {t("kyc.pickPdfFile")}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {(cert.uri || (cert.url && !cert.uri)) && (
+                      <TouchableOpacity
+                        style={[
+                          styles.button,
+                          styles.buttonPrimary,
+                          styles.uploadButton,
+                          uploadingDocument === `certification-${index}` && {
+                            opacity: 0.7,
+                          },
+                        ]}
+                        onPress={() => {
+                          if (cert.uri) {
+                            uploadCertification(index);
+                          } else {
+                            pickDocument((doc) => {
+                              const updated = [...certifications];
+                              updated[index] = doc;
+                              setCertifications(updated);
+                            });
+                          }
+                        }}
+                        disabled={
+                          uploadingDocument === `certification-${index}`
+                        }
+                      >
+                        <Text style={styles.buttonLabel}>
+                          {uploadingDocument === `certification-${index}`
+                            ? t("kyc.uploading")
+                            : cert.url && !cert.uri
+                              ? t("kyc.uploadAnotherDocument")
+                              : t("kyc.uploadCertification")}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+
+                <TouchableOpacity
+                  style={[styles.button, styles.buttonSecondary]}
+                  onPress={addCertification}
+                >
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={colors.tint}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={[styles.buttonLabel, { color: colors.tint }]}>
+                    {t("kyc.addAnotherCertification")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* CV Documents Section */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>{t("kyc.cvResume")}</Text>
+                </View>
+                <Text style={[styles.cardText, { marginBottom: 12 }]}>
+                  {t("kyc.cvResumeDescription")}
+                </Text>
+
+                {cvDocuments.map((cv, index) => (
+                  <View
+                    key={index}
+                    style={[styles.card, { marginBottom: 12, marginTop: 0 }]}
+                  >
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.cardTitle}>CV {index + 1}</Text>
+                      {cv.status && (
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: getStatusColor(cv.status) },
+                          ]}
+                        >
+                          <Text style={styles.statusText}>
+                            {getStatusLabel(cv.status)}
+                          </Text>
+                        </View>
+                      )}
+                      {cvDocuments.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => removeCvDocument(index)}
+                          style={styles.removeButton}
+                        >
+                          <Feather name="trash-2" size={18} color="#ef4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {cv.url && !cv.uri ? (
+                      <TouchableOpacity
+                        style={[
+                          styles.previewButton,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(201, 150, 63, 0.25)"
+                              : "rgba(201, 150, 63, 0.15)",
+                            borderColor: isDark
+                              ? "rgba(201, 150, 63, 0.6)"
+                              : "rgba(201, 150, 63, 0.4)",
+                          },
+                        ]}
+                        onPress={() => {
+                          if (!cv.url) return;
+                          const fullUrl =
+                            cv.url.startsWith("http://") ||
+                            cv.url.startsWith("https://")
+                              ? cv.url
+                              : `${getApiBase()}${cv.url.startsWith("/") ? "" : "/"}${cv.url}`;
+                          setPreviewModal({
+                            visible: true,
+                            uri: fullUrl,
+                            title: `${t("kyc.cv")} ${index + 1}`,
+                            isPdf: true,
+                          });
+                        }}
+                      >
+                        <View style={styles.previewButtonContent}>
+                          <Feather
+                            name="file-text"
+                            size={20}
+                            color={colors.tint}
+                          />
+                          <Text
+                            style={[
+                              styles.previewButtonText,
+                              { color: colors.tint },
+                            ]}
+                          >
+                            View Uploaded Document
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : cv.uri ? (
+                      <Text style={styles.cardText}>
+                        {t("kyc.pdfDocumentSelected")}
+                      </Text>
+                    ) : (
+                      <Text style={styles.cardText}>
+                        {t("kyc.noDocumentUploaded")}
+                      </Text>
+                    )}
+
+                    <View style={styles.row}>
+                      <TouchableOpacity
+                        style={styles.button}
+                        onPress={() => {
+                          const updated = [...cvDocuments];
+                          pickDocument((doc) => {
+                            updated[index] = doc;
+                            setCvDocuments(updated);
+                          });
+                        }}
+                      >
+                        <Text style={styles.buttonLabel}>
+                          {t("kyc.pickPdfFile")}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {(cv.uri || (cv.url && !cv.uri)) && (
+                      <TouchableOpacity
+                        style={[
+                          styles.button,
+                          styles.buttonPrimary,
+                          styles.uploadButton,
+                          uploadingDocument === `cv-${index}` && {
+                            opacity: 0.7,
+                          },
+                        ]}
+                        onPress={() => {
+                          if (cv.uri) {
+                            uploadCvDocument(index);
+                          } else {
+                            pickDocument((doc) => {
+                              const updated = [...cvDocuments];
+                              updated[index] = doc;
+                              setCvDocuments(updated);
+                            });
+                          }
+                        }}
+                        disabled={uploadingDocument === `cv-${index}`}
+                      >
+                        <Text style={styles.buttonLabel}>
+                          {uploadingDocument === `cv-${index}`
+                            ? t("kyc.uploading")
+                            : cv.url && !cv.uri
+                              ? t("kyc.uploadAnotherDocument")
+                              : t("kyc.uploadCv")}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+
+                <TouchableOpacity
+                  style={[styles.button, styles.buttonSecondary]}
+                  onPress={addCvDocument}
+                >
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={colors.tint}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={[styles.buttonLabel, { color: colors.tint }]}>
+                    {t("kyc.addAnotherCv")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+              {/* Vehicle Verification Section (Voluntary) */}
+              <VehicleVerificationSection
+                colors={colors}
+                isDark={isDark}
+                t={t}
+              />
+          </ScrollView>
+
+          {/* Document Preview Modal */}
+          <Modal
+            visible={previewModal.visible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() =>
+              setPreviewModal({
+                visible: false,
+                uri: null,
+                title: "",
+                isPdf: false,
+              })
+            }
+          >
+            <View
+              style={[
+                styles.modalOverlay,
+                { backgroundColor: "rgba(0,0,0,0.95)" },
+              ]}
+            >
+              <SafeAreaView style={{ flex: 1 }}>
+                <View
+                  style={[
+                    styles.modalHeader,
+                    { paddingHorizontal: 20, paddingTop: 20 },
+                  ]}
+                >
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPreviewModal({
+                        visible: false,
+                        uri: null,
+                        title: "",
+                        isPdf: false,
+                      })
+                    }
+                    style={styles.modalBackButton}
+                  >
+                    <Feather name="arrow-left" size={24} color="#FFFAF0" />
+                  </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.modalTitle,
+                      { color: "#FFFAF0", flex: 1, textAlign: "center" },
+                    ]}
+                  >
+                    {previewModal.title}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPreviewModal({
+                        visible: false,
+                        uri: null,
+                        title: "",
+                        isPdf: false,
+                      })
+                    }
+                    style={styles.modalCloseButton}
+                  >
+                    <Feather name="x" size={24} color="#FFFAF0" />
+                  </TouchableOpacity>
+                </View>
+                {previewModal.isPdf && previewModal.uri ? (
+                  <View style={styles.previewModalContent}>
+                    <View
+                      style={[
+                        styles.pdfPreviewContainer,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.80)"
+                            : "rgba(201,150,63,0.12)",
+                        },
+                      ]}
+                    >
+                      <Feather name="file-text" size={64} color={colors.tint} />
+                      <Text
+                        style={[styles.pdfPreviewText, { color: "#FFFAF0" }]}
+                      >
+                        {t("kyc.pdfDocument")}
+                      </Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.openPdfButton,
+                          {
+                            backgroundColor: isDark ? "#10B981" : "#059669",
+                            borderWidth: 1,
+                            borderColor: isDark ? "#10B981" : "#059669",
+                          },
+                        ]}
+                        onPress={async () => {
+                          try {
+                            const fullUrl = previewModal.uri?.startsWith("http")
+                              ? previewModal.uri
+                              : `${getApiBase()}${previewModal.uri?.startsWith("/") ? "" : "/"}${previewModal.uri}`;
+                            await Linking.openURL(fullUrl);
+                          } catch (err) {
+                            Alert.alert(
+                              t("common.error"),
+                              t("kyc.couldNotOpenPdf"),
+                            );
+                          }
+                        }}
+                      >
+                        <Feather
+                          name="external-link"
+                          size={18}
+                          color="#FFFAF0"
+                        />
+                        <Text style={styles.openPdfButtonText}>
+                          {t("kyc.openPdfInBrowser")}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : previewModal.uri &&
+                  (previewModal.uri.startsWith("http://") ||
+                    previewModal.uri.startsWith("https://") ||
+                    previewModal.uri.startsWith("file://") ||
+                    previewModal.uri.startsWith("content://")) ? (
+                  <ScrollView
+                    contentContainerStyle={styles.previewModalImageContainer}
+                    maximumZoomScale={3}
+                    minimumZoomScale={1}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    <Image
+                      source={{ uri: previewModal.uri }}
+                      style={styles.previewModalImage}
+                      resizeMode="contain"
+                      onError={(error) => {
+                        console.warn(
+                          "Image load error:",
+                          error.nativeEvent.error,
+                        );
+                      }}
+                    />
+                  </ScrollView>
+                ) : previewModal.uri ? (
+                  <View style={styles.previewModalImageContainer}>
+                    <Text style={{ color: "#FFFAF0", textAlign: "center" }}>
+                      {t("kyc.invalidImageUri")}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Back Button at Bottom */}
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalBackButtonBottom,
+                      {
+                        backgroundColor: isDark ? "#10B981" : "#059669",
+                        borderWidth: 1,
+                        borderColor: isDark ? "#10B981" : "#059669",
+                      },
+                    ]}
+                    onPress={() =>
+                      setPreviewModal({
+                        visible: false,
+                        uri: null,
+                        title: "",
+                        isPdf: false,
+                      })
+                    }
+                  >
+                    <Feather name="arrow-left" size={20} color="#FFFAF0" />
+                    <Text
+                      style={[styles.modalBackButtonText, { color: "#FFFAF0" }]}
+                    >
+                      {t("common.back")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </SafeAreaView>
+            </View>
+          </Modal>
+        </SafeAreaView>
+
+        {/* ID Type Modal - Outside SafeAreaView for proper rendering */}
+        <Modal
+          visible={showIdTypeModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            console.log("Modal onRequestClose called");
+            setShowIdTypeModal(false);
+          }}
+        >
+          <View style={styles.modalOverlay} pointerEvents="box-none">
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                console.log("Overlay background pressed, closing modal");
+                setShowIdTypeModal(false);
+              }}
+            />
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: isDark ? "#1A1710" : "#FFFAF0" },
+              ]}
+              pointerEvents="box-none"
+            >
+              <View style={styles.modalHeader} pointerEvents="auto">
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {t("kyc.selectIdType")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    console.log("Close button pressed");
+                    setShowIdTypeModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="x" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                pointerEvents="auto"
+                keyboardShouldPersistTaps="handled"
+              >
+                {idTypeOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={styles.modalOption}
+                    onPress={() => {
+                      console.log("Option selected:", option.value);
+                      setIdType(option.value);
+                      setShowOtherInput(option.value === "OTHER");
+                      setShowIdTypeModal(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[styles.modalOptionText, { color: colors.text }]}
+                    >
+                      {option.label}
+                    </Text>
+                    {idType === option.value && (
+                      <Feather name="check" size={20} color={colors.tint} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
       </KeyboardAvoidingView>
     </GradientBackground>
   );

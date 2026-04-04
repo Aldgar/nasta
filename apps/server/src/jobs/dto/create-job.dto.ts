@@ -178,4 +178,12 @@ export class CreateJobDto {
   @IsString()
   @IsIn(['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'FIXED'])
   paymentType?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresVehicle?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresDriverLicense?: boolean;
 }

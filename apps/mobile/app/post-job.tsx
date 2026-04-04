@@ -633,6 +633,11 @@ export default function PostJob() {
   const [newReq, setNewReq] = useState("");
   const [newResp, setNewResp] = useState("");
 
+  // Job requirement flags
+  const [isRestrictedSector, setIsRestrictedSector] = useState(false);
+  const [requiresVehicle, setRequiresVehicle] = useState(false);
+  const [requiresDriverLicense, setRequiresDriverLicense] = useState(false);
+
   // Date/Time states
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -812,6 +817,8 @@ export default function PostJob() {
         payload.currency = currency;
         payload.paymentType = paymentType;
       }
+      if (requiresVehicle) payload.requiresVehicle = true;
+      if (requiresDriverLicense) payload.requiresDriverLicense = true;
       const filteredReqs = requirements.filter((r) => r.trim());
       if (filteredReqs.length > 0) payload.requirements = filteredReqs;
       const filteredResps = responsibilities.filter((r) => r.trim());
@@ -1243,16 +1250,43 @@ export default function PostJob() {
                 style={[
                   styles.input,
                   styles.categoryInput,
-                  { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" },
+                  {
+                    flex: 1,
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
                 ]}
                 onPress={() => {
-                  const currencies = ["EUR", "USD", "GBP", "CHF", "SEK", "NOK", "DKK", "PLN", "CZK"];
+                  const currencies = [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "CHF",
+                    "SEK",
+                    "NOK",
+                    "DKK",
+                    "PLN",
+                    "CZK",
+                  ];
                   const idx = currencies.indexOf(currency);
                   setCurrency(currencies[(idx + 1) % currencies.length]);
                 }}
               >
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>{currency}</Text>
-                <Feather name="refresh-cw" size={14} color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"} />
+                <Text
+                  style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}
+                >
+                  {currency}
+                </Text>
+                <Feather
+                  name="refresh-cw"
+                  size={14}
+                  color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                />
               </TouchableButton>
             </View>
             <TouchableButton
@@ -1585,18 +1619,165 @@ export default function PostJob() {
               </View>
             ))}
 
+            {/* Job Requirements Section */}
+            <View
+              style={[
+                styles.requirementsSection,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(255,250,240,0.04)"
+                    : "rgba(0,0,0,0.02)",
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.15)"
+                    : "rgba(184,130,42,0.2)",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.requirementsSectionTitle,
+                  { color: colors.text },
+                ]}
+              >
+                {t("jobPosting.requirements.title")}
+              </Text>
+
+              {/* Q1: Restricted Sector */}
+              <Text
+                style={[
+                  styles.requirementsQuestion,
+                  { color: isDark ? "rgba(255,250,240,0.8)" : "#4A4335" },
+                ]}
+              >
+                {t("jobPosting.requirements.restrictedSectorQuestion")}
+              </Text>
+              <View style={styles.requirementsToggleRow}>
+                <Switch
+                  value={isRestrictedSector}
+                  onValueChange={setIsRestrictedSector}
+                  trackColor={{
+                    false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
+                    true: "#ef4444",
+                  }}
+                  thumbColor={isRestrictedSector ? "#FFFAF0" : "#f4f3f4"}
+                />
+                <Text
+                  style={[
+                    styles.requirementsToggleLabel,
+                    { color: isRestrictedSector ? "#ef4444" : colors.text },
+                  ]}
+                >
+                  {isRestrictedSector
+                    ? t("jobPosting.requirements.restrictedSectorYes")
+                    : t("common.no")}
+                </Text>
+              </View>
+              {isRestrictedSector && (
+                <View
+                  style={[
+                    styles.restrictedBanner,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(239,68,68,0.15)"
+                        : "rgba(239,68,68,0.08)",
+                      borderColor: isDark
+                        ? "rgba(239,68,68,0.3)"
+                        : "rgba(239,68,68,0.2)",
+                    },
+                  ]}
+                >
+                  <Feather name="alert-triangle" size={18} color="#ef4444" />
+                  <Text
+                    style={[
+                      styles.restrictedBannerText,
+                      { color: isDark ? "#fca5a5" : "#dc2626" },
+                    ]}
+                  >
+                    {t("jobPosting.requirements.restrictedSectorMessage")}
+                  </Text>
+                </View>
+              )}
+
+              {/* Q2: Vehicle / Driving */}
+              {!isRestrictedSector && (
+                <>
+                  <Text
+                    style={[
+                      styles.requirementsQuestion,
+                      {
+                        color: isDark ? "rgba(255,250,240,0.8)" : "#4A4335",
+                        marginTop: 16,
+                      },
+                    ]}
+                  >
+                    {t("jobPosting.requirements.vehicleQuestion")}
+                  </Text>
+                  <View style={styles.requirementsToggleRow}>
+                    <Switch
+                      value={requiresVehicle}
+                      onValueChange={setRequiresVehicle}
+                      trackColor={{
+                        false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
+                        true: isDark ? "#C9963F" : "#B8822A",
+                      }}
+                      thumbColor={requiresVehicle ? "#FFFAF0" : "#f4f3f4"}
+                    />
+                    <Text
+                      style={[
+                        styles.requirementsToggleLabel,
+                        { color: colors.text },
+                      ]}
+                    >
+                      {t("jobPosting.requirements.requiresVehicle")}
+                    </Text>
+                  </View>
+                  <View style={styles.requirementsToggleRow}>
+                    <Switch
+                      value={requiresDriverLicense}
+                      onValueChange={setRequiresDriverLicense}
+                      trackColor={{
+                        false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
+                        true: isDark ? "#C9963F" : "#B8822A",
+                      }}
+                      thumbColor={
+                        requiresDriverLicense ? "#FFFAF0" : "#f4f3f4"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.requirementsToggleLabel,
+                        { color: colors.text },
+                      ]}
+                    >
+                      {t("jobPosting.requirements.requiresDriverLicense")}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+
             <TouchableButton
               style={[
                 styles.submitBtn,
                 {
-                  backgroundColor: isDark ? "#10B981" : "#059669",
-                  borderColor: isDark ? "#10B981" : "#059669",
+                  backgroundColor: isRestrictedSector
+                    ? isDark
+                      ? "rgba(255,250,240,0.1)"
+                      : "#ccc"
+                    : isDark
+                      ? "#10B981"
+                      : "#059669",
+                  borderColor: isRestrictedSector
+                    ? "transparent"
+                    : isDark
+                      ? "#10B981"
+                      : "#059669",
                   shadowColor: isDark ? "#10B981" : "#059669",
                 },
-                loading && styles.submitBtnDisabled,
+                (loading || isRestrictedSector) && styles.submitBtnDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || isRestrictedSector}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFAF0" />
@@ -1886,6 +2067,46 @@ const styles = StyleSheet.create({
   },
   switchSubtext: {
     fontSize: 12,
+  },
+  requirementsSection: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  requirementsSectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  requirementsQuestion: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  requirementsToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  requirementsToggleLabel: {
+    fontSize: 14,
+    flex: 1,
+  },
+  restrictedBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  restrictedBannerText: {
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
   },
   submitBtn: {
     borderRadius: 4,

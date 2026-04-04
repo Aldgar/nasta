@@ -13,7 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Serve static files from uploads directory
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+  const uploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'uploads');
+  app.useStaticAssets(uploadsDir, {
     prefix: '/uploads/',
   });
 
@@ -71,9 +72,9 @@ async function bootstrap() {
   // In development, allow any origin (including mobile apps on local network)
   // In production, support comma-separated origins
   const origin = isProd
-    ? (corsEnv?.includes(',')
-        ? corsEnv.split(',').map((o) => o.trim())
-        : corsEnv ?? defaultOrigins[0])
+    ? corsEnv?.includes(',')
+      ? corsEnv.split(',').map((o) => o.trim())
+      : (corsEnv ?? defaultOrigins[0])
     : true;
   app.enableCors({ origin, credentials: true });
 

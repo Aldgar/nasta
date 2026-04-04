@@ -109,7 +109,10 @@ export default function LoginScreen() {
             "x-app-language": language,
             "Accept-Language": language,
           },
-          body: JSON.stringify({ email: email.trim(), password: password.trim() }),
+          body: JSON.stringify({
+            email: email.trim(),
+            password: password.trim(),
+          }),
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
@@ -288,7 +291,7 @@ export default function LoginScreen() {
           ],
         );
       } else {
-        Alert.alert("Login error", errorMessage);
+        Alert.alert(t("auth.loginError"), errorMessage);
       }
     } finally {
       setLoading(false);
@@ -329,12 +332,14 @@ export default function LoginScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            {...(Platform.OS === "android" ? {
-              overScrollMode: "never" as const,
-              nestedScrollEnabled: true,
-              bounces: false,
-              keyboardDismissMode: "on-drag" as const,
-            } : {})}
+            {...(Platform.OS === "android"
+              ? {
+                  overScrollMode: "never" as const,
+                  nestedScrollEnabled: true,
+                  bounces: false,
+                  keyboardDismissMode: "on-drag" as const,
+                }
+              : {})}
           >
             <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
               <View

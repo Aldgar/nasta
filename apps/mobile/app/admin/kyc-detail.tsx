@@ -696,9 +696,11 @@ export default function KYCDetailScreen() {
             );
 
             if (res.ok) {
-              Alert.alert("Success", t("admin.userDeletedSuccessfully"), [
-                { text: t("common.ok"), onPress: () => router.back() },
-              ]);
+              Alert.alert(
+                t("common.success"),
+                t("admin.userDeletedSuccessfully"),
+                [{ text: t("common.ok"), onPress: () => router.back() }],
+              );
             } else {
               const error = await res.json();
               Alert.alert(

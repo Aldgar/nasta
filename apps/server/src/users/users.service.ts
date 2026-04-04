@@ -725,6 +725,7 @@ export class UsersService {
           languages?: Array<{ language: string; level: string }> | string[];
           rates?: Array<{
             rate: number;
+            description?: string;
             paymentType: string;
             otherSpecification?: string;
           }>;
@@ -947,6 +948,40 @@ export class UsersService {
       }
     }
 
+    // Fetch verified vehicles for this candidate
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { userId: candidate.id, status: 'VERIFIED' },
+      select: {
+        id: true,
+        vehicleType: true,
+        otherTypeSpecification: true,
+        make: true,
+        model: true,
+        year: true,
+        color: true,
+        capacity: true,
+        photoFrontUrl: true,
+      },
+    });
+
+    const dlVerified = await this.prisma.idVerification.findFirst({
+      where: {
+        userId: candidate.id,
+        verificationType: 'DRIVERS_LICENSE',
+        status: 'VERIFIED',
+      },
+      select: {
+        documentFrontUrl: true,
+        documentBackUrl: true,
+        documentExpiry: true,
+      },
+    });
+    const hasVerifiedDriversLicense = !!(
+      dlVerified?.documentFrontUrl &&
+      dlVerified?.documentBackUrl &&
+      (!dlVerified.documentExpiry || dlVerified.documentExpiry > new Date())
+    );
+
     return {
       id: candidate.id,
       firstName: candidate.firstName,
@@ -971,8 +1006,8 @@ export class UsersService {
       ratingCount: reviews.length,
       reviews: reviews,
       cvUrl: finalCvUrl,
-      hourlyRate: hourlyRate, // Keep for backward compatibility
-      rates: rates, // New rates array with payment types
+      hourlyRate: hourlyRate,
+      rates: rates,
       workExperience: links?.workExperience || [],
       certifications: links?.certifications || [],
       education: links?.education || [],
@@ -985,6 +1020,10 @@ export class UsersService {
       hasWorkPermit:
         (candidate as any).idVerifications &&
         (candidate as any).idVerifications.length > 0,
+      // Verified vehicles
+      vehicles,
+      hasVerifiedVehicle: vehicles.length > 0,
+      hasVerifiedDriversLicense,
       // Availability
       availability: availability.map((slot) => ({
         id: slot.id,

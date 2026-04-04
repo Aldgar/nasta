@@ -1,3 +1,7 @@
+import * as path from 'path';
+
+const baseUploads = process.env.UPLOADS_DIR || 'uploads';
+
 export const fileUploadConfig = {
   // File size limit (10MB)
   maxFileSize: 10 * 1024 * 1024,
@@ -8,8 +12,8 @@ export const fileUploadConfig = {
   // File extensions
   allowedExtensions: ['.pdf'],
 
-  // Upload directory (we'll use local storage for now)
-  uploadPath: './uploads/background-checks',
+  // Upload directory
+  uploadPath: path.join(baseUploads, 'background-checks'),
 
   // File naming
   generateFileName: (originalName: string): string => {

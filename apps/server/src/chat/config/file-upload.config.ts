@@ -1,5 +1,9 @@
+import * as path from 'path';
+
+const baseUploads = process.env.UPLOADS_DIR || 'uploads';
+
 export const chatUploadConfig = {
-  uploadPath: 'uploads/chat',
+  uploadPath: path.join(baseUploads, 'chat'),
   maxFileSize: 10 * 1024 * 1024, // 10MB
   allowedMimeTypes: [
     'image/jpeg',

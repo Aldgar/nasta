@@ -131,6 +131,7 @@ export default function Settings() {
       clean: t("profile.status.clean"),
       submitted: t("profile.status.submitted"),
       under_review: t("profile.status.underReview"),
+      not_registered: t("vehicles.notRegistered"),
     };
     return statusMap[status] || status.replace("_", " ");
   };
@@ -177,6 +178,11 @@ export default function Settings() {
       | "under_review"
       | "approved"
       | "clean",
+    vehicleStatus: "not_registered" as
+      | "not_registered"
+      | "pending"
+      | "verified"
+      | "rejected",
   });
 
   // Edit Modals State
@@ -473,12 +479,35 @@ export default function Settings() {
           const rawBgStatus = (
             u.backgroundCheckStatus || "pending"
           ).toLowerCase();
+
+          // Fetch vehicle status
+          let vehicleStatus: string = "not_registered";
+          try {
+            const vRes = await fetch(`${base}/vehicles/my-vehicles`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (vRes.ok) {
+              const vList = await vRes.json();
+              if (Array.isArray(vList) && vList.length > 0) {
+                if (vList.some((v: any) => v.status === "VERIFIED"))
+                  vehicleStatus = "verified";
+                else if (vList.some((v: any) => v.status === "PENDING"))
+                  vehicleStatus = "pending";
+                else if (vList.some((v: any) => v.status === "REJECTED"))
+                  vehicleStatus = "rejected";
+              }
+            }
+          } catch {
+            // Silently fail
+          }
+
           setVerification({
             emailVerified: !!u.emailVerifiedAt,
             phoneVerified: !!u.phoneVerifiedAt,
             idStatus,
             backgroundStatus:
               rawBgStatus === "pending" ? "not_verified" : rawBgStatus,
+            vehicleStatus: vehicleStatus as any,
           });
         }
       }
@@ -1709,6 +1738,19 @@ export default function Settings() {
                           verification.backgroundStatus,
                         )}
                         text={translateStatus(verification.backgroundStatus)}
+                      />
+                    </Row>
+                    <Row
+                      onPress={() => {
+                        if (verification.vehicleStatus !== "verified") {
+                          router.push("/kyc-capture" as never);
+                        }
+                      }}
+                    >
+                      <Label text={t("vehicles.vehicleVerification")} />
+                      <Status
+                        ok={verification.vehicleStatus === "verified"}
+                        text={translateStatus(verification.vehicleStatus)}
                       />
                     </Row>
                   </>

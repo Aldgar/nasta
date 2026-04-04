@@ -35,6 +35,7 @@ import { SupportModule } from './support/support.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { NoShowModule } from './no-show/no-show.module';
+import { VehiclesModule } from './vehicles/vehicles.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ReflectorModule } from './core/reflector.module';
 
@@ -131,6 +132,7 @@ import { ReflectorModule } from './core/reflector.module';
     ReviewsModule,
     RatingsModule,
     NoShowModule,
+    VehiclesModule,
   ],
   controllers: [AppController, AiController],
   providers: [

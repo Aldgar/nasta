@@ -13,6 +13,7 @@ import {
   Platform,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -206,6 +207,7 @@ export default function ApplicantDetailScreen() {
   const [candidateData, setCandidateData] = useState<{
     rates?: Array<{
       rate: number;
+      description?: string;
       paymentType: string;
       otherSpecification?: string;
     }>;
@@ -2163,6 +2165,10 @@ export default function ApplicantDetailScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <Stack.Screen options={{ headerShown: false }} />
 
         {/* Header */}
@@ -2193,6 +2199,7 @@ export default function ApplicantDetailScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Applicant Profile Card */}
           <TouchableButton
@@ -2561,31 +2568,51 @@ export default function ApplicantDetailScreen() {
                           ) : null}
                         </View>
                       </View>
-                      <Text
-                        style={[
-                          styles.rateText,
-                          {
-                            color: isPaid
-                              ? isDark
-                                ? "#9A8E7A"
-                                : "#8A7B68"
-                              : colors.text,
-                          },
-                        ]}
-                      >
-                        €{rate.rate}/{paymentTypeLabel}
-                        {isPaid && (
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.rateText,
+                            {
+                              color: isPaid
+                                ? isDark
+                                  ? "#9A8E7A"
+                                  : "#8A7B68"
+                                : colors.text,
+                            },
+                          ]}
+                        >
+                          €{rate.rate}/{paymentTypeLabel}
+                          {isPaid && (
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontStyle: "italic",
+                                marginLeft: 4,
+                              }}
+                            >
+                              ({t("applications.paid")})
+                            </Text>
+                          )}
+                        </Text>
+                        {(rate as any).description ? (
                           <Text
-                            style={{
-                              fontSize: 11,
-                              fontStyle: "italic",
-                              marginLeft: 4,
-                            }}
+                            style={[
+                              styles.rateDescription,
+                              {
+                                color: isPaid
+                                  ? isDark
+                                    ? "rgba(154,142,122,0.7)"
+                                    : "rgba(138,123,104,0.7)"
+                                  : isDark
+                                    ? "rgba(255,250,240,0.55)"
+                                    : "#8A7B68",
+                              },
+                            ]}
                           >
-                            ({t("applications.paid")})
+                            {(rate as any).description}
                           </Text>
-                        )}
-                      </Text>
+                        ) : null}
+                      </View>
                     </TouchableButton>
                   );
                 })}
@@ -5486,6 +5513,7 @@ export default function ApplicantDetailScreen() {
             setActionMessage("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <View
               style={[
@@ -5670,6 +5698,7 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Payment Modal */}
@@ -6368,6 +6397,7 @@ export default function ApplicantDetailScreen() {
             setRespondMessage("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <View
               style={[
@@ -6516,6 +6546,7 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Suggest Negotiation Modal */}
@@ -6525,6 +6556,7 @@ export default function ApplicantDetailScreen() {
           transparent={true}
           onRequestClose={() => setShowNegotiationModal(false)}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -6968,6 +7000,7 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Employer Respond to Service Provider Negotiation Modal */}
@@ -6982,6 +7015,7 @@ export default function ApplicantDetailScreen() {
             setEmployerNegotiationResponseMessage("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -7133,6 +7167,7 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Employer Counter Offer Modal */}
@@ -7147,6 +7182,7 @@ export default function ApplicantDetailScreen() {
             setSelectedEmployerNegotiationId(null);
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -7584,6 +7620,7 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Request Additional Time Modal */}
@@ -7596,6 +7633,7 @@ export default function ApplicantDetailScreen() {
             setAdditionalTimeMessage("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View
             style={[
               styles.modalOverlay,
@@ -7748,6 +7786,7 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Respond to Additional Time Response Modal */}
@@ -7762,6 +7801,7 @@ export default function ApplicantDetailScreen() {
             setAdditionalTimeResponseMessage("");
           }}
         >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <View
               style={[
@@ -7904,7 +7944,9 @@ export default function ApplicantDetailScreen() {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -8427,7 +8469,11 @@ const styles = StyleSheet.create({
   rateText: {
     fontSize: 15,
     fontWeight: "700",
-    flex: 1,
+  },
+  rateDescription: {
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 16,
   },
   summaryCard: {
     marginTop: 12,

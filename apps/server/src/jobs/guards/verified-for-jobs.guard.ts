@@ -79,7 +79,7 @@ export class VerifiedForJobsGuard implements CanActivate {
       );
     }
 
-    // Additional guard: if this job requires a driver license, ensure the user has a verified DRIVERS_LICENSE
+    // Additional guards for job-specific requirements
     const jobId = (req.params as Record<string, string | undefined>)?.id;
     if (jobId) {
       const job = await this.prisma.job.findUnique({
@@ -87,37 +87,54 @@ export class VerifiedForJobsGuard implements CanActivate {
         select: {
           id: true,
           status: true,
+          requiresVehicle: true,
+          requiresDriverLicense: true,
           category: {
             select: { id: true, requiresDriverLicense: true, name: true },
           },
         },
       });
-      if (
-        job &&
-        job.status === 'ACTIVE' &&
-        job.category?.requiresDriverLicense
-      ) {
-        const dl = await this.prisma.idVerification.findFirst({
-          where: {
-            userId: user.id,
-            verificationType: 'DRIVERS_LICENSE',
-            status: 'VERIFIED',
-          },
-          select: {
-            id: true,
-            documentFrontUrl: true,
-            documentBackUrl: true,
-            documentExpiry: true,
-          },
-        });
-        const hasFrontBack = !!dl?.documentFrontUrl && !!dl?.documentBackUrl;
-        // If expiry is set and in the past, treat as invalid
-        const notExpired =
-          !dl?.documentExpiry || dl.documentExpiry > new Date();
-        if (!(dl && hasFrontBack && notExpired)) {
-          throw new ForbiddenException(
-            'A valid driver license (front and back, verified) is required to apply for this job',
-          );
+
+      if (job && job.status === 'ACTIVE') {
+        // Check driver license: job-level flag OR category-level flag
+        const needsDL =
+          job.requiresDriverLicense || job.category?.requiresDriverLicense;
+        if (needsDL) {
+          const dl = await this.prisma.idVerification.findFirst({
+            where: {
+              userId: user.id,
+              verificationType: 'DRIVERS_LICENSE',
+              status: 'VERIFIED',
+            },
+            select: {
+              id: true,
+              documentFrontUrl: true,
+              documentBackUrl: true,
+              documentExpiry: true,
+            },
+          });
+          const hasFrontBack =
+            !!dl?.documentFrontUrl && !!dl?.documentBackUrl;
+          const notExpired =
+            !dl?.documentExpiry || dl.documentExpiry > new Date();
+          if (!(dl && hasFrontBack && notExpired)) {
+            throw new ForbiddenException(
+              'A valid driver license (front and back, verified) is required to apply for this job. Complete driver license verification in your KYC settings.',
+            );
+          }
+        }
+
+        // Check vehicle: job-level flag
+        if (job.requiresVehicle) {
+          const verifiedVehicle = await this.prisma.vehicle.findFirst({
+            where: { userId: user.id, status: 'VERIFIED' },
+            select: { id: true },
+          });
+          if (!verifiedVehicle) {
+            throw new ForbiddenException(
+              'This job requires a verified vehicle. Complete vehicle verification in your KYC settings.',
+            );
+          }
         }
       }
     }

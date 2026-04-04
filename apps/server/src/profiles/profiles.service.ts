@@ -435,6 +435,7 @@ export class ProfilesService {
       cvUrl?: string;
       rates?: Array<{
         rate: number;
+        description?: string;
         paymentType: string;
         otherSpecification?: string;
       }>;

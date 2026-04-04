@@ -1,13 +1,26 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { Public } from '../auth/decorators/public.decorator';
+import { VehiclesService } from '../vehicles/vehicles.service';
 
 @Controller('admin')
 @Public()
 @UseGuards(AdminJwtGuard)
 export class AdminDashboardController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly vehiclesService: VehiclesService,
+  ) {}
 
   @Get('dashboard-stats')
   async getDashboardStats() {
@@ -20,6 +33,7 @@ export class AdminDashboardController {
       abuseReports,
       securityReports,
       pendingDeletions,
+      vehiclesPending,
     ] = await Promise.all([
       // Total users
       this.prisma.user.count(),
@@ -75,6 +89,9 @@ export class AdminDashboardController {
       this.prisma.deletionRequest.count({
         where: { status: 'PENDING' },
       }),
+
+      // Pending vehicle verifications
+      this.vehiclesService.getPendingCount(),
     ]);
 
     return {
@@ -86,6 +103,44 @@ export class AdminDashboardController {
       abuseReports,
       securityReports,
       pendingDeletions,
+      vehiclesPending,
     };
+  }
+
+  @Get('dashboard/vehicles/pending')
+  async getVehiclesPending(
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    return this.vehiclesService.getPendingVehicles(
+      Number(skip) || 0,
+      Number(take) || 20,
+    );
+  }
+
+  @Get('dashboard/vehicles/pending/count')
+  async getVehiclesPendingCount() {
+    const count = await this.vehiclesService.getPendingCount();
+    return { count };
+  }
+
+  @Get('dashboard/vehicles/:id')
+  async getVehicleDetail(@Param('id') id: string) {
+    return this.vehiclesService.getVehicleForAdmin(id);
+  }
+
+  @Patch('dashboard/vehicles/:id/review')
+  async reviewVehicle(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { status: 'VERIFIED' | 'REJECTED'; adminNotes?: string },
+  ) {
+    const adminId = req.user?.id || req.user?.sub;
+    return this.vehiclesService.reviewVehicle(
+      id,
+      adminId,
+      body.status,
+      body.adminNotes,
+    );
   }
 }

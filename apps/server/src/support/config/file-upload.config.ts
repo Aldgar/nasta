@@ -1,5 +1,9 @@
+import * as path from 'path';
+
+const baseUploads = process.env.UPLOADS_DIR || 'uploads';
+
 export const supportUploadConfig = {
-  uploadPath: 'uploads/support',
+  uploadPath: path.join(baseUploads, 'support'),
   maxFileSize: 10 * 1024 * 1024, // 10MB
   maxFiles: 5,
   allowedMimeTypes: [

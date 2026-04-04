@@ -462,6 +462,8 @@ export class JobsService {
       rateAmount?: number;
       currency?: string;
       paymentType?: string;
+      requiresVehicle?: boolean;
+      requiresDriverLicense?: boolean;
     },
   ) {
     // Ensure employer is EMPLOYER role, email verified, and has address
@@ -617,6 +619,8 @@ export class JobsService {
       paymentType: dto.paymentType
         ? (dto.paymentType as unknown as any)
         : ('MONTHLY' as any), // Default to MONTHLY if not provided
+      requiresVehicle: dto.requiresVehicle ?? false,
+      requiresDriverLicense: dto.requiresDriverLicense ?? false,
       employer: { connect: { id: employerId } },
       category: { connect: { id: resolvedCategoryId } },
     } as unknown as Prisma.JobCreateInput;
@@ -665,6 +669,8 @@ export class JobsService {
       endDate?: string;
       categoryId?: string;
       categoryName?: string;
+      requiresVehicle?: boolean;
+      requiresDriverLicense?: boolean;
     }>,
   ) {
     const job = await this.prisma.job.findUnique({
@@ -748,6 +754,11 @@ export class JobsService {
     if (dto.endDate) {
       updateData.endDate = new Date(dto.endDate);
     }
+
+    if (dto.requiresVehicle !== undefined)
+      updateData.requiresVehicle = dto.requiresVehicle;
+    if (dto.requiresDriverLicense !== undefined)
+      updateData.requiresDriverLicense = dto.requiresDriverLicense;
 
     // Update category if resolved
     if (resolvedCategoryId) {

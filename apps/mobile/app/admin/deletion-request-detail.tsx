@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import GradientBackground from "../../components/GradientBackground";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import * as SecureStore from "expo-secure-store";
 import { getApiBase } from "../../lib/api";
 
@@ -41,6 +42,7 @@ export default function DeletionRequestDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const [request, setRequest] = useState<DeletionRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
@@ -96,28 +98,34 @@ export default function DeletionRequestDetailScreen() {
       );
 
       if (res.ok) {
-        Alert.alert("Success", "Request assigned to you");
+        Alert.alert(t("common.success"), t("admin.requestAssignedToYou"));
         fetchRequest();
       } else {
         const err = await res.json();
-        Alert.alert("Error", err.message || "Failed to assign");
+        Alert.alert(
+          t("common.error"),
+          err.message || t("admin.failedToAssign"),
+        );
       }
     } catch {
-      Alert.alert("Error", "Network error");
+      Alert.alert(t("common.error"), t("errors.networkError"));
     }
   };
 
   const handleReview = (decision: "approve" | "deny") => {
-    const title = decision === "approve" ? "Approve Deletion" : "Deny Deletion";
+    const title =
+      decision === "approve"
+        ? t("admin.approveDeletion")
+        : t("admin.denyDeletion");
     const message =
       decision === "approve"
-        ? "Are you sure you want to approve this account deletion? The user's account will be deactivated."
-        : "Are you sure you want to deny this deletion request? The user's account will remain active.";
+        ? t("admin.approveDeletionConfirm")
+        : t("admin.denyDeletionConfirm");
 
     Alert.alert(title, message, [
-      { text: "Cancel", style: "cancel" },
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: decision === "approve" ? "Approve" : "Deny",
+        text: decision === "approve" ? t("admin.approve") : t("admin.deny"),
         style: decision === "approve" ? "destructive" : "default",
         onPress: () => submitReview(decision),
       },
@@ -145,18 +153,21 @@ export default function DeletionRequestDetailScreen() {
 
       if (res.ok) {
         Alert.alert(
-          "Success",
+          t("common.success"),
           decision === "approve"
-            ? "Deletion request approved"
-            : "Deletion request denied",
-          [{ text: "OK", onPress: () => router.back() }],
+            ? t("admin.deletionRequestApproved")
+            : t("admin.deletionRequestDenied"),
+          [{ text: t("common.ok"), onPress: () => router.back() }],
         );
       } else {
         const err = await res.json();
-        Alert.alert("Error", err.message || "Failed to review request");
+        Alert.alert(
+          t("common.error"),
+          err.message || t("admin.failedToReviewRequest"),
+        );
       }
     } catch {
-      Alert.alert("Error", "Network error");
+      Alert.alert(t("common.error"), t("errors.networkError"));
     } finally {
       setSubmitting(false);
     }

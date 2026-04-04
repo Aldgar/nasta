@@ -2,20 +2,11 @@ import * as path from 'path';
 
 const baseUploads = process.env.UPLOADS_DIR || 'uploads';
 
-export const kycUploadConfig = {
-  // File size limit (10MB per file)
-  maxFileSize: 10 * 1024 * 1024,
-
-  // Allowed file types: images and PDFs (front/back can be image or PDF; selfie is image)
+export const vehicleUploadConfig = {
+  maxFileSize: 10 * 1024 * 1024, // 10MB per file
   allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf'],
-
-  // File extensions
   allowedExtensions: ['.jpg', '.jpeg', '.png', '.pdf'],
-
-  // Upload directory
-  uploadPath: path.join(baseUploads, 'kyc'),
-
-  // File naming
+  uploadPath: path.join(baseUploads, 'vehicles'),
   generateFileName: (prefix: string, originalName: string): string => {
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);

@@ -43,6 +43,7 @@ export default function AdminHome() {
   const [securityUnassigned, setSecurityUnassigned] = useState<number | null>(
     null,
   );
+  const [vehiclesPending, setVehiclesPending] = useState<number | null>(null);
   const [deletionPending, setDeletionPending] = useState<number | null>(null);
   const [deletionUnassigned, setDeletionUnassigned] = useState<number | null>(
     null,
@@ -280,6 +281,20 @@ export default function AdminHome() {
         setDeletionPending(null);
         setDeletionUnassigned(null);
       }
+
+      // Fetch vehicle pending count
+      try {
+        const vRes = await fetch(
+          `${base}/admin/dashboard/vehicles/pending/count`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (vRes.ok) {
+          const vData = await vRes.json();
+          setVehiclesPending(vData.count ?? 0);
+        }
+      } catch {
+        setVehiclesPending(null);
+      }
     } catch (error) {
       // Silently handle all errors - no logging
     } finally {
@@ -418,6 +433,93 @@ export default function AdminHome() {
                     onPress={(e) => {
                       e.stopPropagation();
                       router.push("/admin/kyc-reviews" as never);
+                    }}
+                  >
+                    <Text
+                      style={[styles.actionButtonText, { color: "#FFFAF0" }]}
+                    >
+                      Review Now
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+
+              {/* Vehicle Reviews Card */}
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.90)"
+                      : "rgba(255,250,240,0.92)",
+                    borderColor: isDark
+                      ? "rgba(201,150,63,0.25)"
+                      : "rgba(184,130,42,0.2)",
+                  },
+                ]}
+                onPress={() =>
+                  router.push("/admin/vehicle-reviews" as never)
+                }
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: isDark ? "#C9963F" : "#B8822A" },
+                      ]}
+                    >
+                      <Feather name="truck" size={24} color="#FFFAF0" />
+                    </View>
+                    <View style={styles.cardTitleContainer}>
+                      <Text
+                        style={[styles.cardTitle, { color: colors.text }]}
+                      >
+                        Vehicle Reviews
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardSubtitle,
+                          { color: isDark ? "#B8A88A" : "#8A7B68" },
+                        ]}
+                      >
+                        Vehicle verification
+                      </Text>
+                    </View>
+                  </View>
+                  <Feather
+                    name="chevron-right"
+                    size={20}
+                    color={isDark ? "#9A8E7A" : "#8A7B68"}
+                  />
+                </View>
+
+                <View style={styles.statsContainer}>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.text }]}>
+                      {vehiclesPending !== null ? vehiclesPending : "-"}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.statLabel,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                      ]}
+                    >
+                      Pending
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: isDark ? "#C9963F" : "#B8822A" },
+                    ]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push("/admin/vehicle-reviews" as never);
                     }}
                   >
                     <Text
