@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mohamedibrahim.nasta",
+      "sha256_cert_fingerprints": [
+        "66:58:85:1A:67:B5:7B:F1:D3:04:D3:56:23:74:33:8C:EA:EE:CE:6E:EF:0F:73:99:9B:3F:B2:A2:7B:03:E1:C0"
+      ]
+    }
+  }
+]
