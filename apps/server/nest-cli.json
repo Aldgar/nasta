@@ -9,7 +9,7 @@
     "assets": [
       {
         "include": "notifications/locales/*.json",
-        "outDir": "dist"
+        "outDir": "dist/src"
       }
     ]
   }

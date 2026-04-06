@@ -177,12 +177,18 @@ select:disabled {
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
-:root.dark .glass-surface,
-@media (prefers-color-scheme: dark) { :root:not(.light) .glass-surface {
+:root.dark .glass-surface {
   background: rgba(12, 22, 42, 0.85);
   border-color: rgba(201, 150, 63, 0.3);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-} }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .glass-surface {
+    background: rgba(12, 22, 42, 0.85);
+    border-color: rgba(201, 150, 63, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+}
 
 /* Input field styling (matching mobile) */
 .input-field {

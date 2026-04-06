@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailTranslationsService } from '../notifications/email-translations.service';
+import { ChatService } from '../chat/chat.service';
 import type {
   Prisma,
   JobType as PJobType,
@@ -21,6 +22,7 @@ export class JobsService {
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private emailTranslations: EmailTranslationsService,
+    private chatService: ChatService,
   ) {}
 
   async listJobs(params?: {
@@ -71,7 +73,11 @@ export class JobsService {
 
     // Build where clause for filtering
     // Only show ACTIVE jobs (jobs with accepted applications should have status CLOSED)
-    const whereClause: Prisma.JobWhereInput = { status: 'ACTIVE' };
+    // Exclude instant jobs – they are targeted at specific service providers
+    const whereClause: Prisma.JobWhereInput = {
+      status: 'ACTIVE',
+      isInstantBook: { not: true },
+    };
 
     // Filter by category name if provided
     if (params?.category) {
@@ -251,6 +257,8 @@ export class JobsService {
               where: { id },
               data: { status: 'COMPLETED' },
             });
+            // Lock chat conversations for this job
+            await this.chatService.lockConversationsByJobId(id);
             job.status = 'COMPLETED';
           } else {
             // Update job status to ASSIGNED
@@ -1187,7 +1195,7 @@ export class JobsService {
     return { active, completed, total };
   }
 
-  async getMyJobs(employerId: string) {
+  async getMyJobs(employerId: string, candidateId?: string) {
     const jobs = await this.prisma.job.findMany({
       where: {
         employerId,
@@ -1223,6 +1231,20 @@ export class JobsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // If candidateId is provided, check which jobs this candidate has applied to
+    let candidateAppliedJobIds: Set<string> = new Set();
+    if (candidateId) {
+      const applications = await this.prisma.application.findMany({
+        where: {
+          applicantId: candidateId,
+          job: { employerId },
+          status: { not: 'WITHDRAWN' },
+        },
+        select: { jobId: true },
+      });
+      candidateAppliedJobIds = new Set(applications.map((a) => a.jobId));
+    }
 
     // Fix job statuses for jobs that have accepted applications but status is still ACTIVE
     // This ensures consistency when listing jobs
@@ -1264,6 +1286,8 @@ export class JobsService {
                   where: { id: job.id },
                   data: { status: 'COMPLETED' },
                 });
+                // Lock chat conversations for this job
+                await this.chatService.lockConversationsByJobId(job.id);
                 return { ...job, status: 'COMPLETED' };
               } else {
                 // Update job status to ASSIGNED
@@ -1283,7 +1307,12 @@ export class JobsService {
       }),
     );
 
-    return jobsWithFixedStatus;
+    return jobsWithFixedStatus.map((job) => ({
+      ...job,
+      ...(candidateId
+        ? { candidateApplied: candidateAppliedJobIds.has(job.id) }
+        : {}),
+    }));
   }
 
   async getAllCategories() {

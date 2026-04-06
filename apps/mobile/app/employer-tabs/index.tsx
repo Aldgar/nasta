@@ -18,6 +18,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { TouchableButton } from "../../components/TouchableButton";
 import ActionBanner from "../../components/ActionBanner";
+import AvatarImage from "../../components/AvatarImage";
 import TemporaryPasswordBanner from "../../components/TemporaryPasswordBanner";
 import * as SecureStore from "expo-secure-store";
 import { getApiBase } from "../../lib/api";
@@ -62,6 +63,7 @@ export default function EmployerFeed() {
   const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
   const [hasAddress, setHasAddress] = useState<boolean>(false);
   const [hasTemporaryPassword, setHasTemporaryPassword] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   const [activeBooking, setActiveBooking] = useState<{
     id: string;
@@ -74,6 +76,7 @@ export default function EmployerFeed() {
     fetchCandidates();
     fetchActiveBooking();
     fetchProfile();
+    fetchUnreadMessages();
   }, []);
 
   const fetchProfile = async () => {
@@ -153,8 +156,48 @@ export default function EmployerFeed() {
       fetchActiveBooking();
       fetchCandidates(); // Also refetch candidates when screen comes into focus
       fetchProfile(); // Refresh profile to update temporary password banner
+      fetchUnreadMessages();
     }, []),
   );
+
+  const fetchUnreadMessages = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("auth_token");
+      if (!token) return;
+
+      let myUserId: string | null = null;
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        myUserId = payload.sub || payload.id;
+      } catch {}
+      if (!myUserId) return;
+
+      const base = getApiBase();
+      const res = await fetch(`${base}/chat/conversations?pageSize=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const conversations = Array.isArray(data)
+          ? data
+          : data.conversations || [];
+        let count = 0;
+        for (const conv of conversations) {
+          const lastMsg = conv.lastMessage;
+          if (
+            lastMsg &&
+            lastMsg.senderUserId &&
+            lastMsg.senderUserId !== myUserId
+          ) {
+            count++;
+          }
+        }
+        setUnreadMessageCount(count);
+      }
+    } catch (err) {
+      console.log("Error fetching unread messages:", err);
+    }
+  };
 
   const fetchActiveBooking = async () => {
     try {
@@ -453,46 +496,12 @@ export default function EmployerFeed() {
       >
         <View style={styles.candidateHeader}>
           <View style={styles.candidateInfo}>
-            <View style={styles.avatarContainer}>
-              {item.avatar ? (
-                <Image
-                  source={{ uri: item.avatar }}
-                  style={styles.avatar}
-                  resizeMode="cover"
-                  onError={(error) => {
-                    console.error(
-                      `[EmployerFeed] Failed to load avatar for ${item.firstName} ${item.lastName}:`,
-                      error.nativeEvent.error,
-                    );
-                  }}
-                  onLoad={() => {
-                    console.log(
-                      `[EmployerFeed] Successfully loaded avatar for ${item.firstName} ${item.lastName}:`,
-                      item.avatar,
-                    );
-                  }}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.avatar,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201,150,63,0.12)"
-                        : "#F0E8D5",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                  ]}
-                >
-                  <Feather
-                    name="user"
-                    size={24}
-                    color={isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"}
-                  />
-                </View>
-              )}
-            </View>
+            <AvatarImage
+              uri={item.avatar}
+              size={48}
+              borderRadius={4}
+              iconSize={24}
+            />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.cardTitle, themeStyles.textPrimary]}>
                 {fullName}
@@ -679,13 +688,9 @@ export default function EmployerFeed() {
         <View style={styles.topBar}>
           <TouchableButton
             accessibilityRole="button"
-            onPress={() => router.back()}
+            onPress={() => router.replace("/employer-home" as any)}
           >
-            <Feather
-              name="arrow-left"
-              size={24}
-              color={themeStyles.iconColor}
-            />
+            <Feather name="home" size={20} color={themeStyles.iconColor} />
           </TouchableButton>
           <Text style={[styles.screenTitle, themeStyles.textSecondary]}>
             {t("navigation.home")}
@@ -836,12 +841,21 @@ export default function EmployerFeed() {
                 style={[styles.iconBox, themeStyles.actionBtn]}
                 onPress={() => router.push("/chat/inbox" as any)}
               >
-                <Feather
-                  name="message-square"
-                  size={24}
-                  color={themeStyles.iconColor}
-                  style={{ marginBottom: 6 }}
-                />
+                <View>
+                  <Feather
+                    name="message-square"
+                    size={24}
+                    color={themeStyles.iconColor}
+                    style={{ marginBottom: 6 }}
+                  />
+                  {unreadMessageCount > 0 && (
+                    <View style={styles.messageBadge}>
+                      <Text style={styles.messageBadgeText}>
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.iconText, themeStyles.textPrimary]}>
                   {t("chat.messages")}
                 </Text>
@@ -1111,6 +1125,26 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   iconText: { fontWeight: "500", fontSize: 12 },
+  messageBadge: {
+    position: "absolute",
+    top: -6,
+    right: -10,
+    backgroundColor: "#ef4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: "rgba(12, 22, 42, 0.9)",
+  },
+  messageBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 12,
+  },
 
   empty: { fontSize: 14 },
   card: {

@@ -2,13 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
@@ -20,6 +18,7 @@ import { getApiBase } from "../lib/api";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import GradientBackground from "../components/GradientBackground";
+import AvatarImage from "../components/AvatarImage";
 import { useFocusEffect } from "expo-router";
 
 interface User {
@@ -40,7 +39,9 @@ export default function Contact() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<"all" | "JOB_SEEKER" | "EMPLOYER">("all");
+  const [roleFilter, setRoleFilter] = useState<
+    "all" | "JOB_SEEKER" | "EMPLOYER"
+  >("all");
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Check if user is admin
@@ -97,7 +98,7 @@ export default function Contact() {
       if (isAdmin) {
         fetchUsers();
       }
-    }, [isAdmin, fetchUsers])
+    }, [isAdmin, fetchUsers]),
   );
 
   const onRefresh = () => {
@@ -108,98 +109,166 @@ export default function Contact() {
   const handleUserPress = (user: User) => {
     router.push({
       pathname: "/chat/room",
-      params: { 
-        userId: user.id, 
-        userName: `${user.firstName} ${user.lastName}`.trim() || t("contact.user") 
+      params: {
+        userId: user.id,
+        userName:
+          `${user.firstName} ${user.lastName}`.trim() || t("contact.user"),
       },
     } as never);
   };
 
-  // If not admin, show regular contact form
+  // If not admin, show support hub with navigation cards
   if (!isAdmin) {
+    const supportOptions = [
+      {
+        icon: "headphones" as const,
+        title: t("legal.contactSupport"),
+        desc: t("contact.contactSupportDesc"),
+        color: "#C9963F",
+        route: "/support",
+      },
+      {
+        icon: "alert-triangle" as const,
+        title: t("legal.reportAbuse"),
+        desc: t("contact.reportAbuseDesc"),
+        color: "#ef4444",
+        route: "/report",
+        params: { title: t("legal.reportAbuse") },
+      },
+      {
+        icon: "shield" as const,
+        title: t("legal.reportSecurity"),
+        desc: t("contact.reportSecurityDesc"),
+        color: "#3b82f6",
+        route: "/report",
+        params: { title: t("legal.reportSecurity") },
+      },
+      {
+        icon: "clipboard" as const,
+        title: t("legal.survey"),
+        desc: t("contact.surveyDesc"),
+        color: "#22c55e",
+        route: "/survey",
+      },
+    ];
+
     return (
       <GradientBackground>
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView style={styles.container}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={{ flex: 1 }}
-          >
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backBtn}
+            >
               <Feather name="arrow-left" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.title, { color: colors.text }]}>{t("contact.contactUs")}</Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {t("contact.supportHub")}
+            </Text>
             <View style={{ width: 40 }} />
           </View>
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: isDark ? "rgba(12, 22, 42, 0.82)" : "#FFFAF0",
-                borderColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(0,0,0,0.08)",
-              },
-            ]}
+          <ScrollView
+            contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={[styles.infoText, { color: colors.text }]}>
-              {t("contact.useFormToContact")}
-            </Text>
-            <Text style={[styles.label, { color: colors.text }]}>{t("contact.name")}</Text>
-            <TextInput
+            {/* Hero section */}
+            <View
               style={[
-                styles.input,
+                styles.heroCard,
                 {
-                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
-                  color: colors.text,
-                  borderColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)",
-                },
-              ]}
-              placeholder={t("contact.namePlaceholder")}
-              placeholderTextColor={isDark ? "#9A8E7A" : "#9A8E7A"}
-            />
-            <Text style={[styles.label, { color: colors.text }]}>{t("auth.email")}</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
-                  color: colors.text,
-                  borderColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)",
-                },
-              ]}
-              placeholder={t("auth.emailPlaceholder")}
-              placeholderTextColor={isDark ? "#9A8E7A" : "#9A8E7A"}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <Text style={[styles.label, { color: colors.text }]}>{t("contact.message")}</Text>
-            <TextInput
-              style={[
-                styles.input,
-                styles.textarea,
-                {
-                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
-                  color: colors.text,
-                  borderColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)",
-                },
-              ]}
-              placeholder={t("contact.messagePlaceholder")}
-              placeholderTextColor={isDark ? "#9A8E7A" : "#9A8E7A"}
-              multiline
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              style={[
-                styles.button,
-                {
-                  backgroundColor: isDark ? "#C9963F" : colors.tint,
+                  backgroundColor: isDark
+                    ? "rgba(201, 150, 63, 0.12)"
+                    : "rgba(201, 150, 63, 0.08)",
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.25)"
+                    : "rgba(184,130,42,0.15)",
                 },
               ]}
             >
-              <Text style={[styles.buttonLabel, { color: "#FFFAF0" }]}>{t("chat.send")}</Text>
-            </TouchableOpacity>
-          </View>
-          </KeyboardAvoidingView>
+              <View
+                style={[
+                  styles.heroIconContainer,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(201, 150, 63, 0.2)"
+                      : "rgba(201, 150, 63, 0.15)",
+                  },
+                ]}
+              >
+                <Feather name="headphones" size={32} color="#C9963F" />
+              </View>
+              <Text style={[styles.heroTitle, { color: colors.text }]}>
+                {t("contact.supportHubSubtitle")}
+              </Text>
+              <Text
+                style={[
+                  styles.heroSubtitle,
+                  { color: isDark ? "#B8A88A" : "#8A7B68" },
+                ]}
+              >
+                {t("contact.useFormToContact")}
+              </Text>
+            </View>
+
+            {/* Support option cards */}
+            {supportOptions.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                activeOpacity={0.7}
+                onPress={() =>
+                  router.push({
+                    pathname: option.route,
+                    params: (option as any).params,
+                  } as any)
+                }
+                style={[
+                  styles.supportCard,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.82)"
+                      : "#FFFAF0",
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(0,0,0,0.08)",
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.supportIconContainer,
+                    {
+                      backgroundColor: isDark
+                        ? `${option.color}20`
+                        : `${option.color}15`,
+                    },
+                  ]}
+                >
+                  <Feather name={option.icon} size={22} color={option.color} />
+                </View>
+                <View style={styles.supportCardText}>
+                  <Text
+                    style={[styles.supportCardTitle, { color: colors.text }]}
+                  >
+                    {option.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.supportCardDesc,
+                      { color: isDark ? "#B8A88A" : "#8A7B68" },
+                    ]}
+                  >
+                    {option.desc}
+                  </Text>
+                </View>
+                <Feather
+                  name="chevron-right"
+                  size={20}
+                  color={isDark ? "rgba(201,150,63,0.4)" : "rgba(0,0,0,0.25)"}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -214,190 +283,210 @@ export default function Contact() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={{ flex: 1 }}
         >
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={[styles.backButton, { backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)" }]}
-          >
-            <Feather name="arrow-left" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>{t("contact.contactUsers")}</Text>
-          <View style={styles.placeholder} />
-        </View>
-        <View style={styles.filterContainer}>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              roleFilter === "all"
-                ? { backgroundColor: isDark ? "#C9963F" : colors.tint }
-                : { backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)" },
-            ]}
-            onPress={() => setRoleFilter("all")}
-          >
-            <Text
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => router.back()}
               style={[
-                styles.filterText,
-                { color: roleFilter === "all" ? "#FFFAF0" : colors.text },
+                styles.backButton,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(201,150,63,0.12)"
+                    : "rgba(184,130,42,0.2)",
+                },
               ]}
             >
-              {t("common.all")}
+              <Feather name="arrow-left" size={20} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>
+              {t("contact.contactUsers")}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              roleFilter === "JOB_SEEKER"
-                ? { backgroundColor: isDark ? "#C9963F" : colors.tint }
-                : { backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)" },
-            ]}
-            onPress={() => setRoleFilter("JOB_SEEKER")}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                { color: roleFilter === "JOB_SEEKER" ? "#FFFAF0" : colors.text },
-              ]}
-            >
-              {t("auth.serviceProvider")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              roleFilter === "EMPLOYER"
-                ? { backgroundColor: isDark ? "#C9963F" : colors.tint }
-                : { backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)" },
-            ]}
-            onPress={() => setRoleFilter("EMPLOYER")}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                { color: roleFilter === "EMPLOYER" ? "#FFFAF0" : colors.text },
-              ]}
-            >
-              {t("auth.employer")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {loading && !refreshing ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.tint} />
+            <View style={styles.placeholder} />
           </View>
-        ) : (
-          <ScrollView
-            style={styles.list}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            keyboardShouldPersistTaps="handled"
-          >
-            {users.length === 0 ? (
-              <View style={styles.center}>
-                <Text style={[styles.emptyText, { color: colors.text }]}>
-                  {t("contact.noUsersFound")}
-                </Text>
-              </View>
-            ) : (
-              users.map((user) => (
-                <TouchableOpacity
-                  key={user.id}
-                  style={[
-                    styles.userCard,
-                    {
+          <View style={styles.filterContainer}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                roleFilter === "all"
+                  ? { backgroundColor: isDark ? "#C9963F" : colors.tint }
+                  : {
                       backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.90)"
-                        : "rgba(255,250,240,0.92)",
-                      borderColor: isDark
-                        ? "rgba(201,150,63,0.25)"
-                        : "rgba(184,130,42,0.2)",
+                        ? "rgba(201,150,63,0.12)"
+                        : "rgba(184,130,42,0.06)",
                     },
-                  ]}
-                  onPress={() => handleUserPress(user)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.userCardContent}>
-                    {user.avatar ? (
-                      <Image
-                        source={{ uri: user.avatar }}
-                        style={styles.avatar}
+              ]}
+              onPress={() => setRoleFilter("all")}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  { color: roleFilter === "all" ? "#FFFAF0" : colors.text },
+                ]}
+              >
+                {t("common.all")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                roleFilter === "JOB_SEEKER"
+                  ? { backgroundColor: isDark ? "#C9963F" : colors.tint }
+                  : {
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "rgba(184,130,42,0.06)",
+                    },
+              ]}
+              onPress={() => setRoleFilter("JOB_SEEKER")}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  {
+                    color:
+                      roleFilter === "JOB_SEEKER" ? "#FFFAF0" : colors.text,
+                  },
+                ]}
+              >
+                {t("auth.serviceProvider")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                roleFilter === "EMPLOYER"
+                  ? { backgroundColor: isDark ? "#C9963F" : colors.tint }
+                  : {
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "rgba(184,130,42,0.06)",
+                    },
+              ]}
+              onPress={() => setRoleFilter("EMPLOYER")}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  {
+                    color: roleFilter === "EMPLOYER" ? "#FFFAF0" : colors.text,
+                  },
+                ]}
+              >
+                {t("auth.employer")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading && !refreshing ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color={colors.tint} />
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              keyboardShouldPersistTaps="handled"
+            >
+              {users.length === 0 ? (
+                <View style={styles.center}>
+                  <Text style={[styles.emptyText, { color: colors.text }]}>
+                    {t("contact.noUsersFound")}
+                  </Text>
+                </View>
+              ) : (
+                users.map((user) => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={[
+                      styles.userCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(12, 22, 42, 0.90)"
+                          : "rgba(255,250,240,0.92)",
+                        borderColor: isDark
+                          ? "rgba(201,150,63,0.25)"
+                          : "rgba(184,130,42,0.2)",
+                      },
+                    ]}
+                    onPress={() => handleUserPress(user)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.userCardContent}>
+                      <AvatarImage
+                        uri={user.avatar}
+                        size={50}
+                        style={{ marginRight: 12 }}
                       />
-                    ) : (
-                      <View
-                        style={[
-                          styles.avatar,
-                          styles.avatarPlaceholder,
-                          { backgroundColor: isDark ? "#5C5548" : "#D4C0A0" },
-                        ]}
-                      >
-                        <Feather
-                          name="user"
-                          size={24}
-                          color={isDark ? "#9A8E7A" : "#8A7B68"}
-                        />
-                      </View>
-                    )}
-                    <View style={styles.userInfo}>
-                      <Text style={[styles.userName, { color: colors.text }]}>
-                        {user.firstName} {user.lastName}
-                      </Text>
-                      <Text
-                        style={[styles.userEmail, { color: isDark ? "#B8A88A" : "#8A7B68" }]}
-                      >
-                        {user.email}
-                      </Text>
-                      <View style={styles.userMeta}>
-                        <View
+                      <View style={styles.userInfo}>
+                        <Text style={[styles.userName, { color: colors.text }]}>
+                          {user.firstName} {user.lastName}
+                        </Text>
+                        <Text
                           style={[
-                            styles.roleBadge,
-                            {
-                              backgroundColor:
-                                user.role === "EMPLOYER"
-                                  ? isDark
-                                    ? "rgba(201, 150, 63, 0.2)"
-                                    : "rgba(201, 150, 63, 0.1)"
-                                  : isDark
-                                    ? "rgba(34, 197, 94, 0.2)"
-                                    : "rgba(34, 197, 94, 0.1)",
-                            },
+                            styles.userEmail,
+                            { color: isDark ? "#B8A88A" : "#8A7B68" },
                           ]}
                         >
-                          <Text
+                          {user.email}
+                        </Text>
+                        <View style={styles.userMeta}>
+                          <View
                             style={[
-                              styles.roleText,
+                              styles.roleBadge,
                               {
-                                color:
-                                  user.role === "EMPLOYER" ? "#C9963F" : "#22c55e",
+                                backgroundColor:
+                                  user.role === "EMPLOYER"
+                                    ? isDark
+                                      ? "rgba(201, 150, 63, 0.2)"
+                                      : "rgba(201, 150, 63, 0.1)"
+                                    : isDark
+                                      ? "rgba(34, 197, 94, 0.2)"
+                                      : "rgba(34, 197, 94, 0.1)",
                               },
                             ]}
                           >
-                            {user.role === "EMPLOYER" ? t("auth.employer") : t("auth.serviceProvider")}
-                          </Text>
+                            <Text
+                              style={[
+                                styles.roleText,
+                                {
+                                  color:
+                                    user.role === "EMPLOYER"
+                                      ? "#C9963F"
+                                      : "#22c55e",
+                                },
+                              ]}
+                            >
+                              {user.role === "EMPLOYER"
+                                ? t("auth.employer")
+                                : t("auth.serviceProvider")}
+                            </Text>
+                          </View>
+                          {(user.city || user.country) && (
+                            <Text
+                              style={[
+                                styles.locationText,
+                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                              ]}
+                            >
+                              {[user.city, user.country]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </Text>
+                          )}
                         </View>
-                        {(user.city || user.country) && (
-                          <Text
-                            style={[
-                              styles.locationText,
-                              { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                            ]}
-                          >
-                            {[user.city, user.country].filter(Boolean).join(", ")}
-                          </Text>
-                        )}
                       </View>
+                      <Feather
+                        name="chevron-right"
+                        size={20}
+                        color={isDark ? "#B8A88A" : "#8A7B68"}
+                      />
                     </View>
-                    <Feather
-                      name="chevron-right"
-                      size={20}
-                      color={isDark ? "#B8A88A" : "#8A7B68"}
-                    />
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
-        )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
@@ -417,42 +506,63 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   title: { fontSize: 22, fontWeight: "800" },
-  card: {
+  // Hero section styles
+  heroCard: {
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 4,
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 20,
-  },
-  infoText: {
-    fontSize: 14,
-    marginBottom: 16,
-    opacity: 0.8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  input: {
-    borderRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  textarea: {
-    minHeight: 120,
-  },
-  button: {
-    marginTop: 24,
-    borderRadius: 4,
+    padding: 24,
     alignItems: "center",
-    paddingVertical: 16,
+    marginBottom: 24,
   },
-  buttonLabel: { fontWeight: "700", fontSize: 16 },
+  heroIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  // Support cards
+  supportCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  supportIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  supportCardText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  supportCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  supportCardDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   filterContainer: {
     flexDirection: "row",
     paddingHorizontal: 16,

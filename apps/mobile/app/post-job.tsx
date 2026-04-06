@@ -626,6 +626,7 @@ export default function PostJob() {
   const [showJobTypeModal, setShowJobTypeModal] = useState(false);
   const [rateAmount, setRateAmount] = useState("");
   const [currency, setCurrency] = useState("EUR");
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [paymentType, setPaymentType] = useState("HOURLY");
   const [showPaymentTypeModal, setShowPaymentTypeModal] = useState(false);
   const [requirements, setRequirements] = useState<string[]>([]);
@@ -1196,7 +1197,7 @@ export default function PostJob() {
               ))}
             </View>
 
-            <InputLabel text="Job Type" />
+            <InputLabel text={t("jobs.jobTypeLabel")} />
             <TouchableButton
               style={[
                 styles.input,
@@ -1213,13 +1214,18 @@ export default function PostJob() {
               ]}
               onPress={() => setShowJobTypeModal(true)}
             >
-              <Text
-                style={[
-                  styles.categoryText,
-                  { color: colors.text },
-                ]}
-              >
-                {({ FULL_TIME: "Full Time", PART_TIME: "Part Time", CONTRACT: "Contract", TEMPORARY: "Temporary", FREELANCE: "Freelance", INTERNSHIP: "Internship", GIG: "Gig" } as Record<string, string>)[jobType] || jobType}
+              <Text style={[styles.categoryText, { color: colors.text }]}>
+                {(
+                  {
+                    FULL_TIME: t("jobs.type.fulltime"),
+                    PART_TIME: t("jobs.type.parttime"),
+                    CONTRACT: t("jobs.type.contract"),
+                    TEMPORARY: t("jobs.type.temporary"),
+                    FREELANCE: t("jobs.type.freelance"),
+                    INTERNSHIP: t("jobs.type.internship"),
+                    GIG: t("jobs.type.gig"),
+                  } as Record<string, string>
+                )[jobType] || jobType}
               </Text>
               <Feather
                 name="chevron-down"
@@ -1228,18 +1234,34 @@ export default function PostJob() {
               />
             </TouchableButton>
 
-            <InputLabel text="Payment (Optional)" />
+            <InputLabel text={t("jobs.paymentOptional")} />
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <View
                 style={[
                   styles.input,
-                  { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" },
+                  {
+                    flex: 1,
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
                 ]}
               >
                 <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 16, padding: 0 }}
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                  }}
                   placeholder="0.00"
-                  placeholderTextColor={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
                   value={rateAmount}
                   onChangeText={setRateAmount}
                   keyboardType="decimal-pad"
@@ -1261,30 +1283,20 @@ export default function PostJob() {
                       : "transparent",
                   },
                 ]}
-                onPress={() => {
-                  const currencies = [
-                    "EUR",
-                    "USD",
-                    "GBP",
-                    "CHF",
-                    "SEK",
-                    "NOK",
-                    "DKK",
-                    "PLN",
-                    "CZK",
-                  ];
-                  const idx = currencies.indexOf(currency);
-                  setCurrency(currencies[(idx + 1) % currencies.length]);
-                }}
+                onPress={() => setShowCurrencyModal(true)}
               >
                 <Text
-                  style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}
+                  style={{
+                    color: colors.text,
+                    fontSize: 16,
+                    fontWeight: "700",
+                  }}
                 >
                   {currency}
                 </Text>
                 <Feather
-                  name="refresh-cw"
-                  size={14}
+                  name="chevron-down"
+                  size={20}
                   color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
                 />
               </TouchableButton>
@@ -1294,17 +1306,33 @@ export default function PostJob() {
                 styles.input,
                 styles.categoryInput,
                 {
-                  backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)",
+                  backgroundColor: isDark
+                    ? "rgba(255,250,240,0.12)"
+                    : "rgba(255,250,240,0.95)",
                   borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent",
+                  borderColor: isDark
+                    ? "rgba(255,250,240,0.15)"
+                    : "transparent",
                 },
               ]}
               onPress={() => setShowPaymentTypeModal(true)}
             >
               <Text style={[styles.categoryText, { color: colors.text }]}>
-                {({ HOURLY: "Per Hour", DAILY: "Per Day", WEEKLY: "Per Week", MONTHLY: "Per Month", FIXED: "Fixed Price" } as Record<string, string>)[paymentType] || paymentType}
+                {(
+                  {
+                    HOURLY: t("jobs.paymentType.hourly"),
+                    DAILY: t("jobs.paymentType.daily"),
+                    WEEKLY: t("jobs.paymentType.weekly"),
+                    MONTHLY: t("jobs.paymentType.monthly"),
+                    FIXED: t("jobs.paymentType.fixed"),
+                  } as Record<string, string>
+                )[paymentType] || paymentType}
               </Text>
-              <Feather name="chevron-down" size={20} color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"} />
+              <Feather
+                name="chevron-down"
+                size={20}
+                color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+              />
             </TouchableButton>
 
             <InputLabel
@@ -1509,16 +1537,20 @@ export default function PostJob() {
               />
             </View>
 
-            <InputLabel text="End Date (Optional)" />
+            <InputLabel text={t("jobs.endDateOptional")} />
             <View style={styles.dateTimeRow}>
               <TouchableButton
                 style={[
                   styles.input,
                   styles.dateTimeInput,
                   {
-                    backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)",
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
                     borderWidth: isDark ? 1 : 0,
-                    borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent",
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
                   },
                 ]}
                 onPress={() => setShowEndDatePicker(true)}
@@ -1528,11 +1560,17 @@ export default function PostJob() {
                   style={[
                     styles.dateTimeText,
                     {
-                      color: endDate ? colors.text : isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)",
+                      color: endDate
+                        ? colors.text
+                        : isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.4)",
                     },
                   ]}
                 >
-                  {endDate ? endDate.toLocaleDateString() : "Select End Date"}
+                  {endDate
+                    ? endDate.toLocaleDateString()
+                    : t("jobs.selectEndDate")}
                 </Text>
               </TouchableButton>
               {endDate && (
@@ -1540,81 +1578,192 @@ export default function PostJob() {
                   style={{ justifyContent: "center", paddingHorizontal: 8 }}
                   onPress={() => setEndDate(null)}
                 >
-                  <Feather name="x" size={20} color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"} />
+                  <Feather
+                    name="x"
+                    size={20}
+                    color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                  />
                 </TouchableButton>
               )}
             </View>
 
-            <InputLabel text="Requirements (Optional)" />
+            <InputLabel text={t("jobs.requirementsOptional")} />
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <View
                 style={[
                   styles.input,
-                  { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" },
+                  {
+                    flex: 1,
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
                 ]}
               >
                 <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 16, padding: 0 }}
-                  placeholder="Add a requirement..."
-                  placeholderTextColor={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                  }}
+                  placeholder={t("jobs.addRequirementPlaceholder")}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
                   value={newReq}
                   onChangeText={setNewReq}
                   onSubmitEditing={() => {
-                    if (newReq.trim()) { setRequirements([...requirements, newReq.trim()]); setNewReq(""); }
+                    if (newReq.trim()) {
+                      setRequirements([...requirements, newReq.trim()]);
+                      setNewReq("");
+                    }
                   }}
                   returnKeyType="done"
                   underlineColorAndroid="transparent"
                 />
               </View>
               <TouchableButton
-                style={[styles.optionButton, { flex: 0, paddingHorizontal: 16, backgroundColor: isDark ? "#C9963F" : colors.tint, borderColor: isDark ? "#C9963F" : colors.tint }]}
-                onPress={() => { if (newReq.trim()) { setRequirements([...requirements, newReq.trim()]); setNewReq(""); } }}
+                style={[
+                  styles.optionButton,
+                  {
+                    flex: 0,
+                    paddingHorizontal: 16,
+                    backgroundColor: isDark ? "#C9963F" : colors.tint,
+                    borderColor: isDark ? "#C9963F" : colors.tint,
+                  },
+                ]}
+                onPress={() => {
+                  if (newReq.trim()) {
+                    setRequirements([...requirements, newReq.trim()]);
+                    setNewReq("");
+                  }
+                }}
               >
                 <Feather name="plus" size={20} color="#FFFAF0" />
               </TouchableButton>
             </View>
             {requirements.map((req, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginBottom: 4, paddingLeft: 8 }}>
-                <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>• {req}</Text>
-                <TouchableButton onPress={() => setRequirements(requirements.filter((_, idx) => idx !== i))} style={{ padding: 4 }}>
-                  <Feather name="x" size={16} color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"} />
+              <View
+                key={i}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 4,
+                  paddingLeft: 8,
+                }}
+              >
+                <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>
+                  • {req}
+                </Text>
+                <TouchableButton
+                  onPress={() =>
+                    setRequirements(requirements.filter((_, idx) => idx !== i))
+                  }
+                  style={{ padding: 4 }}
+                >
+                  <Feather
+                    name="x"
+                    size={16}
+                    color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"}
+                  />
                 </TouchableButton>
               </View>
             ))}
 
-            <InputLabel text="Responsibilities (Optional)" />
+            <InputLabel text={t("jobs.responsibilitiesOptional")} />
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <View
                 style={[
                   styles.input,
-                  { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" },
+                  {
+                    flex: 1,
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
                 ]}
               >
                 <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 16, padding: 0 }}
-                  placeholder="Add a responsibility..."
-                  placeholderTextColor={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                  }}
+                  placeholder={t("jobs.addResponsibilityPlaceholder")}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
                   value={newResp}
                   onChangeText={setNewResp}
                   onSubmitEditing={() => {
-                    if (newResp.trim()) { setResponsibilities([...responsibilities, newResp.trim()]); setNewResp(""); }
+                    if (newResp.trim()) {
+                      setResponsibilities([
+                        ...responsibilities,
+                        newResp.trim(),
+                      ]);
+                      setNewResp("");
+                    }
                   }}
                   returnKeyType="done"
                   underlineColorAndroid="transparent"
                 />
               </View>
               <TouchableButton
-                style={[styles.optionButton, { flex: 0, paddingHorizontal: 16, backgroundColor: isDark ? "#C9963F" : colors.tint, borderColor: isDark ? "#C9963F" : colors.tint }]}
-                onPress={() => { if (newResp.trim()) { setResponsibilities([...responsibilities, newResp.trim()]); setNewResp(""); } }}
+                style={[
+                  styles.optionButton,
+                  {
+                    flex: 0,
+                    paddingHorizontal: 16,
+                    backgroundColor: isDark ? "#C9963F" : colors.tint,
+                    borderColor: isDark ? "#C9963F" : colors.tint,
+                  },
+                ]}
+                onPress={() => {
+                  if (newResp.trim()) {
+                    setResponsibilities([...responsibilities, newResp.trim()]);
+                    setNewResp("");
+                  }
+                }}
               >
                 <Feather name="plus" size={20} color="#FFFAF0" />
               </TouchableButton>
             </View>
             {responsibilities.map((resp, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginBottom: 4, paddingLeft: 8 }}>
-                <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>• {resp}</Text>
-                <TouchableButton onPress={() => setResponsibilities(responsibilities.filter((_, idx) => idx !== i))} style={{ padding: 4 }}>
-                  <Feather name="x" size={16} color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"} />
+              <View
+                key={i}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 4,
+                  paddingLeft: 8,
+                }}
+              >
+                <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>
+                  • {resp}
+                </Text>
+                <TouchableButton
+                  onPress={() =>
+                    setResponsibilities(
+                      responsibilities.filter((_, idx) => idx !== i),
+                    )
+                  }
+                  style={{ padding: 4 }}
+                >
+                  <Feather
+                    name="x"
+                    size={16}
+                    color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"}
+                  />
                 </TouchableButton>
               </View>
             ))}
@@ -1739,9 +1888,7 @@ export default function PostJob() {
                         false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
                         true: isDark ? "#C9963F" : "#B8822A",
                       }}
-                      thumbColor={
-                        requiresDriverLicense ? "#FFFAF0" : "#f4f3f4"
-                      }
+                      thumbColor={requiresDriverLicense ? "#FFFAF0" : "#f4f3f4"}
                     />
                     <Text
                       style={[
@@ -1892,31 +2039,158 @@ export default function PostJob() {
       />
 
       {/* Job Type Modal */}
-      <Modal visible={showJobTypeModal} transparent animationType="slide" onRequestClose={() => setShowJobTypeModal(false)}>
+      <Modal
+        visible={showJobTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowJobTypeModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0" }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Job Type</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("jobs.selectJobType")}
+              </Text>
               <TouchableButton onPress={() => setShowJobTypeModal(false)}>
                 <Feather name="x" size={24} color={colors.text} />
               </TouchableButton>
             </View>
             <ScrollView>
-              {([
-                { value: "FULL_TIME", label: "Full Time" },
-                { value: "PART_TIME", label: "Part Time" },
-                { value: "CONTRACT", label: "Contract" },
-                { value: "TEMPORARY", label: "Temporary" },
-                { value: "FREELANCE", label: "Freelance" },
-                { value: "INTERNSHIP", label: "Internship" },
-                { value: "GIG", label: "Gig" },
-              ]).map((jt) => (
+              {[
+                { value: "FULL_TIME", label: t("jobs.type.fulltime") },
+                { value: "PART_TIME", label: t("jobs.type.parttime") },
+                { value: "CONTRACT", label: t("jobs.type.contract") },
+                { value: "TEMPORARY", label: t("jobs.type.temporary") },
+                { value: "FREELANCE", label: t("jobs.type.freelance") },
+                { value: "INTERNSHIP", label: t("jobs.type.internship") },
+                { value: "GIG", label: t("jobs.type.gig") },
+              ].map((jt) => (
                 <TouchableButton
                   key={jt.value}
-                  style={[styles.categoryOption, { backgroundColor: jobType === jt.value ? (isDark ? "#C9963F" : "#C9963F") : isDark ? "rgba(255,250,240,0.06)" : "rgba(184,130,42,0.06)", borderWidth: jobType === jt.value ? 0 : 1, borderColor: jobType === jt.value ? "transparent" : isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)" }]}
-                  onPress={() => { setJobType(jt.value); setShowJobTypeModal(false); }}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor:
+                        jobType === jt.value
+                          ? isDark
+                            ? "#C9963F"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: jobType === jt.value ? 0 : 1,
+                      borderColor:
+                        jobType === jt.value
+                          ? "transparent"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setJobType(jt.value);
+                    setShowJobTypeModal(false);
+                  }}
                 >
-                  <Text style={[styles.categoryOptionText, { color: jobType === jt.value ? "#FFFAF0" : colors.text, fontWeight: jobType === jt.value ? "600" : "500" }]}>{jt.label}</Text>
+                  <Text
+                    style={[
+                      styles.categoryOptionText,
+                      {
+                        color: jobType === jt.value ? "#FFFAF0" : colors.text,
+                        fontWeight: jobType === jt.value ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {jt.label}
+                  </Text>
+                </TouchableButton>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Currency Modal */}
+      <Modal
+        visible={showCurrencyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCurrencyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("jobs.selectCurrency")}
+              </Text>
+              <TouchableButton onPress={() => setShowCurrencyModal(false)}>
+                <Feather name="x" size={24} color={colors.text} />
+              </TouchableButton>
+            </View>
+            <ScrollView>
+              {[
+                { value: "EUR", label: "EUR – Euro" },
+                { value: "USD", label: "USD – US Dollar" },
+                { value: "GBP", label: "GBP – British Pound" },
+                { value: "CHF", label: "CHF – Swiss Franc" },
+                { value: "SEK", label: "SEK – Swedish Krona" },
+                { value: "NOK", label: "NOK – Norwegian Krone" },
+                { value: "DKK", label: "DKK – Danish Krone" },
+                { value: "PLN", label: "PLN – Polish Złoty" },
+                { value: "CZK", label: "CZK – Czech Koruna" },
+              ].map((c) => (
+                <TouchableButton
+                  key={c.value}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor:
+                        currency === c.value
+                          ? isDark
+                            ? "#C9963F"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: currency === c.value ? 0 : 1,
+                      borderColor:
+                        currency === c.value
+                          ? "transparent"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setCurrency(c.value);
+                    setShowCurrencyModal(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.categoryOptionText,
+                      {
+                        color: currency === c.value ? "#FFFAF0" : colors.text,
+                        fontWeight: currency === c.value ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {c.label}
+                  </Text>
                 </TouchableButton>
               ))}
             </ScrollView>
@@ -1925,29 +2199,76 @@ export default function PostJob() {
       </Modal>
 
       {/* Payment Type Modal */}
-      <Modal visible={showPaymentTypeModal} transparent animationType="slide" onRequestClose={() => setShowPaymentTypeModal(false)}>
+      <Modal
+        visible={showPaymentTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaymentTypeModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0" }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Payment Type</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("jobs.selectPaymentType")}
+              </Text>
               <TouchableButton onPress={() => setShowPaymentTypeModal(false)}>
                 <Feather name="x" size={24} color={colors.text} />
               </TouchableButton>
             </View>
             <ScrollView>
-              {([
-                { value: "HOURLY", label: "Per Hour" },
-                { value: "DAILY", label: "Per Day" },
-                { value: "WEEKLY", label: "Per Week" },
-                { value: "MONTHLY", label: "Per Month" },
-                { value: "FIXED", label: "Fixed Price" },
-              ]).map((pt) => (
+              {[
+                { value: "HOURLY", label: t("jobs.paymentType.hourly") },
+                { value: "DAILY", label: t("jobs.paymentType.daily") },
+                { value: "WEEKLY", label: t("jobs.paymentType.weekly") },
+                { value: "MONTHLY", label: t("jobs.paymentType.monthly") },
+                { value: "FIXED", label: t("jobs.paymentType.fixed") },
+              ].map((pt) => (
                 <TouchableButton
                   key={pt.value}
-                  style={[styles.categoryOption, { backgroundColor: paymentType === pt.value ? (isDark ? "#C9963F" : "#C9963F") : isDark ? "rgba(255,250,240,0.06)" : "rgba(184,130,42,0.06)", borderWidth: paymentType === pt.value ? 0 : 1, borderColor: paymentType === pt.value ? "transparent" : isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)" }]}
-                  onPress={() => { setPaymentType(pt.value); setShowPaymentTypeModal(false); }}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor:
+                        paymentType === pt.value
+                          ? isDark
+                            ? "#C9963F"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: paymentType === pt.value ? 0 : 1,
+                      borderColor:
+                        paymentType === pt.value
+                          ? "transparent"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setPaymentType(pt.value);
+                    setShowPaymentTypeModal(false);
+                  }}
                 >
-                  <Text style={[styles.categoryOptionText, { color: paymentType === pt.value ? "#FFFAF0" : colors.text, fontWeight: paymentType === pt.value ? "600" : "500" }]}>{pt.label}</Text>
+                  <Text
+                    style={[
+                      styles.categoryOptionText,
+                      {
+                        color:
+                          paymentType === pt.value ? "#FFFAF0" : colors.text,
+                        fontWeight: paymentType === pt.value ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {pt.label}
+                  </Text>
                 </TouchableButton>
               ))}
             </ScrollView>

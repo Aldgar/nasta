@@ -9,6 +9,9 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Linking,
+  Animated,
+  ScrollView,
+  Image,
 } from "react-native";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -152,8 +155,10 @@ export default function TrackingScreen() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [locationRetryKey, setLocationRetryKey] = useState(0); // Force location effect to re-run
+  const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
 
   const mapRef = useRef<any>(null);
+  const bottomSheetAnim = useRef(new Animated.Value(0)).current;
 
   // Decode JWT to get user role
   const decodeJwtPayload = (token: string): { role?: string } | null => {
@@ -282,7 +287,7 @@ export default function TrackingScreen() {
         const allBookings = Array.isArray(data) ? data : [];
 
         // Filter to only include CONFIRMED and IN_PROGRESS bookings
-        // Also filter out bookings where job is null (deleted jobs)
+        // Also filter out bookings where job is null (deleted jobs) or job is completed
         const activeBookings = allBookings.filter((b: any) => {
           // Must be CONFIRMED or IN_PROGRESS
           if (b.status !== "CONFIRMED" && b.status !== "IN_PROGRESS") {
@@ -290,6 +295,14 @@ export default function TrackingScreen() {
           }
           // If booking has a jobId, the job must exist (not deleted)
           if (b.jobId && !b.job) {
+            return false;
+          }
+          // If the associated job is completed, don't show tracking
+          if (b.job?.status === "COMPLETED") {
+            return false;
+          }
+          // If booking has completedAt set, it's done
+          if (b.completedAt) {
             return false;
           }
           // Direct bookings (no jobId) are always valid
@@ -586,8 +599,35 @@ export default function TrackingScreen() {
     ? `${booking.jobSeeker.firstName} ${booking.jobSeeker.lastName}`
     : t("common.serviceProvider");
 
+  const providerAvatar = booking?.jobSeeker?.avatar || null;
+
   // If user is seeker, "You" are the provider
-  const displayName = role === "JOB_SEEKER" ? "You" : providerName;
+  const displayName = role === "JOB_SEEKER" ? t("tracking.you") : providerName;
+
+  // Toggle bottom sheet expanded/collapsed
+  const toggleBottomSheet = () => {
+    const toValue = isBottomSheetExpanded ? 0 : 1;
+    setIsBottomSheetExpanded(!isBottomSheetExpanded);
+    Animated.spring(bottomSheetAnim, {
+      toValue,
+      useNativeDriver: false,
+      friction: 8,
+    }).start();
+  };
+
+  // Format date for display
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "N/A";
+    try {
+      return new Date(dateStr).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "N/A";
+    }
+  };
 
   // Show loading state while determining role
   if (!roleDetermined || !role) {
@@ -779,10 +819,25 @@ export default function TrackingScreen() {
                         <View
                           style={[
                             styles.bookingAvatar,
-                            { backgroundColor: isDark ? "#6B6355" : "#1E293B" },
+                            {
+                              backgroundColor: isDark ? "#6B6355" : "#1E293B",
+                              overflow: "hidden",
+                            },
                           ]}
                         >
-                          <Ionicons name="person" size={24} color="white" />
+                          {providerAvatar ? (
+                            <Image
+                              source={{ uri: providerAvatar }}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                borderRadius: 4,
+                              }}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Ionicons name="person" size={24} color="white" />
+                          )}
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Text
@@ -1337,16 +1392,7 @@ export default function TrackingScreen() {
   }
 
   // Show fallback if maps not available or API key error
-  // CRITICAL FIX: On Android, MapView crashes immediately if API key is missing.
-  // Since we can't detect this before render, we must be conservative:
-  // On Android, only render MapView if we have explicit confirmation it's safe.
-  // Since app.json has empty API key, we default to fallback on Android.
-
-  // On Android, always show fallback unless we have explicit error message (which means we tried and failed)
-  // This prevents the native crash from happening
-  const shouldShowFallbackAndroid = Platform.OS === "android" && !mapsError;
-
-  if (!mapsLoaded || mapsError || shouldShowFallbackAndroid) {
+  if (!mapsLoaded || mapsError) {
     return (
       <GradientBackground>
         <Stack.Screen options={{ headerShown: false }} />
@@ -1477,7 +1523,7 @@ export default function TrackingScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.mapContainer}>
-        {MapView && mapsLoaded && Platform.OS !== "android" ? (
+        {MapView && mapsLoaded ? (
           <MapView
             ref={mapRef}
             style={StyleSheet.absoluteFill}
@@ -1489,6 +1535,19 @@ export default function TrackingScreen() {
               longitudeDelta: 0.0421,
             }}
             showsUserLocation={role === "JOB_SEEKER" && !!location}
+            showsMyLocationButton={true}
+            showsCompass={true}
+            showsScale={true}
+            showsBuildings={true}
+            showsIndoors={true}
+            zoomEnabled={true}
+            zoomControlEnabled={true}
+            scrollEnabled={true}
+            rotateEnabled={true}
+            pitchEnabled={true}
+            toolbarEnabled={true}
+            loadingEnabled={true}
+            loadingIndicatorColor="#C9963F"
             userInterfaceStyle={isDark ? "dark" : "light"}
             onMapReady={() => {
               // Map loaded successfully
@@ -1518,9 +1577,20 @@ export default function TrackingScreen() {
                 anchor={{ x: 0.5, y: 0.5 }}
               >
                 <View
-                  style={[styles.carMarker, { backgroundColor: colors.tint }]}
+                  style={[
+                    styles.carMarker,
+                    { backgroundColor: colors.tint, overflow: "hidden" },
+                  ]}
                 >
-                  <Ionicons name="person" size={24} color="white" />
+                  {providerAvatar ? (
+                    <Image
+                      source={{ uri: providerAvatar }}
+                      style={{ width: 32, height: 32, borderRadius: 4 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="person" size={24} color="white" />
+                  )}
                 </View>
               </Marker>
             )}
@@ -1644,11 +1714,11 @@ export default function TrackingScreen() {
             >
               <ActivityIndicator size="small" color={colors.tint} />
               <Text style={[styles.loadingText, { color: colors.text }]}>
-                Loading details...
+                {t("tracking.loadingDetails")}
               </Text>
             </View>
           ) : isTrackingActive ? (
-            <View
+            <Animated.View
               style={[
                 styles.bottomCard,
                 {
@@ -1658,21 +1728,31 @@ export default function TrackingScreen() {
                   borderTopColor: isDark
                     ? "rgba(255,250,240,0.12)"
                     : "rgba(0,0,0,0.08)",
+                  maxHeight: bottomSheetAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [280, 520],
+                  }),
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.handle,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(201,150,63,0.25)"
-                      : "#E8D8B8",
-                  },
-                ]}
-              />
+              <TouchableOpacity onPress={toggleBottomSheet} activeOpacity={0.7}>
+                <View
+                  style={[
+                    styles.handle,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.25)"
+                        : "#E8D8B8",
+                    },
+                  ]}
+                />
+              </TouchableOpacity>
               <Text style={[styles.cardTitle, { color: colors.text }]}>
-                {role === "JOB_SEEKER" ? "Sharing Location" : "Arriving Soon"}
+                {role === "JOB_SEEKER"
+                  ? t("tracking.sharingLocation")
+                  : booking?.job?.title ||
+                    booking?.title ||
+                    t("tracking.arrivingSoon")}
               </Text>
               <Text
                 style={[
@@ -1682,10 +1762,51 @@ export default function TrackingScreen() {
               >
                 {role === "JOB_SEEKER"
                   ? location
-                    ? "Your location is visible to the client"
-                    : locationError || "Getting your location..."
-                  : `${providerName} is on the way`}
+                    ? t("tracking.locationVisibleToClient")
+                    : locationError || t("tracking.gettingLocation")
+                  : t("tracking.isOnTheWay", { name: providerName })}
               </Text>
+
+              {/* Verification Code for Employer */}
+              {role === "EMPLOYER" && booking?.verificationCode && (
+                <View
+                  style={[
+                    styles.verificationCodeBox,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.15)"
+                        : "#FEF3C7",
+                      borderColor: isDark ? "rgba(201,150,63,0.3)" : "#F59E0B",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="key"
+                    size={18}
+                    color={isDark ? "#C9963F" : "#D97706"}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.verificationCodeLabel,
+                        {
+                          color: isDark ? "rgba(240,232,213,0.7)" : "#92400E",
+                        },
+                      ]}
+                    >
+                      {t("tracking.bookingCodeShareWithProvider")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.verificationCodeText,
+                        { color: isDark ? "#C9963F" : "#D97706" },
+                      ]}
+                    >
+                      {booking.verificationCode}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {locationError && role === "JOB_SEEKER" && (
                 <TouchableOpacity
@@ -1701,7 +1822,6 @@ export default function TrackingScreen() {
                   onPress={() => {
                     setLocationError(null);
                     setLocation(null);
-                    // Force location effect to re-run
                     setLocationRetryKey((prev) => prev + 1);
                   }}
                 >
@@ -1736,7 +1856,6 @@ export default function TrackingScreen() {
 
                       const base = getApiBase();
 
-                      // Update booking status back to CONFIRMED
                       const res = await fetch(
                         `${base}/bookings/${bookingId}/status`,
                         {
@@ -1750,13 +1869,9 @@ export default function TrackingScreen() {
                       );
 
                       if (res.ok) {
-                        // Clear booking state immediately to prevent flash
                         setBooking(null);
-
-                        // Navigate back to list immediately to prevent flash
                         router.replace(`/tracking?role=${role}` as any);
 
-                        // Refresh bookings list after navigation
                         setTimeout(async () => {
                           const endpoint = `${base}/bookings/seeker/me`;
                           const refreshRes = await fetch(endpoint, {
@@ -1779,11 +1894,10 @@ export default function TrackingScreen() {
                           }
                         }, 200);
 
-                        // Show success message after navigation
                         setTimeout(() => {
                           Alert.alert(
-                            "Tracking Stopped",
-                            "Location sharing has been stopped. You can start tracking again when ready.",
+                            t("tracking.trackingStopped"),
+                            t("tracking.trackingStoppedMessage"),
                             [{ text: "OK" }],
                           );
                         }, 300);
@@ -1822,6 +1936,7 @@ export default function TrackingScreen() {
                 </TouchableOpacity>
               )}
 
+              {/* Person row with chat button */}
               <View
                 style={[
                   styles.driverRow,
@@ -1835,10 +1950,21 @@ export default function TrackingScreen() {
                 <View
                   style={[
                     styles.avatar,
-                    { backgroundColor: isDark ? "#6B6355" : "#1E293B" },
+                    {
+                      backgroundColor: isDark ? "#6B6355" : "#1E293B",
+                      overflow: "hidden",
+                    },
                   ]}
                 >
-                  <Ionicons name="person" size={24} color="white" />
+                  {providerAvatar ? (
+                    <Image
+                      source={{ uri: providerAvatar }}
+                      style={{ width: "100%", height: "100%", borderRadius: 4 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="person" size={24} color="white" />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.driverName, { color: colors.text }]}>
@@ -1850,46 +1976,314 @@ export default function TrackingScreen() {
                       { color: isDark ? "rgba(255,250,240,0.6)" : "#8A7B68" },
                     ]}
                   >
-                    Service Provider
+                    {role === "JOB_SEEKER"
+                      ? t("tracking.you")
+                      : t("tracking.serviceProvider")}
                   </Text>
                 </View>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <TouchableOpacity
-                    style={[styles.callButton, { backgroundColor: "#22c55e" }]}
-                    onPress={() => {
-                      const phoneNumber =
-                        role === "EMPLOYER"
-                          ? booking?.jobSeeker?.phone
-                          : booking?.employer?.phone;
-                      if (phoneNumber) {
-                        Linking.openURL(`tel:${phoneNumber}`);
-                      } else {
-                        Alert.alert(t("tracking.phoneNumberNotAvailable"));
-                      }
-                    }}
-                  >
-                    <Ionicons name="call" size={20} color="white" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.callButton,
-                      { backgroundColor: colors.tint },
-                    ]}
-                    onPress={() => {
-                      const otherUserId =
-                        role === "EMPLOYER"
-                          ? booking?.jobSeeker?.id
-                          : booking?.employer?.id;
-                      if (otherUserId) {
-                        router.push(`/chat/room?userId=${otherUserId}` as any);
-                      }
-                    }}
-                  >
-                    <Ionicons name="chatbubble" size={20} color="white" />
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={[styles.callButton, { backgroundColor: colors.tint }]}
+                  onPress={() => {
+                    const otherUserId =
+                      role === "EMPLOYER"
+                        ? booking?.jobSeeker?.id
+                        : booking?.employer?.id;
+                    if (otherUserId) {
+                      router.push(`/chat/room?userId=${otherUserId}` as any);
+                    }
+                  }}
+                >
+                  <Ionicons name="chatbubble" size={20} color="white" />
+                </TouchableOpacity>
               </View>
-            </View>
+
+              {/* Expandable booking details */}
+              {isBottomSheetExpanded && (
+                <ScrollView
+                  style={[
+                    styles.expandedDetails,
+                    {
+                      borderTopColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "#F1F5F9",
+                    },
+                  ]}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {booking?.job?.title && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="briefcase-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.jobTitle")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {booking.job.title}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {booking?.job?.category?.name && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="pricetag-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.category")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {booking.job.category.name}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {(booking?.job?.location || booking?.job?.city) && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="location-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.location")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {[
+                            booking.job.location,
+                            booking.job.city,
+                            booking.job.country,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {(booking?.agreedRateAmount || booking?.job?.rateAmount) && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="cash-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.rate")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {booking.agreedCurrency ||
+                            booking.job?.currency ||
+                            ""}{" "}
+                          {booking.agreedRateAmount || booking.job?.rateAmount}
+                          {booking.agreedPayUnit || booking.job?.paymentType
+                            ? ` / ${booking.agreedPayUnit || booking.job?.paymentType}`
+                            : ""}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {booking?.job?.type && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="time-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.type")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {booking.job.type}
+                          {booking.job.workMode
+                            ? ` · ${booking.job.workMode}`
+                            : ""}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {(booking?.startTime || booking?.job?.startDate) && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.startDate")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {formatDate(
+                            booking.startTime || booking.job?.startDate,
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {booking?.status && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="checkmark-circle-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.status")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.tint }]}
+                        >
+                          {booking.status.replace(/_/g, " ")}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {booking?.notes && (
+                    <View style={styles.detailRow}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={16}
+                        color={isDark ? "rgba(240,232,213,0.6)" : "#8A7B68"}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.detailLabel,
+                            {
+                              color: isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "#8A7B68",
+                            },
+                          ]}
+                        >
+                          {t("tracking.notes")}
+                        </Text>
+                        <Text
+                          style={[styles.detailValue, { color: colors.text }]}
+                        >
+                          {booking.notes}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
+
+              {/* Expand/collapse indicator */}
+              <TouchableOpacity
+                onPress={toggleBottomSheet}
+                style={styles.expandToggle}
+              >
+                <Ionicons
+                  name={isBottomSheetExpanded ? "chevron-down" : "chevron-up"}
+                  size={20}
+                  color={isDark ? "rgba(240,232,213,0.5)" : "#8A7B68"}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: isDark ? "rgba(240,232,213,0.5)" : "#8A7B68",
+                    marginLeft: 4,
+                  }}
+                >
+                  {isBottomSheetExpanded
+                    ? t("tracking.less")
+                    : t("tracking.moreDetails")}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
           ) : null}
         </SafeAreaView>
       </View>
@@ -2014,6 +2408,57 @@ const styles = StyleSheet.create({
     backgroundColor: "#22C55E",
     justifyContent: "center",
     alignItems: "center",
+  },
+  verificationCodeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  verificationCodeLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  verificationCodeText: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: 4,
+    marginTop: 2,
+  },
+  expandedDetails: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    maxHeight: 200,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 12,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  expandToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 8,
   },
   // Bookings List Styles
   listHeader: {

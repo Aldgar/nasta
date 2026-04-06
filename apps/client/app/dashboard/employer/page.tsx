@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "../../../lib/auth";
 import { api, resolveAvatarUrl } from "../../../lib/api";
 import { useLanguage } from "../../../context/LanguageContext";
+import Avatar from "../../../components/Avatar";
 
 interface VerifiedProvider {
   id: string;
@@ -457,21 +458,20 @@ export default function EmployerFeed() {
                           <div className="flex items-start gap-4">
                             {/* Provider avatar */}
                             <div className="relative shrink-0">
-                              {b.applicant?.avatar ? (
-                                <img
-                                  src={resolveAvatarUrl(b.applicant.avatar)}
-                                  alt={providerName}
-                                  className={`h-12 w-12 rounded-xl object-cover ring-2 ${started ? "ring-[var(--achievement-green)]/20" : "ring-[var(--fulfillment-gold)]/20"}`}
-                                />
-                              ) : (
-                                <div
-                                  className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-bold ${started ? "bg-[var(--achievement-green)]/15 text-[var(--achievement-green)]" : "bg-[var(--fulfillment-gold)]/15 text-[var(--fulfillment-gold)]"}`}
-                                >
-                                  {(
-                                    b.applicant?.firstName?.[0] || "S"
-                                  ).toUpperCase()}
-                                </div>
-                              )}
+                              <Avatar
+                                src={resolveAvatarUrl(b.applicant?.avatar)}
+                                alt={providerName}
+                                imgClassName={`h-12 w-12 rounded-xl object-cover ring-2 ${started ? "ring-[var(--achievement-green)]/20" : "ring-[var(--fulfillment-gold)]/20"}`}
+                                fallback={
+                                  <div
+                                    className={`flex h-12 w-12 items-center justify-center rounded-xl text-base font-bold ${started ? "bg-[var(--achievement-green)]/15 text-[var(--achievement-green)]" : "bg-[var(--fulfillment-gold)]/15 text-[var(--fulfillment-gold)]"}`}
+                                  >
+                                    {(
+                                      b.applicant?.firstName?.[0] || "S"
+                                    ).toUpperCase()}
+                                  </div>
+                                }
+                              />
                               {started && (
                                 <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-[var(--surface)] bg-[var(--achievement-green)]">
                                   <span className="absolute inset-0 animate-ping rounded-full bg-[var(--achievement-green)]/60" />
@@ -823,18 +823,16 @@ export default function EmployerFeed() {
                       className="group rounded-xl border border-[var(--border-color)] bg-[var(--surface)] p-4 transition-all hover:border-[var(--primary)]/30 hover:shadow-md"
                     >
                       <div className="flex flex-col items-center text-center">
-                        {prov.avatar ? (
-                          <img
-                            src={resolveAvatarUrl(prov.avatar)}
-                            alt=""
-                            className="h-12 w-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)]/15 text-sm font-bold text-[var(--primary)]">
-                            {prov.firstName?.[0]}
-                            {prov.lastName?.[0]}
-                          </div>
-                        )}
+                        <Avatar
+                          src={resolveAvatarUrl(prov.avatar)}
+                          imgClassName="h-12 w-12 rounded-full object-cover"
+                          fallback={
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)]/15 text-sm font-bold text-[var(--primary)]">
+                              {prov.firstName?.[0]}
+                              {prov.lastName?.[0]}
+                            </div>
+                          }
+                        />
                         <p className="mt-2 text-sm font-semibold text-[var(--foreground)] line-clamp-1">
                           {prov.firstName} {prov.lastName}
                         </p>

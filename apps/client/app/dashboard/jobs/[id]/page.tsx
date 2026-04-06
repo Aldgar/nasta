@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, resolveAvatarUrl } from "../../../../lib/api";
 import BrandedSelect from "../../../../components/ui/BrandedSelect";
 import { useLanguage } from "../../../../context/LanguageContext";
+import Avatar from "../../../../components/Avatar";
 
 interface Category {
   id: string;
@@ -692,17 +693,15 @@ export default function JobDetailPage() {
               </h2>
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--primary)]/15">
-                  {employerAvatar ? (
-                    <img
-                      src={employerAvatar}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-sm font-bold text-[var(--primary)]">
-                      {employerInitials}
-                    </span>
-                  )}
+                  <Avatar
+                    src={employerAvatar}
+                    imgClassName="h-full w-full object-cover"
+                    fallback={
+                      <span className="text-sm font-bold text-[var(--primary)]">
+                        {employerInitials}
+                      </span>
+                    }
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">

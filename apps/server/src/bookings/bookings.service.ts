@@ -226,6 +226,7 @@ export class BookingsService {
             id: true,
             employerId: true,
             title: true,
+            status: true,
             location: true,
             city: true,
             country: true,
@@ -348,6 +349,7 @@ export class BookingsService {
             id: true,
             employerId: true,
             title: true,
+            status: true,
             location: true,
             city: true,
             country: true,
@@ -516,7 +518,20 @@ export class BookingsService {
           select: {
             id: true,
             title: true,
+            description: true,
+            location: true,
+            city: true,
+            country: true,
             coordinates: true,
+            type: true,
+            workMode: true,
+            rateAmount: true,
+            currency: true,
+            paymentType: true,
+            startDate: true,
+            endDate: true,
+            duration: true,
+            category: { select: { id: true, name: true } },
             employer: {
               select: {
                 id: true,
@@ -539,7 +554,22 @@ export class BookingsService {
       );
     }
 
-    return booking;
+    // Fetch verification code from the related application
+    let verificationCode: string | null = null;
+    if (booking.jobId && booking.jobSeekerId) {
+      const application = await this.prisma.application.findUnique({
+        where: {
+          applicantId_jobId: {
+            applicantId: booking.jobSeekerId,
+            jobId: booking.jobId,
+          },
+        },
+        select: { verificationCode: true },
+      });
+      verificationCode = application?.verificationCode || null;
+    }
+
+    return { ...booking, verificationCode };
   }
 
   async updateBookingStatus(

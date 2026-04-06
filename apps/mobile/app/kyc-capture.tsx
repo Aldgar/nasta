@@ -97,6 +97,7 @@ export default function KycCapture() {
   const [cvDocuments, setCvDocuments] = useState<DocumentInfo[]>([]);
 
   // Driver's License (optional)
+  const [jobRequiresDriving, setJobRequiresDriving] = useState(false);
   const [includeDriversLicense, setIncludeDriversLicense] = useState(false);
   const [driversLicenseFront, setDriversLicenseFront] = useState<DocumentInfo>({
     uri: null,
@@ -169,14 +170,16 @@ export default function KycCapture() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        let kycData: any = null;
         if (kycRes.ok) {
-          const kycData = await kycRes.json();
+          kycData = await kycRes.json();
           const verification = kycData?.current;
 
           if (verification?.id === verificationId) {
-            // Set ID type from verification - ensure it persists and doesn't get reset
-            if (verification.verificationType) {
-              const vType = verification.verificationType as IdType;
+            // Set ID type from verification - prefer documentType, fallback to verificationType
+            if (verification.documentType || verification.verificationType) {
+              const vType = (verification.documentType ||
+                verification.verificationType) as IdType;
               setIdType(vType);
               if (vType === "OTHER") {
                 setShowOtherInput(true);
@@ -266,20 +269,15 @@ export default function KycCapture() {
           }
         }
 
-        // Check for existing driver's license verification
-        const allKycRes = await fetch(`${base}/kyc/my-status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => null);
-
-        if (allKycRes?.ok) {
-          const allKycData = await allKycRes.json();
-          // Check all verifications for driver's license
-          const allVerifications = allKycData?.allVerifications || [];
+        // Check for existing driver's license verification from allVerifications
+        {
+          const allVerifications = kycData?.allVerifications || [];
           const dlVerification = allVerifications.find(
             (v: any) => v.verificationType === "DRIVERS_LICENSE",
           );
 
           if (dlVerification) {
+            setJobRequiresDriving(true);
             setIncludeDriversLicense(true);
             setDriversLicenseVerificationId(dlVerification.id);
             const status = dlVerification.status;
@@ -572,7 +570,18 @@ export default function KycCapture() {
     }
     if (
       includeDriversLicense &&
-      (!driversLicenseFront.uri || !driversLicenseBack.uri)
+      !driversLicenseFront.uri &&
+      !driversLicenseFront.url &&
+      !driversLicenseBack.uri &&
+      !driversLicenseBack.url
+    ) {
+      Alert.alert(t("common.required"), t("kyc.pleaseUploadBothLicenseSides"));
+      return;
+    }
+    if (
+      jobRequiresDriving &&
+      !driversLicenseFront.uri &&
+      !driversLicenseFront.url
     ) {
       Alert.alert(t("common.required"), t("kyc.pleaseUploadBothLicenseSides"));
       return;
@@ -1238,59 +1247,55 @@ export default function KycCapture() {
           <Text style={styles.cardText}>{t("kyc.noDocumentUploaded")}</Text>
         )}
 
-        {/* Hide upload buttons if document is already approved/verified */}
-        {!isDocApproved && (
-          <>
-            <View style={styles.row}>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() =>
-                  pickImage(setter, true, documentType === "selfie")
-                }
-              >
-                <Text style={styles.buttonLabel}>{t("kyc.useCamera")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() => pickImage(setter, false)}
-              >
-                <Text style={styles.buttonLabel}>{t("kyc.pickFile")}</Text>
-              </TouchableOpacity>
-            </View>
+        {/* Always show upload buttons to allow adding/replacing documents */}
+        <>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => pickImage(setter, true, documentType === "selfie")}
+            >
+              <Text style={styles.buttonLabel}>{t("kyc.useCamera")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => pickImage(setter, false)}
+            >
+              <Text style={styles.buttonLabel}>{t("kyc.pickFile")}</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Upload button - show if local image selected OR if already uploaded (to allow re-upload) */}
-            {documentType && (
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.buttonPrimary,
-                  styles.uploadButton,
-                  isUploading && { opacity: 0.7 },
-                ]}
-                onPress={() => {
-                  if (hasLocalImage) {
-                    // Upload the selected document
-                    uploadSingleDocument(documentType, doc);
-                  } else if (isUploaded) {
-                    // If already uploaded, allow selecting new document to replace
-                    pickImage(setter, false);
-                  }
-                }}
-                disabled={isUploading || (!hasLocalImage && !isUploaded)}
-              >
-                <Text style={styles.buttonLabel}>
-                  {isUploading
-                    ? t("kyc.uploading")
-                    : isUploaded
-                      ? t("kyc.uploadAnotherDocument")
-                      : hasLocalImage
-                        ? t("kyc.upload")
-                        : t("kyc.noDocumentSelected")}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
+          {/* Upload button - show if local image selected OR if already uploaded (to allow re-upload) */}
+          {documentType && (
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.buttonPrimary,
+                styles.uploadButton,
+                isUploading && { opacity: 0.7 },
+              ]}
+              onPress={() => {
+                if (hasLocalImage) {
+                  // Upload the selected document
+                  uploadSingleDocument(documentType, doc);
+                } else if (isUploaded) {
+                  // If already uploaded, allow selecting new document to replace
+                  pickImage(setter, false);
+                }
+              }}
+              disabled={isUploading || (!hasLocalImage && !isUploaded)}
+            >
+              <Text style={styles.buttonLabel}>
+                {isUploading
+                  ? t("kyc.uploading")
+                  : isUploaded
+                    ? t("kyc.uploadAnotherDocument")
+                    : hasLocalImage
+                      ? t("kyc.upload")
+                      : t("kyc.noDocumentSelected")}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </>
       </View>
     );
   };
@@ -1350,8 +1355,8 @@ export default function KycCapture() {
                     router.push("/user-home" as any);
                   }
                 } catch {
-                  // If all else fails, try to navigate to tabs
-                  router.push("/(tabs)" as any);
+                  // If all else fails, navigate to user home
+                  router.push("/user-home" as any);
                 }
               }}
               style={styles.backButton}
@@ -1442,18 +1447,35 @@ export default function KycCapture() {
                 "selfie",
               )}
 
-              {/* Driver's License Section (Optional) */}
+              {/* Driver Verification Section */}
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>
-                    {t("kyc.driversLicenseOptional")}
+                    {t("kyc.driverVerification") || "Driver Verification"}
+                  </Text>
+                </View>
+
+                {/* Does your job require driving? */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text style={[styles.cardText, { marginBottom: 0, flex: 1 }]}>
+                    {t("kyc.doesJobRequireDriving") ||
+                      "Does your job require driving?"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
-                      const newValue = !includeDriversLicense;
-                      setIncludeDriversLicense(newValue);
-                      if (!newValue) {
-                        // Clear documents when toggling off
+                      const newValue = !jobRequiresDriving;
+                      setJobRequiresDriving(newValue);
+                      if (newValue) {
+                        setIncludeDriversLicense(true);
+                      } else {
+                        setIncludeDriversLicense(false);
                         setDriversLicenseFront({ uri: null, status: null });
                         setDriversLicenseBack({ uri: null, status: null });
                       }
@@ -1463,27 +1485,32 @@ export default function KycCapture() {
                     <View
                       style={[
                         styles.toggleTrack,
-                        includeDriversLicense && styles.toggleTrackActive,
+                        jobRequiresDriving && styles.toggleTrackActive,
                       ]}
                     >
                       <View
                         style={[
                           styles.toggleThumb,
-                          includeDriversLicense && styles.toggleThumbActive,
+                          jobRequiresDriving && styles.toggleThumbActive,
                         ]}
                       />
                     </View>
                   </TouchableOpacity>
                 </View>
-                {includeDriversLicense && (
+
+                {jobRequiresDriving && (
                   <>
                     <Text style={[styles.cardText, { marginBottom: 12 }]}>
-                      {t("kyc.driversLicenseDescription")}
+                      {t("kyc.driverVerificationDescription") ||
+                        "Upload your driver's license and register your vehicle."}
                     </Text>
+
+                    {/* Driver's License Front */}
                     <View style={styles.card}>
                       <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>
-                          {t("kyc.frontOfDriversLicense")} *
+                          {t("kyc.frontOfDriversLicense")}{" "}
+                          <Text style={styles.required}>*</Text>
                         </Text>
                         {driversLicenseFront.status && (
                           <View
@@ -1603,10 +1630,13 @@ export default function KycCapture() {
                         </TouchableOpacity>
                       )}
                     </View>
+
+                    {/* Driver's License Back */}
                     <View style={styles.card}>
                       <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>
-                          {t("kyc.backOfDriversLicense")} *
+                          {t("kyc.backOfDriversLicense")}{" "}
+                          <Text style={styles.required}>*</Text>
                         </Text>
                         {driversLicenseBack.status && (
                           <View
@@ -1725,6 +1755,15 @@ export default function KycCapture() {
                         </TouchableOpacity>
                       )}
                     </View>
+
+                    {/* Vehicle Verification (mandatory for driving jobs) */}
+                    <VehicleVerificationSection
+                      colors={colors}
+                      isDark={isDark}
+                      t={t}
+                      mandatory={true}
+                      defaultExpanded={true}
+                    />
                   </>
                 )}
               </View>
@@ -2174,13 +2213,6 @@ export default function KycCapture() {
                 </TouchableOpacity>
               </View>
             </View>
-
-              {/* Vehicle Verification Section (Voluntary) */}
-              <VehicleVerificationSection
-                colors={colors}
-                isDark={isDark}
-                t={t}
-              />
           </ScrollView>
 
           {/* Document Preview Modal */}

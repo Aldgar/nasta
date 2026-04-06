@@ -61,14 +61,18 @@ export default function VehicleVerificationSection({
   colors,
   isDark,
   t,
+  mandatory = false,
+  defaultExpanded = false,
 }: {
   colors: any;
   isDark: boolean;
   t: (key: string) => string;
+  mandatory?: boolean;
+  defaultExpanded?: boolean;
 }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [showAddForm, setShowAddForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
@@ -147,8 +151,7 @@ export default function VehicleVerificationSection({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
         });
       } else {
-        const libPerm =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const libPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (libPerm.status !== "granted") {
           Alert.alert(
             t("kyc.permissionRequired"),
@@ -235,14 +238,11 @@ export default function VehicleVerificationSection({
       }
 
       if (hasPhotos) {
-        const uploadRes = await fetch(
-          `${base}/vehicles/${vehicle.id}/upload`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
-          },
-        );
+        const uploadRes = await fetch(`${base}/vehicles/${vehicle.id}/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
         if (!uploadRes.ok) {
           Alert.alert(t("common.error"), t("vehicles.photosUploadFailed"));
         }
@@ -367,8 +367,8 @@ export default function VehicleVerificationSection({
               : "rgba(184,130,42,0.15)",
           },
         ]}
-        onPress={() => setExpanded(!expanded)}
-        activeOpacity={0.7}
+        onPress={() => !mandatory && setExpanded(!expanded)}
+        activeOpacity={mandatory ? 1 : 0.7}
       >
         <View style={s.sectionHeaderLeft}>
           <Feather
@@ -378,7 +378,8 @@ export default function VehicleVerificationSection({
           />
           <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={[s.sectionTitle, { color: colors.text }]}>
-              {t("vehicles.sectionTitle")}
+              {t("vehicles.sectionTitle")}{" "}
+              {mandatory && <Text style={{ color: "#ef4444" }}>*</Text>}
             </Text>
             <Text
               style={[
@@ -386,25 +387,28 @@ export default function VehicleVerificationSection({
                 { color: isDark ? "rgba(255,250,240,0.5)" : "#8A7B68" },
               ]}
             >
-              {t("vehicles.sectionSubtitle")}
+              {mandatory
+                ? t("vehicles.sectionSubtitleMandatory") ||
+                  "Required for driving jobs"
+                : t("vehicles.sectionSubtitle")}
             </Text>
           </View>
         </View>
-        <Feather
-          name={expanded ? "chevron-up" : "chevron-down"}
-          size={20}
-          color={colors.text}
-        />
+        {!mandatory && (
+          <Feather
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={colors.text}
+          />
+        )}
       </TouchableOpacity>
 
-      {expanded && (
+      {(expanded || mandatory) && (
         <View
           style={[
             s.sectionBody,
             {
-              backgroundColor: isDark
-                ? "rgba(12, 22, 42, 0.85)"
-                : "#FFFAF0",
+              backgroundColor: isDark ? "rgba(12, 22, 42, 0.85)" : "#FFFAF0",
               borderColor: isDark
                 ? "rgba(201,150,63,0.12)"
                 : "rgba(184,130,42,0.15)",
@@ -428,11 +432,7 @@ export default function VehicleVerificationSection({
               ]}
             >
               <View style={s.vehicleCardHeader}>
-                <Feather
-                  name="truck"
-                  size={18}
-                  color={statusColor(v.status)}
-                />
+                <Feather name="truck" size={18} color={statusColor(v.status)} />
                 <Text style={[s.vehicleCardTitle, { color: colors.text }]}>
                   {vehicleTypeLabel(v.vehicleType, v.otherTypeSpecification)} -{" "}
                   {v.make} {v.model} ({v.year})
@@ -506,8 +506,7 @@ export default function VehicleVerificationSection({
                     const url = v[pf.dbField as keyof Vehicle] as
                       | string
                       | undefined;
-                    const isUploading =
-                      uploadingField === `${v.id}-${pf.key}`;
+                    const isUploading = uploadingField === `${v.id}-${pf.key}`;
                     return (
                       <TouchableOpacity
                         key={pf.key}
@@ -527,10 +526,7 @@ export default function VehicleVerificationSection({
                         disabled={isUploading}
                       >
                         {isUploading ? (
-                          <ActivityIndicator
-                            size="small"
-                            color={colors.tint}
-                          />
+                          <ActivityIndicator size="small" color={colors.tint} />
                         ) : url ? (
                           <Feather name="check" size={18} color="#22c55e" />
                         ) : (
@@ -588,9 +584,7 @@ export default function VehicleVerificationSection({
                     borderColor: isDark
                       ? "rgba(201,150,63,0.2)"
                       : "rgba(184,130,42,0.2)",
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.04)"
-                      : "#fff",
+                    backgroundColor: isDark ? "rgba(255,250,240,0.04)" : "#fff",
                   },
                 ]}
                 onPress={() => setShowTypeModal(true)}
@@ -636,15 +630,11 @@ export default function VehicleVerificationSection({
                     borderColor: isDark
                       ? "rgba(201,150,63,0.2)"
                       : "rgba(184,130,42,0.2)",
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.04)"
-                      : "#fff",
+                    backgroundColor: isDark ? "rgba(255,250,240,0.04)" : "#fff",
                   },
                 ]}
                 placeholder="Toyota, Ford, Mercedes..."
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.3)" : "#999"
-                }
+                placeholderTextColor={isDark ? "rgba(255,250,240,0.3)" : "#999"}
                 value={make}
                 onChangeText={setMake}
               />
@@ -660,15 +650,11 @@ export default function VehicleVerificationSection({
                     borderColor: isDark
                       ? "rgba(201,150,63,0.2)"
                       : "rgba(184,130,42,0.2)",
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.04)"
-                      : "#fff",
+                    backgroundColor: isDark ? "rgba(255,250,240,0.04)" : "#fff",
                   },
                 ]}
                 placeholder="Hilux, Transit, Sprinter..."
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.3)" : "#999"
-                }
+                placeholderTextColor={isDark ? "rgba(255,250,240,0.3)" : "#999"}
                 value={model}
                 onChangeText={setModel}
               />
@@ -739,15 +725,11 @@ export default function VehicleVerificationSection({
                     borderColor: isDark
                       ? "rgba(201,150,63,0.2)"
                       : "rgba(184,130,42,0.2)",
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.04)"
-                      : "#fff",
+                    backgroundColor: isDark ? "rgba(255,250,240,0.04)" : "#fff",
                   },
                 ]}
                 placeholder="AA-00-BB"
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.3)" : "#999"
-                }
+                placeholderTextColor={isDark ? "rgba(255,250,240,0.3)" : "#999"}
                 value={licensePlate}
                 onChangeText={setLicensePlate}
                 autoCapitalize="characters"
@@ -764,25 +746,18 @@ export default function VehicleVerificationSection({
                     borderColor: isDark
                       ? "rgba(201,150,63,0.2)"
                       : "rgba(184,130,42,0.2)",
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.04)"
-                      : "#fff",
+                    backgroundColor: isDark ? "rgba(255,250,240,0.04)" : "#fff",
                   },
                 ]}
                 placeholder={t("vehicles.capacityPlaceholder")}
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.3)" : "#999"
-                }
+                placeholderTextColor={isDark ? "rgba(255,250,240,0.3)" : "#999"}
                 value={capacity}
                 onChangeText={setCapacity}
               />
 
               {/* Photo upload */}
               <Text
-                style={[
-                  s.formLabel,
-                  { color: colors.text, marginTop: 12 },
-                ]}
+                style={[s.formLabel, { color: colors.text, marginTop: 12 }]}
               >
                 {t("vehicles.photos")}
               </Text>
@@ -818,9 +793,7 @@ export default function VehicleVerificationSection({
                       style={[
                         s.photoSlotLabel,
                         {
-                          color: isDark
-                            ? "rgba(255,250,240,0.6)"
-                            : "#6B6355",
+                          color: isDark ? "rgba(255,250,240,0.6)" : "#6B6355",
                         },
                       ]}
                       numberOfLines={1}
@@ -924,11 +897,7 @@ export default function VehicleVerificationSection({
                   setShowTypeModal(false);
                 }}
               >
-                <Feather
-                  name={vt.icon as any}
-                  size={20}
-                  color={colors.text}
-                />
+                <Feather name={vt.icon as any} size={20} color={colors.text} />
                 <Text style={[s.modalOptionText, { color: colors.text }]}>
                   {t(`vehicles.type.${vt.key}`)}
                 </Text>

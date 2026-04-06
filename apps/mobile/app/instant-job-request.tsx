@@ -11,6 +11,7 @@ import {
   Modal,
   ActivityIndicator,
   Switch,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -585,6 +586,7 @@ export default function InstantJobRequest() {
   const [showJobTypeModal, setShowJobTypeModal] = useState(false);
   const [rateAmount, setRateAmount] = useState("");
   const [currencyVal, setCurrencyVal] = useState("EUR");
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [paymentType, setPaymentType] = useState("HOURLY");
   const [showPaymentTypeModal, setShowPaymentTypeModal] = useState(false);
   const [requirements, setRequirements] = useState<string[]>([]);
@@ -595,6 +597,14 @@ export default function InstantJobRequest() {
   const [isRestrictedSector, setIsRestrictedSector] = useState(false);
   const [requiresVehicle, setRequiresVehicle] = useState(false);
   const [requiresDriverLicense, setRequiresDriverLicense] = useState(false);
+  const [providerHasVehicle, setProviderHasVehicle] = useState<boolean | null>(
+    null,
+  );
+  const [providerHasLicense, setProviderHasLicense] = useState<boolean | null>(
+    null,
+  );
+  const [candidateData, setCandidateData] = useState<any>(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   // Date/Time states
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -606,7 +616,27 @@ export default function InstantJobRequest() {
 
   useEffect(() => {
     fetchEmployerInfo();
+    fetchCandidateVerification();
   }, []);
+
+  const fetchCandidateVerification = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("auth_token");
+      if (!token || !candidateId) return;
+      const base = getApiBase();
+      const res = await fetch(`${base}/users/candidates/${candidateId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const cand = await res.json();
+        setCandidateData(cand);
+        setProviderHasVehicle(!!cand.hasVerifiedVehicle);
+        setProviderHasLicense(!!cand.hasVerifiedDriversLicense);
+      }
+    } catch (err) {
+      console.error("Error fetching candidate verification:", err);
+    }
+  };
 
   const fetchEmployerInfo = async () => {
     try {
@@ -725,6 +755,33 @@ export default function InstantJobRequest() {
       return;
     }
 
+    // Check vehicle/license requirements from already-fetched candidate data
+    if (requiresVehicle || requiresDriverLicense) {
+      if (requiresVehicle && providerHasVehicle === false) {
+        Alert.alert(
+          t("instantJob.drivingRequirementTitle"),
+          t("instantJob.providerMissingVehicle"),
+        );
+        return;
+      }
+      if (
+        requiresDriverLicense &&
+        providerHasLicense === false &&
+        providerHasVehicle !== true
+      ) {
+        Alert.alert(
+          t("instantJob.drivingRequirementTitle"),
+          t("instantJob.providerMissingDriverLicense"),
+        );
+        return;
+      }
+    }
+
+    // All validation passed — show summary page
+    setShowSummary(true);
+  };
+
+  const handleSubmitRequest = async () => {
     try {
       setLoading(true);
       const token = await SecureStore.getItemAsync("auth_token");
@@ -735,40 +792,6 @@ export default function InstantJobRequest() {
       }
 
       const base = getApiBase();
-
-      if (requiresVehicle || requiresDriverLicense) {
-        const candRes = await fetch(
-          `${base}/users/candidates/${candidateId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        if (!candRes.ok) {
-          Alert.alert(
-            t("common.error"),
-            t("instantJob.couldNotVerifyProvider"),
-          );
-          setLoading(false);
-          return;
-        }
-        const cand = await candRes.json();
-        if (requiresVehicle && !cand.hasVerifiedVehicle) {
-          Alert.alert(
-            t("instantJob.drivingRequirementTitle"),
-            t("instantJob.providerMissingVehicle"),
-          );
-          setLoading(false);
-          return;
-        }
-        if (requiresDriverLicense && !cand.hasVerifiedDriversLicense) {
-          Alert.alert(
-            t("instantJob.drivingRequirementTitle"),
-            t("instantJob.providerMissingDriverLicense"),
-          );
-          setLoading(false);
-          return;
-        }
-      }
 
       // Get coordinates
       let lat = 0;
@@ -915,14 +938,24 @@ export default function InstantJobRequest() {
           return;
         }
 
-        // Step 3: Navigate to applicant details page with instant job flag
-        router.push({
-          pathname: "/applicant/[id]",
-          params: {
-            id: applicationId,
-            instantJob: "true",
-          },
-        } as any);
+        // Step 3: Show success and navigate to applicant details
+        Alert.alert(
+          t("instantJob.requestSent"),
+          t("instantJob.requestSentMessage"),
+          [
+            {
+              text: t("common.ok"),
+              onPress: () =>
+                router.push({
+                  pathname: "/applicant/[id]",
+                  params: {
+                    id: applicationId,
+                    instantJob: "true",
+                  },
+                } as any),
+            },
+          ],
+        );
       } catch (appError: any) {
         console.error("Error creating application:", appError);
         Alert.alert(
@@ -972,142 +1005,458 @@ export default function InstantJobRequest() {
                   : "rgba(184,130,42,0.06)",
               },
             ]}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (showSummary) {
+                setShowSummary(false);
+              } else {
+                router.back();
+              }
+            }}
           >
             <Feather name="arrow-left" size={24} color={colors.text} />
           </TouchableButton>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Request Instant Job
+            {showSummary
+              ? t("instantJob.reviewRequest")
+              : t("instantJob.requestInstantJob")}
           </Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
+        {showSummary ? (
           <ScrollView contentContainerStyle={styles.content}>
-            <InputLabel
-              text={(() => {
-                const key = "instantJob.jobTitle";
-                const translated = t(key);
-                return translated === key ? "Job Title" : translated;
-              })()}
-              required
-            />
-            <View
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(255,250,240,0.95)",
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.15)"
-                    : "transparent",
-                },
-              ]}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  color: colors.text,
-                  fontSize: 16,
-                  padding: 0,
-                }}
-                placeholder={(() => {
-                  const key = "jobs.jobTitlePlaceholder";
-                  const translated = t(key);
-                  return translated === key
-                    ? "e.g. Need a Plumber for leak repair"
-                    : translated;
-                })()}
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
-                }
-                value={title}
-                onChangeText={setTitle}
-                underlineColorAndroid="transparent"
-              />
-            </View>
-
-            <InputLabel
-              text={(() => {
-                const key = "jobs.categoryLabel";
-                const translated = t(key);
-                return translated === key ? "Category" : translated;
-              })()}
-              required
-            />
-            <TouchableButton
-              style={[
-                styles.input,
-                styles.categoryInput,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(255,250,240,0.95)",
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.15)"
-                    : "transparent",
-                },
-              ]}
-              onPress={() => setShowCategoryModal(true)}
-            >
-              <Text
+            {/* Provider Info Card */}
+            {candidateData && (
+              <View
                 style={[
-                  styles.categoryText,
+                  styles.summaryCard,
                   {
-                    color: category
-                      ? colors.text
-                      : isDark
-                        ? "rgba(255,250,240,0.6)"
-                        : "rgba(0,0,0,0.4)",
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.06)"
+                      : "rgba(255,250,240,0.95)",
+                    borderColor: isDark
+                      ? "rgba(201,150,63,0.2)"
+                      : "rgba(184,130,42,0.1)",
                   },
                 ]}
               >
-                {category
-                  ? (() => {
-                      const categoryMap: Record<string, string> = {
-                        Cleaning: "cleaning",
-                        Plumbing: "plumbing",
-                        Gardening: "gardening",
-                        Electrical: "electrical",
-                        Carpentry: "carpentry",
-                        Painting: "painting",
-                        Moving: "moving",
-                        "General Labor": "generalLabor",
-                        Delivery: "delivery",
-                        Other: "other",
-                      };
-                      const key = categoryMap[category];
-                      if (key) {
-                        const translationKey = `jobs.category.${key}`;
-                        const translated = t(translationKey);
-                        return translated === translationKey
-                          ? category
-                          : translated;
-                      }
-                      return category;
-                    })()
-                  : (() => {
-                      const key = "jobs.selectCategory";
-                      const translated = t(key);
-                      return translated === key
-                        ? "Select Category"
-                        : translated;
-                    })()}
-              </Text>
-              <Feather
-                name="chevron-down"
-                size={20}
-                color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
-              />
-            </TouchableButton>
+                <Text
+                  style={[
+                    styles.summaryCardTitle,
+                    { color: isDark ? "#C9963F" : "#B8822A" },
+                  ]}
+                >
+                  {t("instantJob.serviceProvider")}
+                </Text>
+                <View style={styles.summaryProviderRow}>
+                  {candidateData.avatar ? (
+                    <Image
+                      source={{ uri: candidateData.avatar }}
+                      style={styles.summaryAvatarImage}
+                    />
+                  ) : (
+                    <View style={styles.summaryAvatar}>
+                      <View
+                        style={[
+                          styles.summaryAvatarInner,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(201,150,63,0.2)"
+                              : "rgba(184,130,42,0.1)",
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name="user"
+                          size={24}
+                          color={isDark ? "#C9963F" : "#B8822A"}
+                        />
+                      </View>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.summaryProviderName,
+                        { color: colors.text },
+                      ]}
+                    >
+                      {candidateData.firstName} {candidateData.lastName}
+                    </Text>
+                    {candidateData.skills &&
+                      candidateData.skills.length > 0 && (
+                        <Text
+                          style={[
+                            styles.summaryProviderSkills,
+                            {
+                              color: isDark
+                                ? "rgba(255,250,240,0.6)"
+                                : "rgba(0,0,0,0.5)",
+                            },
+                          ]}
+                        >
+                          {candidateData.skills
+                            .slice(0, 3)
+                            .map((s: any) => s.name || s)
+                            .join(" · ")}
+                        </Text>
+                      )}
+                  </View>
+                </View>
 
-            {category === "Other" && (
+                {/* Provider Availability */}
+                {candidateData.availability &&
+                  candidateData.availability.length > 0 && (
+                    <View style={{ marginTop: 12 }}>
+                      <Text
+                        style={[styles.summarySubTitle, { color: colors.text }]}
+                      >
+                        <Feather
+                          name="calendar"
+                          size={14}
+                          color={isDark ? "#C9963F" : "#B8822A"}
+                        />{" "}
+                        {t("instantJob.providerAvailability")}
+                      </Text>
+                      {candidateData.availability.map(
+                        (avail: any, idx: number) => (
+                          <View
+                            key={avail.id || idx}
+                            style={[
+                              styles.summaryAvailItem,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(16,185,129,0.08)"
+                                  : "rgba(5,150,105,0.06)",
+                                borderColor: isDark
+                                  ? "rgba(16,185,129,0.2)"
+                                  : "rgba(5,150,105,0.15)",
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.summaryAvailText,
+                                { color: colors.text },
+                              ]}
+                            >
+                              {new Date(avail.start).toLocaleDateString(
+                                undefined,
+                                {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                },
+                              )}{" "}
+                              {new Date(avail.start).toLocaleTimeString(
+                                undefined,
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}{" "}
+                              -{" "}
+                              {new Date(avail.end).toLocaleTimeString(
+                                undefined,
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                              {avail.isRecurring ? " ↻" : ""}
+                            </Text>
+                          </View>
+                        ),
+                      )}
+                    </View>
+                  )}
+              </View>
+            )}
+
+            {/* Job Details Summary */}
+            <View
+              style={[
+                styles.summaryCard,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(255,250,240,0.06)"
+                    : "rgba(255,250,240,0.95)",
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.2)"
+                    : "rgba(184,130,42,0.1)",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.summaryCardTitle,
+                  { color: isDark ? "#C9963F" : "#B8822A" },
+                ]}
+              >
+                {t("instantJob.jobDetails")}
+              </Text>
+
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[
+                    styles.summaryLabel,
+                    {
+                      color: isDark
+                        ? "rgba(255,250,240,0.6)"
+                        : "rgba(0,0,0,0.5)",
+                    },
+                  ]}
+                >
+                  {t("instantJob.jobTitle")}
+                </Text>
+                <Text
+                  style={[styles.summaryValue, { color: colors.text }]}
+                  numberOfLines={2}
+                >
+                  {title}
+                </Text>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[
+                    styles.summaryLabel,
+                    {
+                      color: isDark
+                        ? "rgba(255,250,240,0.6)"
+                        : "rgba(0,0,0,0.5)",
+                    },
+                  ]}
+                >
+                  {t("jobs.categoryLabel")}
+                </Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>
+                  {category === "Other" ? customCategory : category}
+                </Text>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[
+                    styles.summaryLabel,
+                    {
+                      color: isDark
+                        ? "rgba(255,250,240,0.6)"
+                        : "rgba(0,0,0,0.5)",
+                    },
+                  ]}
+                >
+                  {t("jobs.locationLabel")}
+                </Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>
+                  {location}, {city}, {country}
+                </Text>
+              </View>
+
+              {startDate && startTime && (
+                <View style={styles.summaryRow}>
+                  <Text
+                    style={[
+                      styles.summaryLabel,
+                      {
+                        color: isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.5)",
+                      },
+                    ]}
+                  >
+                    {t("jobs.startDate")}
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>
+                    {startDate.toLocaleDateString()}{" "}
+                    {startTime.toLocaleTimeString(undefined, {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+              )}
+
+              {endDate && (
+                <View style={styles.summaryRow}>
+                  <Text
+                    style={[
+                      styles.summaryLabel,
+                      {
+                        color: isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.5)",
+                      },
+                    ]}
+                  >
+                    {t("jobs.endDate")}
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>
+                    {endDate.toLocaleDateString()}
+                  </Text>
+                </View>
+              )}
+
+              {rateAmount && parseFloat(rateAmount) > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text
+                    style={[
+                      styles.summaryLabel,
+                      {
+                        color: isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.5)",
+                      },
+                    ]}
+                  >
+                    {t("instantJob.payment")}
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>
+                    {currencyVal} {rateAmount} / {paymentType.toLowerCase()}
+                  </Text>
+                </View>
+              )}
+
+              {requirements.length > 0 && (
+                <View style={{ marginTop: 8 }}>
+                  <Text
+                    style={[
+                      styles.summaryLabel,
+                      {
+                        color: isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.5)",
+                        marginBottom: 4,
+                      },
+                    ]}
+                  >
+                    {t("jobs.requirements")}
+                  </Text>
+                  {requirements.map((req, i) => (
+                    <Text
+                      key={i}
+                      style={[styles.summaryBullet, { color: colors.text }]}
+                    >
+                      • {req}
+                    </Text>
+                  ))}
+                </View>
+              )}
+
+              {responsibilities.length > 0 && (
+                <View style={{ marginTop: 8 }}>
+                  <Text
+                    style={[
+                      styles.summaryLabel,
+                      {
+                        color: isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.5)",
+                        marginBottom: 4,
+                      },
+                    ]}
+                  >
+                    {t("jobs.responsibilities")}
+                  </Text>
+                  {responsibilities.map((resp, i) => (
+                    <Text
+                      key={i}
+                      style={[styles.summaryBullet, { color: colors.text }]}
+                    >
+                      • {resp}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Info Banner */}
+            <View
+              style={[
+                styles.summaryInfoBanner,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(59,130,246,0.08)"
+                    : "rgba(59,130,246,0.06)",
+                  borderColor: isDark
+                    ? "rgba(59,130,246,0.2)"
+                    : "rgba(59,130,246,0.15)",
+                },
+              ]}
+            >
+              <Feather
+                name="info"
+                size={18}
+                color={isDark ? "#60A5FA" : "#3B82F6"}
+                style={{ marginRight: 10, marginTop: 2 }}
+              />
+              <Text
+                style={[
+                  styles.summaryInfoText,
+                  {
+                    color: isDark ? "rgba(255,250,240,0.8)" : "rgba(0,0,0,0.7)",
+                  },
+                ]}
+              >
+                {t("instantJob.requestWillBeSent")}
+              </Text>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableButton
+              style={[
+                styles.submitBtn,
+                {
+                  backgroundColor: loading
+                    ? isDark
+                      ? "rgba(255,250,240,0.1)"
+                      : "#ccc"
+                    : isDark
+                      ? "#10B981"
+                      : "#059669",
+                  borderColor: loading
+                    ? "transparent"
+                    : isDark
+                      ? "#10B981"
+                      : "#059669",
+                  shadowColor: isDark ? "#10B981" : "#059669",
+                },
+                loading && styles.submitBtnDisabled,
+              ]}
+              onPress={handleSubmitRequest}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFAF0" />
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Feather
+                    name="send"
+                    size={18}
+                    color="#FFFAF0"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.submitBtnText}>
+                    {t("instantJob.sendRequest")}
+                  </Text>
+                </View>
+              )}
+            </TouchableButton>
+          </ScrollView>
+        ) : (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+          >
+            <ScrollView contentContainerStyle={styles.content}>
+              <InputLabel
+                text={(() => {
+                  const key = "instantJob.jobTitle";
+                  const translated = t(key);
+                  return translated === key ? "Job Title" : translated;
+                })()}
+                required
+              />
               <View
                 style={[
                   styles.input,
@@ -1130,225 +1479,34 @@ export default function InstantJobRequest() {
                     padding: 0,
                   }}
                   placeholder={(() => {
-                    const key = "jobs.enterCustomCategory";
+                    const key = "jobs.jobTitlePlaceholder";
                     const translated = t(key);
                     return translated === key
-                      ? "Enter custom category name"
+                      ? "e.g. Need a Plumber for leak repair"
                       : translated;
                   })()}
                   placeholderTextColor={
                     isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
                   }
-                  value={customCategory}
-                  onChangeText={setCustomCategory}
+                  value={title}
+                  onChangeText={setTitle}
                   underlineColorAndroid="transparent"
                 />
               </View>
-            )}
 
-            <InputLabel
-              text={(() => {
-                const key = "jobs.description";
-                const translated = t(key);
-                return translated === key ? "Description" : translated;
-              })()}
-              required
-            />
-            <View
-              style={[
-                styles.input,
-                styles.textArea,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(255,250,240,0.95)",
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.15)"
-                    : "transparent",
-                },
-              ]}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  color: colors.text,
-                  fontSize: 16,
-                  padding: 0,
-                  minHeight: 100,
-                }}
-                placeholder={(() => {
-                  const key = "jobs.describeTaskDetail";
+              <InputLabel
+                text={(() => {
+                  const key = "jobs.categoryLabel";
                   const translated = t(key);
-                  return translated === key
-                    ? "Describe the task in detail..."
-                    : translated;
+                  return translated === key ? "Category" : translated;
                 })()}
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
-                }
-                multiline
-                numberOfLines={5}
-                value={description}
-                onChangeText={setDescription}
-                textAlignVertical="top"
-                underlineColorAndroid="transparent"
+                required
               />
-            </View>
-
-            <InputLabel
-              text={(() => {
-                const key = "jobs.workMode";
-                const translated = t(key);
-                return translated === key ? "Work Mode" : translated;
-              })()}
-              required
-            />
-            <View style={styles.optionRow}>
-              {(["ON_SITE", "REMOTE", "HYBRID"] as const).map((mode) => (
-                <TouchableButton
-                  key={mode}
-                  style={[
-                    styles.optionButton,
-                    workMode === mode && styles.optionButtonActive,
-                    {
-                      backgroundColor:
-                        workMode === mode
-                          ? isDark
-                            ? "#C9963F"
-                            : colors.tint
-                          : isDark
-                            ? "transparent"
-                            : "rgba(184,130,42,0.06)",
-                      borderColor:
-                        workMode === mode
-                          ? isDark
-                            ? "#C9963F"
-                            : colors.tint
-                          : isDark
-                            ? "rgba(201,150,63,0.25)"
-                            : "rgba(184,130,42,0.2)",
-                    },
-                  ]}
-                  onPress={() => setWorkMode(mode)}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      { color: workMode === mode ? "#FFFAF0" : colors.text },
-                    ]}
-                  >
-                    {(() => {
-                      const key =
-                        mode === "ON_SITE"
-                          ? "jobs.onSite"
-                          : mode === "REMOTE"
-                            ? "jobs.remote"
-                            : "jobs.hybrid";
-                      const translated = t(key);
-                      return translated === key
-                        ? mode === "ON_SITE"
-                          ? "On Site"
-                          : mode === "REMOTE"
-                            ? "Remote"
-                            : "Hybrid"
-                        : translated;
-                    })()}
-                  </Text>
-                </TouchableButton>
-              ))}
-            </View>
-
-            <InputLabel
-              text={(() => {
-                const key = "jobs.priority";
-                const translated = t(key);
-                return translated === key ? "Priority" : translated;
-              })()}
-            />
-            <View style={styles.optionRow}>
-              {(["NORMAL", "URGENT"] as const).map((urg) => (
-                <TouchableButton
-                  key={urg}
-                  style={[
-                    styles.optionButton,
-                    urgency === urg && styles.optionButtonActive,
-                    {
-                      backgroundColor:
-                        urgency === urg
-                          ? urg === "URGENT"
-                            ? "#dc2626"
-                            : isDark
-                              ? "#C9963F"
-                              : colors.tint
-                          : isDark
-                            ? "transparent"
-                            : "rgba(184,130,42,0.06)",
-                      borderColor:
-                        urgency === urg
-                          ? urg === "URGENT"
-                            ? "#ef4444"
-                            : isDark
-                              ? "#C9963F"
-                              : colors.tint
-                          : isDark
-                            ? "rgba(201,150,63,0.25)"
-                            : "rgba(184,130,42,0.2)",
-                    },
-                  ]}
-                  onPress={() => setUrgency(urg)}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      { color: urgency === urg ? "#FFFAF0" : colors.text },
-                    ]}
-                  >
-                    {(() => {
-                      const key =
-                        urg === "URGENT" ? "jobs.urgent" : "jobs.normal";
-                      const translated = t(key);
-                      return translated === key
-                        ? urg === "URGENT"
-                          ? "Urgent"
-                          : "Normal"
-                        : translated;
-                    })()}
-                  </Text>
-                </TouchableButton>
-              ))}
-            </View>
-
-            <InputLabel text="Job Type" />
-            <TouchableButton
-              style={[styles.input, styles.categoryInput, { backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}
-              onPress={() => setShowJobTypeModal(true)}
-            >
-              <Text style={[styles.categoryText, { color: colors.text }]}>
-                {({ FULL_TIME: "Full Time", PART_TIME: "Part Time", CONTRACT: "Contract", TEMPORARY: "Temporary", FREELANCE: "Freelance", INTERNSHIP: "Internship", GIG: "Gig" } as Record<string, string>)[jobType] || jobType}
-              </Text>
-              <Feather name="chevron-down" size={20} color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"} />
-            </TouchableButton>
-
-            <InputLabel text="Payment (Optional)" />
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-              <View style={[styles.input, { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}>
-                <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 16, padding: 0 }}
-                  placeholder="0.00"
-                  placeholderTextColor={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
-                  value={rateAmount}
-                  onChangeText={setRateAmount}
-                  keyboardType="decimal-pad"
-                  underlineColorAndroid="transparent"
-                />
-              </View>
               <TouchableButton
                 style={[
                   styles.input,
                   styles.categoryInput,
                   {
-                    flex: 1,
                     backgroundColor: isDark
                       ? "rgba(255,250,240,0.12)"
                       : "rgba(255,250,240,0.95)",
@@ -1358,462 +1516,1096 @@ export default function InstantJobRequest() {
                       : "transparent",
                   },
                 ]}
-                onPress={() => {
-                  const currencies = [
-                    "EUR",
-                    "USD",
-                    "GBP",
-                    "CHF",
-                    "SEK",
-                    "NOK",
-                    "DKK",
-                  ];
-                  const idx = currencies.indexOf(currencyVal);
-                  setCurrencyVal(currencies[(idx + 1) % currencies.length]);
-                }}
+                onPress={() => setShowCategoryModal(true)}
               >
                 <Text
-                  style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}
-                >
-                  {currencyVal}
-                </Text>
-                <Feather
-                  name="refresh-cw"
-                  size={14}
-                  color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
-                />
-              </TouchableButton>
-            </View>
-            <TouchableButton
-              style={[styles.input, styles.categoryInput, { backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}
-              onPress={() => setShowPaymentTypeModal(true)}
-            >
-              <Text style={[styles.categoryText, { color: colors.text }]}>
-                {({ HOURLY: "Per Hour", DAILY: "Per Day", WEEKLY: "Per Week", MONTHLY: "Per Month", FIXED: "Fixed Price" } as Record<string, string>)[paymentType] || paymentType}
-              </Text>
-              <Feather name="chevron-down" size={20} color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"} />
-            </TouchableButton>
-
-            <InputLabel
-              text={(() => {
-                const key = "jobs.startDateAndTime";
-                const translated = t(key);
-                return translated === key ? "Start Date & Time" : translated;
-              })()}
-              required
-            />
-            <View style={styles.dateTimeRow}>
-              <TouchableButton
-                style={[styles.input, styles.dateTimeInput, { backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}
-                onPress={() => setShowStartDatePicker(true)}
-              >
-                <Feather name="calendar" size={18} color={colors.tint} />
-                <Text style={[styles.dateTimeText, { color: startDate ? colors.text : isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)" }]}>
-                  {startDate ? startDate.toLocaleDateString() : "Select Date"}
-                </Text>
-              </TouchableButton>
-              <TouchableButton
-                style={[styles.input, styles.dateTimeInput, { backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}
-                onPress={() => setShowStartTimePicker(true)}
-              >
-                <Feather name="clock" size={18} color={colors.tint} />
-                <Text style={[styles.dateTimeText, { color: startTime ? colors.text : isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)" }]}>
-                  {startTime ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Select Time"}
-                </Text>
-              </TouchableButton>
-            </View>
-
-            <InputLabel
-              text={(() => {
-                const key = "jobs.location";
-                const translated = t(key);
-                return translated === key ? "Location" : translated;
-              })()}
-              required
-            />
-            <View
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(255,250,240,0.95)",
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.15)"
-                    : "transparent",
-                },
-              ]}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  color: colors.text,
-                  fontSize: 16,
-                  padding: 0,
-                }}
-                placeholder={(() => {
-                  const key = "jobs.streetAddress";
-                  const translated = t(key);
-                  return translated === key ? "Street address" : translated;
-                })()}
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
-                }
-                value={location}
-                onChangeText={setLocation}
-                underlineColorAndroid="transparent"
-              />
-            </View>
-
-            <View
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(255,250,240,0.95)",
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.15)"
-                    : "transparent",
-                },
-              ]}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  color: colors.text,
-                  fontSize: 16,
-                  padding: 0,
-                }}
-                placeholder={(() => {
-                  const key = "settings.cityPlaceholder";
-                  const translated = t(key);
-                  return translated === key ? "City" : translated;
-                })()}
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
-                }
-                value={city}
-                onChangeText={setCity}
-                underlineColorAndroid="transparent"
-              />
-            </View>
-
-            <View
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(255,250,240,0.95)",
-                  borderWidth: isDark ? 1 : 0,
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.15)"
-                    : "transparent",
-                },
-              ]}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  color: colors.text,
-                  fontSize: 16,
-                  padding: 0,
-                }}
-                placeholder={(() => {
-                  const key = "jobs.country";
-                  const translated = t(key);
-                  return translated === key ? "Country" : translated;
-                })()}
-                placeholderTextColor={
-                  isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
-                }
-                value={country}
-                onChangeText={setCountry}
-                underlineColorAndroid="transparent"
-              />
-            </View>
-
-            <InputLabel text="End Date (Optional)" />
-            <View style={styles.dateTimeRow}>
-              <TouchableButton
-                style={[styles.input, styles.dateTimeInput, { backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}
-                onPress={() => setShowEndDatePicker(true)}
-              >
-                <Feather name="calendar" size={18} color={colors.tint} />
-                <Text style={[styles.dateTimeText, { color: endDate ? colors.text : isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)" }]}>
-                  {endDate ? endDate.toLocaleDateString() : "Select End Date"}
-                </Text>
-              </TouchableButton>
-              {endDate && (
-                <TouchableButton style={{ justifyContent: "center", paddingHorizontal: 8 }} onPress={() => setEndDate(null)}>
-                  <Feather name="x" size={20} color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"} />
-                </TouchableButton>
-              )}
-            </View>
-
-            <InputLabel text="Requirements (Optional)" />
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-              <View style={[styles.input, { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}>
-                <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 16, padding: 0 }}
-                  placeholder="Add a requirement..."
-                  placeholderTextColor={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
-                  value={newReq}
-                  onChangeText={setNewReq}
-                  onSubmitEditing={() => { if (newReq.trim()) { setRequirements([...requirements, newReq.trim()]); setNewReq(""); } }}
-                  returnKeyType="done"
-                  underlineColorAndroid="transparent"
-                />
-              </View>
-              <TouchableButton
-                style={[styles.optionButton, { flex: 0, paddingHorizontal: 16, backgroundColor: isDark ? "#C9963F" : colors.tint, borderColor: isDark ? "#C9963F" : colors.tint }]}
-                onPress={() => { if (newReq.trim()) { setRequirements([...requirements, newReq.trim()]); setNewReq(""); } }}
-              >
-                <Feather name="plus" size={20} color="#FFFAF0" />
-              </TouchableButton>
-            </View>
-            {requirements.map((req, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginBottom: 4, paddingLeft: 8 }}>
-                <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>• {req}</Text>
-                <TouchableButton onPress={() => setRequirements(requirements.filter((_, idx) => idx !== i))} style={{ padding: 4 }}>
-                  <Feather name="x" size={16} color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"} />
-                </TouchableButton>
-              </View>
-            ))}
-
-            <InputLabel text="Responsibilities (Optional)" />
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-              <View style={[styles.input, { flex: 1, backgroundColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(255,250,240,0.95)", borderWidth: isDark ? 1 : 0, borderColor: isDark ? "rgba(255,250,240,0.15)" : "transparent" }]}>
-                <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 16, padding: 0 }}
-                  placeholder="Add a responsibility..."
-                  placeholderTextColor={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
-                  value={newResp}
-                  onChangeText={setNewResp}
-                  onSubmitEditing={() => { if (newResp.trim()) { setResponsibilities([...responsibilities, newResp.trim()]); setNewResp(""); } }}
-                  returnKeyType="done"
-                  underlineColorAndroid="transparent"
-                />
-              </View>
-              <TouchableButton
-                style={[styles.optionButton, { flex: 0, paddingHorizontal: 16, backgroundColor: isDark ? "#C9963F" : colors.tint, borderColor: isDark ? "#C9963F" : colors.tint }]}
-                onPress={() => { if (newResp.trim()) { setResponsibilities([...responsibilities, newResp.trim()]); setNewResp(""); } }}
-              >
-                <Feather name="plus" size={20} color="#FFFAF0" />
-              </TouchableButton>
-            </View>
-            {responsibilities.map((resp, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginBottom: 4, paddingLeft: 8 }}>
-                <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>• {resp}</Text>
-                <TouchableButton onPress={() => setResponsibilities(responsibilities.filter((_, idx) => idx !== i))} style={{ padding: 4 }}>
-                  <Feather name="x" size={16} color={isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"} />
-                </TouchableButton>
-              </View>
-            ))}
-
-            <View
-              style={[
-                styles.requirementsSection,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,250,240,0.04)"
-                    : "rgba(0,0,0,0.02)",
-                  borderColor: isDark
-                    ? "rgba(201,150,63,0.15)"
-                    : "rgba(184,130,42,0.2)",
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.requirementsSectionTitle,
-                  { color: colors.text },
-                ]}
-              >
-                {t("jobPosting.requirements.title")}
-              </Text>
-
-              <Text
-                style={[
-                  styles.requirementsQuestion,
-                  { color: isDark ? "rgba(255,250,240,0.8)" : "#4A4335" },
-                ]}
-              >
-                {t("jobPosting.requirements.restrictedSectorQuestion")}
-              </Text>
-              <View style={styles.requirementsToggleRow}>
-                <Switch
-                  value={isRestrictedSector}
-                  onValueChange={setIsRestrictedSector}
-                  trackColor={{
-                    false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
-                    true: "#ef4444",
-                  }}
-                  thumbColor={isRestrictedSector ? "#FFFAF0" : "#f4f3f4"}
-                />
-                <Text
                   style={[
-                    styles.requirementsToggleLabel,
-                    { color: isRestrictedSector ? "#ef4444" : colors.text },
-                  ]}
-                >
-                  {isRestrictedSector
-                    ? t("jobPosting.requirements.restrictedSectorYes")
-                    : t("common.no")}
-                </Text>
-              </View>
-              {isRestrictedSector && (
-                <View
-                  style={[
-                    styles.restrictedBanner,
+                    styles.categoryText,
                     {
-                      backgroundColor: isDark
-                        ? "rgba(239,68,68,0.15)"
-                        : "rgba(239,68,68,0.08)",
-                      borderColor: isDark
-                        ? "rgba(239,68,68,0.3)"
-                        : "rgba(239,68,68,0.2)",
+                      color: category
+                        ? colors.text
+                        : isDark
+                          ? "rgba(255,250,240,0.6)"
+                          : "rgba(0,0,0,0.4)",
                     },
                   ]}
                 >
-                  <Feather name="alert-triangle" size={18} color="#ef4444" />
-                  <Text
-                    style={[
-                      styles.restrictedBannerText,
-                      { color: isDark ? "#fca5a5" : "#dc2626" },
-                    ]}
-                  >
-                    {t("jobPosting.requirements.restrictedSectorMessage")}
-                  </Text>
+                  {category
+                    ? (() => {
+                        const categoryMap: Record<string, string> = {
+                          Cleaning: "cleaning",
+                          Plumbing: "plumbing",
+                          Gardening: "gardening",
+                          Electrical: "electrical",
+                          Carpentry: "carpentry",
+                          Painting: "painting",
+                          Moving: "moving",
+                          "General Labor": "generalLabor",
+                          Delivery: "delivery",
+                          Other: "other",
+                        };
+                        const key = categoryMap[category];
+                        if (key) {
+                          const translationKey = `jobs.category.${key}`;
+                          const translated = t(translationKey);
+                          return translated === translationKey
+                            ? category
+                            : translated;
+                        }
+                        return category;
+                      })()
+                    : (() => {
+                        const key = "jobs.selectCategory";
+                        const translated = t(key);
+                        return translated === key
+                          ? "Select Category"
+                          : translated;
+                      })()}
+                </Text>
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                />
+              </TouchableButton>
+
+              {category === "Other" && (
+                <View
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      color: colors.text,
+                      fontSize: 16,
+                      padding: 0,
+                    }}
+                    placeholder={(() => {
+                      const key = "jobs.enterCustomCategory";
+                      const translated = t(key);
+                      return translated === key
+                        ? "Enter custom category name"
+                        : translated;
+                    })()}
+                    placeholderTextColor={
+                      isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                    }
+                    value={customCategory}
+                    onChangeText={setCustomCategory}
+                    underlineColorAndroid="transparent"
+                  />
                 </View>
               )}
 
-              {!isRestrictedSector && (
-                <>
+              <InputLabel
+                text={(() => {
+                  const key = "jobs.description";
+                  const translated = t(key);
+                  return translated === key ? "Description" : translated;
+                })()}
+                required
+              />
+              <View
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
+                ]}
+              >
+                <TextInput
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                    minHeight: 100,
+                  }}
+                  placeholder={(() => {
+                    const key = "jobs.describeTaskDetail";
+                    const translated = t(key);
+                    return translated === key
+                      ? "Describe the task in detail..."
+                      : translated;
+                  })()}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
+                  multiline
+                  numberOfLines={5}
+                  value={description}
+                  onChangeText={setDescription}
+                  textAlignVertical="top"
+                  underlineColorAndroid="transparent"
+                />
+              </View>
+
+              <InputLabel
+                text={(() => {
+                  const key = "jobs.workMode";
+                  const translated = t(key);
+                  return translated === key ? "Work Mode" : translated;
+                })()}
+                required
+              />
+              <View style={styles.optionRow}>
+                {(["ON_SITE", "REMOTE", "HYBRID"] as const).map((mode) => (
+                  <TouchableButton
+                    key={mode}
+                    style={[
+                      styles.optionButton,
+                      workMode === mode && styles.optionButtonActive,
+                      {
+                        backgroundColor:
+                          workMode === mode
+                            ? isDark
+                              ? "#C9963F"
+                              : colors.tint
+                            : isDark
+                              ? "transparent"
+                              : "rgba(184,130,42,0.06)",
+                        borderColor:
+                          workMode === mode
+                            ? isDark
+                              ? "#C9963F"
+                              : colors.tint
+                            : isDark
+                              ? "rgba(201,150,63,0.25)"
+                              : "rgba(184,130,42,0.2)",
+                      },
+                    ]}
+                    onPress={() => setWorkMode(mode)}
+                  >
+                    <Text
+                      style={[
+                        styles.optionText,
+                        { color: workMode === mode ? "#FFFAF0" : colors.text },
+                      ]}
+                    >
+                      {(() => {
+                        const key =
+                          mode === "ON_SITE"
+                            ? "jobs.onSite"
+                            : mode === "REMOTE"
+                              ? "jobs.remote"
+                              : "jobs.hybrid";
+                        const translated = t(key);
+                        return translated === key
+                          ? mode === "ON_SITE"
+                            ? "On Site"
+                            : mode === "REMOTE"
+                              ? "Remote"
+                              : "Hybrid"
+                          : translated;
+                      })()}
+                    </Text>
+                  </TouchableButton>
+                ))}
+              </View>
+
+              <InputLabel
+                text={(() => {
+                  const key = "jobs.priority";
+                  const translated = t(key);
+                  return translated === key ? "Priority" : translated;
+                })()}
+              />
+              <View style={styles.optionRow}>
+                {(["NORMAL", "URGENT"] as const).map((urg) => (
+                  <TouchableButton
+                    key={urg}
+                    style={[
+                      styles.optionButton,
+                      urgency === urg && styles.optionButtonActive,
+                      {
+                        backgroundColor:
+                          urgency === urg
+                            ? urg === "URGENT"
+                              ? "#dc2626"
+                              : isDark
+                                ? "#C9963F"
+                                : colors.tint
+                            : isDark
+                              ? "transparent"
+                              : "rgba(184,130,42,0.06)",
+                        borderColor:
+                          urgency === urg
+                            ? urg === "URGENT"
+                              ? "#ef4444"
+                              : isDark
+                                ? "#C9963F"
+                                : colors.tint
+                            : isDark
+                              ? "rgba(201,150,63,0.25)"
+                              : "rgba(184,130,42,0.2)",
+                      },
+                    ]}
+                    onPress={() => setUrgency(urg)}
+                  >
+                    <Text
+                      style={[
+                        styles.optionText,
+                        { color: urgency === urg ? "#FFFAF0" : colors.text },
+                      ]}
+                    >
+                      {(() => {
+                        const key =
+                          urg === "URGENT" ? "jobs.urgent" : "jobs.normal";
+                        const translated = t(key);
+                        return translated === key
+                          ? urg === "URGENT"
+                            ? "Urgent"
+                            : "Normal"
+                          : translated;
+                      })()}
+                    </Text>
+                  </TouchableButton>
+                ))}
+              </View>
+
+              <InputLabel text={t("jobs.jobTypeLabel")} />
+              <TouchableButton
+                style={[
+                  styles.input,
+                  styles.categoryInput,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
+                ]}
+                onPress={() => setShowJobTypeModal(true)}
+              >
+                <Text style={[styles.categoryText, { color: colors.text }]}>
+                  {(
+                    {
+                      FULL_TIME: t("jobs.type.fulltime"),
+                      PART_TIME: t("jobs.type.parttime"),
+                      CONTRACT: t("jobs.type.contract"),
+                      TEMPORARY: t("jobs.type.temporary"),
+                      FREELANCE: t("jobs.type.freelance"),
+                      INTERNSHIP: t("jobs.type.internship"),
+                      GIG: t("jobs.type.gig"),
+                    } as Record<string, string>
+                  )[jobType] || jobType}
+                </Text>
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                />
+              </TouchableButton>
+
+              <InputLabel text={t("jobs.paymentOptional")} />
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                <View
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      color: colors.text,
+                      fontSize: 16,
+                      padding: 0,
+                    }}
+                    placeholder="0.00"
+                    placeholderTextColor={
+                      isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                    }
+                    value={rateAmount}
+                    onChangeText={setRateAmount}
+                    keyboardType="decimal-pad"
+                    underlineColorAndroid="transparent"
+                  />
+                </View>
+                <TouchableButton
+                  style={[
+                    styles.input,
+                    styles.categoryInput,
+                    {
+                      flex: 1,
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                  onPress={() => setShowCurrencyModal(true)}
+                >
+                  <Text
+                    style={{
+                      color: colors.text,
+                      fontSize: 16,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {currencyVal}
+                  </Text>
+                  <Feather
+                    name="chevron-down"
+                    size={20}
+                    color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                  />
+                </TouchableButton>
+              </View>
+              <TouchableButton
+                style={[
+                  styles.input,
+                  styles.categoryInput,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
+                ]}
+                onPress={() => setShowPaymentTypeModal(true)}
+              >
+                <Text style={[styles.categoryText, { color: colors.text }]}>
+                  {(
+                    {
+                      HOURLY: t("jobs.paymentType.hourly"),
+                      DAILY: t("jobs.paymentType.daily"),
+                      WEEKLY: t("jobs.paymentType.weekly"),
+                      MONTHLY: t("jobs.paymentType.monthly"),
+                      FIXED: t("jobs.paymentType.fixed"),
+                    } as Record<string, string>
+                  )[paymentType] || paymentType}
+                </Text>
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                />
+              </TouchableButton>
+
+              <InputLabel
+                text={(() => {
+                  const key = "jobs.startDateAndTime";
+                  const translated = t(key);
+                  return translated === key ? "Start Date & Time" : translated;
+                })()}
+                required
+              />
+              <View style={styles.dateTimeRow}>
+                <TouchableButton
+                  style={[
+                    styles.input,
+                    styles.dateTimeInput,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                  onPress={() => setShowStartDatePicker(true)}
+                >
+                  <Feather name="calendar" size={18} color={colors.tint} />
                   <Text
                     style={[
-                      styles.requirementsQuestion,
+                      styles.dateTimeText,
                       {
-                        color: isDark ? "rgba(255,250,240,0.8)" : "#4A4335",
-                        marginTop: 16,
+                        color: startDate
+                          ? colors.text
+                          : isDark
+                            ? "rgba(255,250,240,0.6)"
+                            : "rgba(0,0,0,0.4)",
                       },
                     ]}
                   >
-                    {t("jobPosting.requirements.vehicleQuestion")}
+                    {startDate ? startDate.toLocaleDateString() : "Select Date"}
                   </Text>
-                  <View style={styles.requirementsToggleRow}>
-                    <Switch
-                      value={requiresVehicle}
-                      onValueChange={setRequiresVehicle}
-                      trackColor={{
-                        false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
-                        true: isDark ? "#C9963F" : "#B8822A",
-                      }}
-                      thumbColor={requiresVehicle ? "#FFFAF0" : "#f4f3f4"}
-                    />
-                    <Text
-                      style={[
-                        styles.requirementsToggleLabel,
-                        { color: colors.text },
-                      ]}
-                    >
-                      {t("jobPosting.requirements.requiresVehicle")}
-                    </Text>
-                  </View>
-                  <View style={styles.requirementsToggleRow}>
-                    <Switch
-                      value={requiresDriverLicense}
-                      onValueChange={setRequiresDriverLicense}
-                      trackColor={{
-                        false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
-                        true: isDark ? "#C9963F" : "#B8822A",
-                      }}
-                      thumbColor={
-                        requiresDriverLicense ? "#FFFAF0" : "#f4f3f4"
+                </TouchableButton>
+                <TouchableButton
+                  style={[
+                    styles.input,
+                    styles.dateTimeInput,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                  onPress={() => setShowStartTimePicker(true)}
+                >
+                  <Feather name="clock" size={18} color={colors.tint} />
+                  <Text
+                    style={[
+                      styles.dateTimeText,
+                      {
+                        color: startTime
+                          ? colors.text
+                          : isDark
+                            ? "rgba(255,250,240,0.6)"
+                            : "rgba(0,0,0,0.4)",
+                      },
+                    ]}
+                  >
+                    {startTime
+                      ? startTime.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "Select Time"}
+                  </Text>
+                </TouchableButton>
+              </View>
+
+              <InputLabel
+                text={(() => {
+                  const key = "jobs.location";
+                  const translated = t(key);
+                  return translated === key ? "Location" : translated;
+                })()}
+                required
+              />
+              <View
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
+                ]}
+              >
+                <TextInput
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                  }}
+                  placeholder={(() => {
+                    const key = "jobs.streetAddress";
+                    const translated = t(key);
+                    return translated === key ? "Street address" : translated;
+                  })()}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
+                  value={location}
+                  onChangeText={setLocation}
+                  underlineColorAndroid="transparent"
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
+                ]}
+              >
+                <TextInput
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                  }}
+                  placeholder={(() => {
+                    const key = "settings.cityPlaceholder";
+                    const translated = t(key);
+                    return translated === key ? "City" : translated;
+                  })()}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
+                  value={city}
+                  onChangeText={setCity}
+                  underlineColorAndroid="transparent"
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                  },
+                ]}
+              >
+                <TextInput
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 16,
+                    padding: 0,
+                  }}
+                  placeholder={(() => {
+                    const key = "jobs.country";
+                    const translated = t(key);
+                    return translated === key ? "Country" : translated;
+                  })()}
+                  placeholderTextColor={
+                    isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                  }
+                  value={country}
+                  onChangeText={setCountry}
+                  underlineColorAndroid="transparent"
+                />
+              </View>
+
+              <InputLabel text={t("jobs.endDateOptional")} />
+              <View style={styles.dateTimeRow}>
+                <TouchableButton
+                  style={[
+                    styles.input,
+                    styles.dateTimeInput,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Feather name="calendar" size={18} color={colors.tint} />
+                  <Text
+                    style={[
+                      styles.dateTimeText,
+                      {
+                        color: endDate
+                          ? colors.text
+                          : isDark
+                            ? "rgba(255,250,240,0.6)"
+                            : "rgba(0,0,0,0.4)",
+                      },
+                    ]}
+                  >
+                    {endDate
+                      ? endDate.toLocaleDateString()
+                      : t("jobs.selectEndDate")}
+                  </Text>
+                </TouchableButton>
+                {endDate && (
+                  <TouchableButton
+                    style={{ justifyContent: "center", paddingHorizontal: 8 }}
+                    onPress={() => setEndDate(null)}
+                  >
+                    <Feather
+                      name="x"
+                      size={20}
+                      color={
+                        isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"
                       }
                     />
+                  </TouchableButton>
+                )}
+              </View>
+
+              <InputLabel text={t("jobs.requirementsOptional")} />
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                <View
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      color: colors.text,
+                      fontSize: 16,
+                      padding: 0,
+                    }}
+                    placeholder={t("jobs.addRequirementPlaceholder")}
+                    placeholderTextColor={
+                      isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                    }
+                    value={newReq}
+                    onChangeText={setNewReq}
+                    onSubmitEditing={() => {
+                      if (newReq.trim()) {
+                        setRequirements([...requirements, newReq.trim()]);
+                        setNewReq("");
+                      }
+                    }}
+                    returnKeyType="done"
+                    underlineColorAndroid="transparent"
+                  />
+                </View>
+                <TouchableButton
+                  style={[
+                    styles.optionButton,
+                    {
+                      flex: 0,
+                      paddingHorizontal: 16,
+                      backgroundColor: isDark ? "#C9963F" : colors.tint,
+                      borderColor: isDark ? "#C9963F" : colors.tint,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (newReq.trim()) {
+                      setRequirements([...requirements, newReq.trim()]);
+                      setNewReq("");
+                    }
+                  }}
+                >
+                  <Feather name="plus" size={20} color="#FFFAF0" />
+                </TouchableButton>
+              </View>
+              {requirements.map((req, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 4,
+                    paddingLeft: 8,
+                  }}
+                >
+                  <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>
+                    • {req}
+                  </Text>
+                  <TouchableButton
+                    onPress={() =>
+                      setRequirements(
+                        requirements.filter((_, idx) => idx !== i),
+                      )
+                    }
+                    style={{ padding: 4 }}
+                  >
+                    <Feather
+                      name="x"
+                      size={16}
+                      color={
+                        isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"
+                      }
+                    />
+                  </TouchableButton>
+                </View>
+              ))}
+
+              <InputLabel text={t("jobs.responsibilitiesOptional")} />
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                <View
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderWidth: isDark ? 1 : 0,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "transparent",
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      color: colors.text,
+                      fontSize: 16,
+                      padding: 0,
+                    }}
+                    placeholder={t("jobs.addResponsibilityPlaceholder")}
+                    placeholderTextColor={
+                      isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                    }
+                    value={newResp}
+                    onChangeText={setNewResp}
+                    onSubmitEditing={() => {
+                      if (newResp.trim()) {
+                        setResponsibilities([
+                          ...responsibilities,
+                          newResp.trim(),
+                        ]);
+                        setNewResp("");
+                      }
+                    }}
+                    returnKeyType="done"
+                    underlineColorAndroid="transparent"
+                  />
+                </View>
+                <TouchableButton
+                  style={[
+                    styles.optionButton,
+                    {
+                      flex: 0,
+                      paddingHorizontal: 16,
+                      backgroundColor: isDark ? "#C9963F" : colors.tint,
+                      borderColor: isDark ? "#C9963F" : colors.tint,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (newResp.trim()) {
+                      setResponsibilities([
+                        ...responsibilities,
+                        newResp.trim(),
+                      ]);
+                      setNewResp("");
+                    }
+                  }}
+                >
+                  <Feather name="plus" size={20} color="#FFFAF0" />
+                </TouchableButton>
+              </View>
+              {responsibilities.map((resp, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 4,
+                    paddingLeft: 8,
+                  }}
+                >
+                  <Text style={{ flex: 1, color: colors.text, fontSize: 14 }}>
+                    • {resp}
+                  </Text>
+                  <TouchableButton
+                    onPress={() =>
+                      setResponsibilities(
+                        responsibilities.filter((_, idx) => idx !== i),
+                      )
+                    }
+                    style={{ padding: 4 }}
+                  >
+                    <Feather
+                      name="x"
+                      size={16}
+                      color={
+                        isDark ? "rgba(255,250,240,0.4)" : "rgba(0,0,0,0.3)"
+                      }
+                    />
+                  </TouchableButton>
+                </View>
+              ))}
+
+              <View
+                style={[
+                  styles.requirementsSection,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.04)"
+                      : "rgba(0,0,0,0.02)",
+                    borderColor: isDark
+                      ? "rgba(201,150,63,0.15)"
+                      : "rgba(184,130,42,0.2)",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.requirementsSectionTitle,
+                    { color: colors.text },
+                  ]}
+                >
+                  {t("jobPosting.requirements.title")}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.requirementsQuestion,
+                    { color: isDark ? "rgba(255,250,240,0.8)" : "#4A4335" },
+                  ]}
+                >
+                  {t("jobPosting.requirements.restrictedSectorQuestion")}
+                </Text>
+                <View style={styles.requirementsToggleRow}>
+                  <Switch
+                    value={isRestrictedSector}
+                    onValueChange={setIsRestrictedSector}
+                    trackColor={{
+                      false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
+                      true: "#ef4444",
+                    }}
+                    thumbColor={isRestrictedSector ? "#FFFAF0" : "#f4f3f4"}
+                  />
+                  <Text
+                    style={[
+                      styles.requirementsToggleLabel,
+                      { color: isRestrictedSector ? "#ef4444" : colors.text },
+                    ]}
+                  >
+                    {isRestrictedSector
+                      ? t("jobPosting.requirements.restrictedSectorYes")
+                      : t("common.no")}
+                  </Text>
+                </View>
+                {isRestrictedSector && (
+                  <View
+                    style={[
+                      styles.restrictedBanner,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(239,68,68,0.15)"
+                          : "rgba(239,68,68,0.08)",
+                        borderColor: isDark
+                          ? "rgba(239,68,68,0.3)"
+                          : "rgba(239,68,68,0.2)",
+                      },
+                    ]}
+                  >
+                    <Feather name="alert-triangle" size={18} color="#ef4444" />
                     <Text
                       style={[
-                        styles.requirementsToggleLabel,
-                        { color: colors.text },
+                        styles.restrictedBannerText,
+                        { color: isDark ? "#fca5a5" : "#dc2626" },
                       ]}
                     >
-                      {t("jobPosting.requirements.requiresDriverLicense")}
+                      {t("jobPosting.requirements.restrictedSectorMessage")}
                     </Text>
                   </View>
-                  {(requiresVehicle || requiresDriverLicense) && (
-                    <View
+                )}
+
+                {!isRestrictedSector && (
+                  <>
+                    <Text
                       style={[
-                        styles.drivingHintBanner,
+                        styles.requirementsQuestion,
                         {
-                          backgroundColor: isDark
-                            ? "rgba(201,150,63,0.12)"
-                            : "rgba(184,130,42,0.08)",
-                          borderColor: isDark
-                            ? "rgba(201,150,63,0.25)"
-                            : "rgba(184,130,42,0.2)",
+                          color: isDark ? "rgba(255,250,240,0.8)" : "#4A4335",
+                          marginTop: 16,
                         },
                       ]}
                     >
-                      <Feather
-                        name="info"
-                        size={18}
-                        color={isDark ? "#C9963F" : "#B8822A"}
+                      {t("jobPosting.requirements.vehicleQuestion")}
+                    </Text>
+                    <View style={styles.requirementsToggleRow}>
+                      <Switch
+                        value={requiresVehicle}
+                        onValueChange={setRequiresVehicle}
+                        trackColor={{
+                          false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
+                          true: isDark ? "#C9963F" : "#B8822A",
+                        }}
+                        thumbColor={requiresVehicle ? "#FFFAF0" : "#f4f3f4"}
                       />
                       <Text
                         style={[
-                          styles.drivingHintText,
+                          styles.requirementsToggleLabel,
+                          { color: colors.text },
+                        ]}
+                      >
+                        {t("jobPosting.requirements.requiresVehicle")}
+                      </Text>
+                    </View>
+                    <View style={styles.requirementsToggleRow}>
+                      <Switch
+                        value={requiresDriverLicense}
+                        onValueChange={setRequiresDriverLicense}
+                        trackColor={{
+                          false: isDark ? "rgba(255,250,240,0.15)" : "#ccc",
+                          true: isDark ? "#C9963F" : "#B8822A",
+                        }}
+                        thumbColor={
+                          requiresDriverLicense ? "#FFFAF0" : "#f4f3f4"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.requirementsToggleLabel,
+                          { color: colors.text },
+                        ]}
+                      >
+                        {t("jobPosting.requirements.requiresDriverLicense")}
+                      </Text>
+                    </View>
+                    {((requiresVehicle && providerHasVehicle === false) ||
+                      (requiresDriverLicense &&
+                        providerHasLicense === false &&
+                        providerHasVehicle !== true)) && (
+                      <View
+                        style={[
+                          styles.drivingHintBanner,
                           {
-                            color: isDark
-                              ? "rgba(255,250,240,0.85)"
-                              : "#4A4335",
+                            backgroundColor: isDark
+                              ? "rgba(201,150,63,0.12)"
+                              : "rgba(184,130,42,0.08)",
+                            borderColor: isDark
+                              ? "rgba(201,150,63,0.25)"
+                              : "rgba(184,130,42,0.2)",
                           },
                         ]}
                       >
-                        {t("instantJob.drivingRequirementsHint")}
-                      </Text>
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
+                        <Feather
+                          name="info"
+                          size={18}
+                          color={isDark ? "#C9963F" : "#B8822A"}
+                        />
+                        <Text
+                          style={[
+                            styles.drivingHintText,
+                            {
+                              color: isDark
+                                ? "rgba(255,250,240,0.85)"
+                                : "#4A4335",
+                            },
+                          ]}
+                        >
+                          {t("instantJob.drivingRequirementsHint")}
+                        </Text>
+                      </View>
+                    )}
+                    {requiresVehicle && providerHasVehicle === false && (
+                      <View
+                        style={[
+                          styles.drivingHintBanner,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(239,68,68,0.12)"
+                              : "rgba(220,38,38,0.08)",
+                            borderColor: isDark
+                              ? "rgba(239,68,68,0.25)"
+                              : "rgba(220,38,38,0.2)",
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name="alert-circle"
+                          size={18}
+                          color={isDark ? "#EF4444" : "#DC2626"}
+                        />
+                        <Text
+                          style={[
+                            styles.drivingHintText,
+                            {
+                              color: isDark
+                                ? "rgba(255,250,240,0.85)"
+                                : "#4A4335",
+                            },
+                          ]}
+                        >
+                          {t("instantJob.providerNoVehicle")}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
 
-            <TouchableButton
-              style={[
-                styles.submitBtn,
-                {
-                  backgroundColor: isRestrictedSector
-                    ? isDark
-                      ? "rgba(255,250,240,0.1)"
-                      : "#ccc"
-                    : isDark
-                      ? "#10B981"
-                      : "#059669",
-                  borderColor: isRestrictedSector
-                    ? "transparent"
-                    : isDark
-                      ? "#10B981"
-                      : "#059669",
-                  shadowColor: isDark ? "#10B981" : "#059669",
-                },
-                (loading || isRestrictedSector) && styles.submitBtnDisabled,
-              ]}
-              onPress={handleContinue}
-              disabled={loading || isRestrictedSector}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFAF0" />
-              ) : (
-                <Text style={styles.submitBtnText}>
-                  {t("instantJob.continue")}
-                </Text>
-              )}
-            </TouchableButton>
-          </ScrollView>
-        </KeyboardAvoidingView>
+              {(() => {
+                const vehicleBlocked =
+                  requiresVehicle && providerHasVehicle === false;
+                const licenseBlocked =
+                  requiresDriverLicense &&
+                  providerHasLicense === false &&
+                  providerHasVehicle !== true;
+                const isDisabled =
+                  loading ||
+                  isRestrictedSector ||
+                  vehicleBlocked ||
+                  licenseBlocked;
+                return (
+                  <TouchableButton
+                    style={[
+                      styles.submitBtn,
+                      {
+                        backgroundColor: isDisabled
+                          ? isDark
+                            ? "rgba(255,250,240,0.1)"
+                            : "#ccc"
+                          : isDark
+                            ? "#10B981"
+                            : "#059669",
+                        borderColor: isDisabled
+                          ? "transparent"
+                          : isDark
+                            ? "#10B981"
+                            : "#059669",
+                        shadowColor: isDark ? "#10B981" : "#059669",
+                      },
+                      isDisabled && styles.submitBtnDisabled,
+                    ]}
+                    onPress={handleContinue}
+                    disabled={isDisabled}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFFAF0" />
+                    ) : (
+                      <Text style={styles.submitBtnText}>
+                        {t("instantJob.continue")}
+                      </Text>
+                    )}
+                  </TouchableButton>
+                );
+              })()}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
       </SafeAreaView>
 
       {/* Category Modal */}
@@ -1923,31 +2715,157 @@ export default function InstantJobRequest() {
       />
 
       {/* Job Type Modal */}
-      <Modal visible={showJobTypeModal} transparent animationType="slide" onRequestClose={() => setShowJobTypeModal(false)}>
+      <Modal
+        visible={showJobTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowJobTypeModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0" }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Job Type</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("jobs.selectJobType")}
+              </Text>
               <TouchableButton onPress={() => setShowJobTypeModal(false)}>
                 <Feather name="x" size={24} color={colors.text} />
               </TouchableButton>
             </View>
             <ScrollView>
-              {([
-                { value: "FULL_TIME", label: "Full Time" },
-                { value: "PART_TIME", label: "Part Time" },
-                { value: "CONTRACT", label: "Contract" },
-                { value: "TEMPORARY", label: "Temporary" },
-                { value: "FREELANCE", label: "Freelance" },
-                { value: "INTERNSHIP", label: "Internship" },
-                { value: "GIG", label: "Gig" },
-              ]).map((jt) => (
+              {[
+                { value: "FULL_TIME", label: t("jobs.type.fulltime") },
+                { value: "PART_TIME", label: t("jobs.type.parttime") },
+                { value: "CONTRACT", label: t("jobs.type.contract") },
+                { value: "TEMPORARY", label: t("jobs.type.temporary") },
+                { value: "FREELANCE", label: t("jobs.type.freelance") },
+                { value: "INTERNSHIP", label: t("jobs.type.internship") },
+                { value: "GIG", label: t("jobs.type.gig") },
+              ].map((jt) => (
                 <TouchableButton
                   key={jt.value}
-                  style={[styles.categoryOption, { backgroundColor: jobType === jt.value ? (isDark ? "#C9963F" : "#C9963F") : isDark ? "rgba(255,250,240,0.06)" : "rgba(184,130,42,0.06)", borderWidth: jobType === jt.value ? 0 : 1, borderColor: jobType === jt.value ? "transparent" : isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)" }]}
-                  onPress={() => { setJobType(jt.value); setShowJobTypeModal(false); }}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor:
+                        jobType === jt.value
+                          ? isDark
+                            ? "#C9963F"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: jobType === jt.value ? 0 : 1,
+                      borderColor:
+                        jobType === jt.value
+                          ? "transparent"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setJobType(jt.value);
+                    setShowJobTypeModal(false);
+                  }}
                 >
-                  <Text style={[styles.categoryOptionText, { color: jobType === jt.value ? "#FFFAF0" : colors.text, fontWeight: jobType === jt.value ? "600" : "500" }]}>{jt.label}</Text>
+                  <Text
+                    style={[
+                      styles.categoryOptionText,
+                      {
+                        color: jobType === jt.value ? "#FFFAF0" : colors.text,
+                        fontWeight: jobType === jt.value ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {jt.label}
+                  </Text>
+                </TouchableButton>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Currency Modal */}
+      <Modal
+        visible={showCurrencyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCurrencyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("jobs.selectCurrency")}
+              </Text>
+              <TouchableButton onPress={() => setShowCurrencyModal(false)}>
+                <Feather name="x" size={24} color={colors.text} />
+              </TouchableButton>
+            </View>
+            <ScrollView>
+              {[
+                { value: "EUR", label: "EUR – Euro" },
+                { value: "USD", label: "USD – US Dollar" },
+                { value: "GBP", label: "GBP – British Pound" },
+                { value: "CHF", label: "CHF – Swiss Franc" },
+                { value: "SEK", label: "SEK – Swedish Krona" },
+                { value: "NOK", label: "NOK – Norwegian Krone" },
+                { value: "DKK", label: "DKK – Danish Krone" },
+              ].map((c) => (
+                <TouchableButton
+                  key={c.value}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor:
+                        currencyVal === c.value
+                          ? isDark
+                            ? "#C9963F"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: currencyVal === c.value ? 0 : 1,
+                      borderColor:
+                        currencyVal === c.value
+                          ? "transparent"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setCurrencyVal(c.value);
+                    setShowCurrencyModal(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.categoryOptionText,
+                      {
+                        color:
+                          currencyVal === c.value ? "#FFFAF0" : colors.text,
+                        fontWeight: currencyVal === c.value ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {c.label}
+                  </Text>
                 </TouchableButton>
               ))}
             </ScrollView>
@@ -1956,29 +2874,76 @@ export default function InstantJobRequest() {
       </Modal>
 
       {/* Payment Type Modal */}
-      <Modal visible={showPaymentTypeModal} transparent animationType="slide" onRequestClose={() => setShowPaymentTypeModal(false)}>
+      <Modal
+        visible={showPaymentTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaymentTypeModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0" }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Payment Type</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {t("jobs.selectPaymentType")}
+              </Text>
               <TouchableButton onPress={() => setShowPaymentTypeModal(false)}>
                 <Feather name="x" size={24} color={colors.text} />
               </TouchableButton>
             </View>
             <ScrollView>
-              {([
-                { value: "HOURLY", label: "Per Hour" },
-                { value: "DAILY", label: "Per Day" },
-                { value: "WEEKLY", label: "Per Week" },
-                { value: "MONTHLY", label: "Per Month" },
-                { value: "FIXED", label: "Fixed Price" },
-              ]).map((pt) => (
+              {[
+                { value: "HOURLY", label: t("jobs.paymentType.hourly") },
+                { value: "DAILY", label: t("jobs.paymentType.daily") },
+                { value: "WEEKLY", label: t("jobs.paymentType.weekly") },
+                { value: "MONTHLY", label: t("jobs.paymentType.monthly") },
+                { value: "FIXED", label: t("jobs.paymentType.fixed") },
+              ].map((pt) => (
                 <TouchableButton
                   key={pt.value}
-                  style={[styles.categoryOption, { backgroundColor: paymentType === pt.value ? (isDark ? "#C9963F" : "#C9963F") : isDark ? "rgba(255,250,240,0.06)" : "rgba(184,130,42,0.06)", borderWidth: paymentType === pt.value ? 0 : 1, borderColor: paymentType === pt.value ? "transparent" : isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)" }]}
-                  onPress={() => { setPaymentType(pt.value); setShowPaymentTypeModal(false); }}
+                  style={[
+                    styles.categoryOption,
+                    {
+                      backgroundColor:
+                        paymentType === pt.value
+                          ? isDark
+                            ? "#C9963F"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: paymentType === pt.value ? 0 : 1,
+                      borderColor:
+                        paymentType === pt.value
+                          ? "transparent"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setPaymentType(pt.value);
+                    setShowPaymentTypeModal(false);
+                  }}
                 >
-                  <Text style={[styles.categoryOptionText, { color: paymentType === pt.value ? "#FFFAF0" : colors.text, fontWeight: paymentType === pt.value ? "600" : "500" }]}>{pt.label}</Text>
+                  <Text
+                    style={[
+                      styles.categoryOptionText,
+                      {
+                        color:
+                          paymentType === pt.value ? "#FFFAF0" : colors.text,
+                        fontWeight: paymentType === pt.value ? "600" : "500",
+                      },
+                    ]}
+                  >
+                    {pt.label}
+                  </Text>
                 </TouchableButton>
               ))}
             </ScrollView>
@@ -2230,5 +3195,95 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  // Summary page styles
+  summaryCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+  },
+  summaryCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  summaryProviderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  summaryAvatar: {
+    width: 48,
+    height: 48,
+  },
+  summaryAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  summaryAvatarInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryProviderName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  summaryProviderSkills: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  summarySubTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  summaryAvailItem: {
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 8,
+    marginBottom: 6,
+  },
+  summaryAvailText: {
+    fontSize: 13,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(128,128,128,0.15)",
+  },
+  summaryLabel: {
+    fontSize: 13,
+    flex: 1,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1.5,
+    textAlign: "right",
+  },
+  summaryBullet: {
+    fontSize: 13,
+    paddingLeft: 8,
+    marginBottom: 2,
+  },
+  summaryInfoBanner: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 20,
+  },
+  summaryInfoText: {
+    fontSize: 13,
+    lineHeight: 19,
+    flex: 1,
   },
 });

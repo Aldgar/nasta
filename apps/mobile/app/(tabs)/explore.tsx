@@ -26,11 +26,22 @@ import { androidScrollProps } from "../../utils/androidStyles";
 const isAndroid = Platform.OS === "android";
 
 // Conditionally import react-native-maps (not available in Expo Go)
-// Don't import at module level - only load when component mounts
 let MapView: any = null;
 let Marker: any = null;
 let PROVIDER_DEFAULT: any = null;
 let Region: any = null;
+
+try {
+  const mapsModule = require("react-native-maps");
+  if (mapsModule && mapsModule.default) {
+    MapView = mapsModule.default;
+    Marker = mapsModule.Marker;
+    PROVIDER_DEFAULT = mapsModule.PROVIDER_DEFAULT;
+    Region = mapsModule.Region;
+  }
+} catch (e) {
+  // Maps not available - expected in Expo Go
+}
 
 interface Job {
   id: string;
@@ -84,30 +95,8 @@ export default function ExploreMap() {
   };
 
   useEffect(() => {
-    // Check if maps are available (lazy load - only when component mounts)
-    let mapsAvail = false;
-
-    // Only try to load maps if not in Expo Go
-    const isExpoGo =
-      Constants.executionEnvironment === "storeClient" ||
-      (Constants.appOwnership === "expo" && !Constants.executionEnvironment);
-
-    if (!isExpoGo) {
-      try {
-        // @ts-ignore - dynamic require
-        const mapsModule = require("react-native-maps");
-        if (mapsModule && mapsModule.default) {
-          MapView = mapsModule.default;
-          Marker = mapsModule.Marker;
-          PROVIDER_DEFAULT = mapsModule.PROVIDER_DEFAULT;
-          Region = mapsModule.Region;
-          mapsAvail = true;
-        }
-      } catch (e: any) {
-        // Maps not available - expected in Expo Go
-        mapsAvail = false;
-      }
-    }
+    // Check if maps are available
+    let mapsAvail = MapView !== null;
 
     // On Android, MapView can crash if Google Maps API key is missing.
     if (mapsAvail && !isAndroidMapsConfigured) {
@@ -742,7 +731,7 @@ export default function ExploreMap() {
                   {t("explore.gettingYourLocation")}
                 </Text>
               </View>
-            ) : (
+            ) : MapView ? (
               <MapView
                 ref={mapRef}
                 provider={PROVIDER_DEFAULT}
@@ -765,6 +754,22 @@ export default function ExploreMap() {
                 showsMyLocationButton={true}
                 followsUserLocation={false}
                 mapType="standard"
+                // Native map controls
+                showsCompass={true}
+                showsScale={true}
+                showsTraffic={false}
+                showsBuildings={true}
+                showsIndoors={true}
+                showsPointsOfInterest={true}
+                zoomEnabled={true}
+                zoomControlEnabled={true}
+                scrollEnabled={true}
+                rotateEnabled={true}
+                pitchEnabled={true}
+                toolbarEnabled={true}
+                loadingEnabled={true}
+                loadingIndicatorColor="#C9963F"
+                loadingBackgroundColor={isDark ? "#0C162A" : "#FFFAF0"}
                 customMapStyle={isDark ? darkMapStyle : undefined}
                 key={
                   userLocation
@@ -868,6 +873,13 @@ export default function ExploreMap() {
                     </Marker>
                   ))}
               </MapView>
+            ) : (
+              <View style={styles.loadingContainer}>
+                <Feather name="map" size={48} color={colors.tint} />
+                <Text style={[styles.loadingText, { color: colors.text }]}>
+                  {t("explore.mapNotAvailable") || "Map not available"}
+                </Text>
+              </View>
             )}
           </View>
         )}

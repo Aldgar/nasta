@@ -13,6 +13,7 @@ import * as SecureStore from "expo-secure-store";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { Feather } from "@expo/vector-icons";
+import { unregisterPushToken } from "../lib/pushNotifications";
 import { useState, useEffect, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getApiBase } from "../lib/api";
@@ -23,10 +24,7 @@ export default function AdminHome() {
 
   useFocusEffect(
     useCallback(() => {
-      const sub = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => true,
-      );
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
       return () => sub.remove();
     }, []),
   );
@@ -318,8 +316,9 @@ export default function AdminHome() {
                   : "rgba(184,130,42,0.2)",
               },
             ]}
-            onPress={() => {
-              SecureStore.deleteItemAsync("auth_token");
+            onPress={async () => {
+              await unregisterPushToken();
+              await SecureStore.deleteItemAsync("auth_token");
               router.replace("/");
             }}
           >
@@ -457,9 +456,7 @@ export default function AdminHome() {
                       : "rgba(184,130,42,0.2)",
                   },
                 ]}
-                onPress={() =>
-                  router.push("/admin/vehicle-reviews" as never)
-                }
+                onPress={() => router.push("/admin/vehicle-reviews" as never)}
                 activeOpacity={0.7}
               >
                 <View style={styles.cardHeader}>
@@ -473,9 +470,7 @@ export default function AdminHome() {
                       <Feather name="truck" size={24} color="#FFFAF0" />
                     </View>
                     <View style={styles.cardTitleContainer}>
-                      <Text
-                        style={[styles.cardTitle, { color: colors.text }]}
-                      >
+                      <Text style={[styles.cardTitle, { color: colors.text }]}>
                         Vehicle Reviews
                       </Text>
                       <Text

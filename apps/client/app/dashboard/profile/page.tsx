@@ -4,6 +4,7 @@ import Link from "next/link";
 import { api, resolveAvatarUrl } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { useLanguage } from "../../../context/LanguageContext";
+import Avatar from "../../../components/Avatar";
 
 /* ── Types ─────────────────────────────────────────────────────── */
 
@@ -730,15 +731,11 @@ export default function ProfilePage() {
       <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface)] p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary)]/15 text-3xl font-bold text-[var(--primary)] overflow-hidden">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              (pUser.firstName?.[0] ?? "?").toUpperCase()
-            )}
+            <Avatar
+              src={avatarUrl}
+              imgClassName="h-full w-full object-cover"
+              fallback={(pUser.firstName?.[0] ?? "?").toUpperCase()}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">

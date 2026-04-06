@@ -5,10 +5,16 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailTranslationsService } from '../notifications/email-translations.service';
 
 @Injectable()
 export class VehiclesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+    private readonly emailTranslations: EmailTranslationsService,
+  ) {}
 
   async createVehicle(
     userId: string,
@@ -185,7 +191,7 @@ export class VehiclesService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found');
     }
-    return this.prisma.vehicle.update({
+    const updated = await this.prisma.vehicle.update({
       where: { id: vehicleId },
       data: {
         status,
@@ -193,6 +199,60 @@ export class VehiclesService {
         reviewedBy: adminId,
         reviewedAt: new Date(),
       },
+    });
+
+    // Send notifications to the vehicle owner
+    await this.sendVehicleReviewNotification(vehicle.userId, updated);
+
+    return updated;
+  }
+
+  private async sendVehicleReviewNotification(
+    userId: string,
+    vehicle: { make: string; model: string; year: number; status: string },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    });
+    if (!user) return;
+
+    const t = await this.emailTranslations.getTranslatorForUser(userId);
+    const vehicleName = `${vehicle.make} ${vehicle.model} (${vehicle.year})`;
+    const isApproved = vehicle.status === 'VERIFIED';
+
+    const title = isApproved
+      ? 'Vehicle Verified'
+      : 'Vehicle Verification Rejected';
+    const body = isApproved
+      ? `Your vehicle ${vehicleName} has been verified. You can now accept vehicle-related jobs.`
+      : `Your vehicle ${vehicleName} verification was rejected. Please check the details and resubmit.`;
+
+    // Email
+    const greeting = `Hi ${user.firstName || 'there'},`;
+    const emailHtml = this.notifications.getBrandedEmailTemplate(
+      title,
+      greeting,
+      `<p>${body}</p>`,
+      isApproved
+        ? 'You can now browse and accept vehicle-related jobs on Nasta.'
+        : 'If you believe this was a mistake, please contact our support team.',
+    );
+    await this.notifications.sendEmail(user.email, title, body, emailHtml);
+
+    // Push notification
+    await this.notifications.sendPushNotification(userId, title, body, {
+      type: 'VEHICLE_REVIEW',
+      vehicleStatus: vehicle.status,
+    });
+
+    // In-app notification
+    await this.notifications.createNotification({
+      userId,
+      type: 'SYSTEM',
+      title,
+      body,
+      payload: { type: 'VEHICLE_REVIEW', vehicleStatus: vehicle.status },
     });
   }
 

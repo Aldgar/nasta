@@ -17,8 +17,10 @@ import { EmailTranslationsService } from '../notifications/email-translations.se
 import { PaymentsService } from '../payments/payments.service';
 import { NoShowService } from '../no-show/no-show.service';
 import { ChatService } from '../chat/chat.service';
+import { ConfigService } from '@nestjs/config';
 
 type ApplicationStatus =
+  | 'REQUESTED'
   | 'PENDING'
   | 'REVIEWING'
   | 'SHORTLISTED'
@@ -37,7 +39,12 @@ export class ApplicationsService {
     private payments: PaymentsService,
     private noShowService: NoShowService,
     private chatService: ChatService,
+    private configService: ConfigService,
   ) {}
+
+  private get clientBaseUrl(): string {
+    return this.configService.get<string>('CLIENT_BASE_URL') || 'https://nasta.app';
+  }
 
   private generate4DigitVerificationCode(exclude?: string | null): string {
     // Try a few times to avoid returning the same code.
@@ -409,6 +416,15 @@ export class ApplicationsService {
     const where: Prisma.ApplicationWhereInput = { applicantId: userId };
     if (opts?.status) {
       where.status = opts.status;
+
+      // For ACCEPTED jobs, hide completed ones after 24 hours
+      if (opts.status === 'ACCEPTED') {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        where.OR = [
+          { completedAt: null },
+          { completedAt: { gt: oneDayAgo } },
+        ];
+      }
     }
     return this.prisma.application.findMany({
       where,
@@ -419,6 +435,7 @@ export class ApplicationsService {
         id: true,
         status: true,
         appliedAt: true,
+        completedAt: true,
         job: {
           select: {
             id: true,
@@ -1317,6 +1334,7 @@ export class ApplicationsService {
 
   private validateStatus(status: string): asserts status is ApplicationStatus {
     const allowed: ApplicationStatus[] = [
+      'REQUESTED',
       'PENDING',
       'REVIEWING',
       'SHORTLISTED',
@@ -1513,6 +1531,264 @@ export class ApplicationsService {
     );
 
     return { application: updated, message: 'Application withdrawn' };
+  }
+
+  /**
+   * Service provider responds to an instant job request (accept or reject).
+   * On accept: REQUESTED → PENDING (existing flow continues)
+   * On reject: REQUESTED → REJECTED with reason, employer notified
+   */
+  async respondToInstantJobRequest(
+    seekerId: string,
+    applicationId: string,
+    accept: boolean,
+    rejectionReason?: string,
+  ) {
+    if (!this.isValidObjectId(applicationId)) {
+      throw new BadRequestException('Invalid application id');
+    }
+
+    const app = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        status: true,
+        applicantId: true,
+        job: {
+          select: {
+            id: true,
+            title: true,
+            employerId: true,
+            isInstantBook: true,
+            location: true,
+            currency: true,
+            paymentType: true,
+            rateAmount: true,
+            salaryMin: true,
+            startDate: true,
+            category: { select: { name: true } },
+            employer: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        applicant: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!app) throw new NotFoundException('Application not found');
+    if (app.applicantId !== seekerId) {
+      throw new ForbiddenException(
+        'You can only respond to your own applications',
+      );
+    }
+    if (app.status !== 'REQUESTED') {
+      throw new BadRequestException(
+        'This application is not in a requestable state',
+      );
+    }
+    if (!app.job?.isInstantBook) {
+      throw new BadRequestException(
+        'This action is only available for instant job requests',
+      );
+    }
+
+    if (!accept && !rejectionReason) {
+      throw new BadRequestException(
+        'A rejection reason is required when declining a job request',
+      );
+    }
+
+    const providerName = `${app.applicant.firstName} ${app.applicant.lastName}`;
+    const jobTitle = app.job.title;
+    const employerId = app.job.employerId;
+
+    if (accept) {
+      // Accept: transition to PENDING so the existing negotiation/payment flow continues
+      const updated = await this.prisma.application.update({
+        where: { id: applicationId },
+        data: { status: 'PENDING' },
+        select: { id: true, status: true },
+      });
+
+      // Notify employer
+      try {
+        const tEmployer =
+          await this.emailTranslations.getTranslatorForUser(employerId);
+
+        await this.notifications.createNotification({
+          userId: employerId,
+          type: 'APPLICATION_UPDATE',
+          title: tEmployer(
+            'notifications.templates.instantJobRequestAcceptedTitle',
+          ),
+          body: tEmployer(
+            'notifications.templates.instantJobRequestAcceptedBody',
+            { providerName, jobTitle },
+          ),
+          payload: {
+            applicationId: app.id,
+            jobId: app.job.id,
+            status: 'PENDING',
+          },
+        });
+
+        await this.notifications.sendPushNotification(
+          employerId,
+          tEmployer(
+            'notifications.templates.instantJobRequestAcceptedTitle',
+          ),
+          tEmployer(
+            'notifications.templates.instantJobRequestAcceptedBody',
+            { providerName, jobTitle },
+          ),
+          {
+            type: 'APPLICATION_UPDATE',
+            applicationId: app.id,
+            jobId: app.job.id,
+          },
+        );
+
+        const employerEmail = app.job.employer?.email;
+        if (employerEmail) {
+          const lang = (await this.emailTranslations.getUserLanguage(employerId))?.toLowerCase().startsWith('pt') ? 'pt' : 'en' as 'en' | 'pt';
+          const locale = lang === 'pt' ? 'pt-PT' : 'en-GB';
+
+          const paymentParts: string[] = [];
+          if (app.job.rateAmount) {
+            paymentParts.push(`${app.job.currency} ${(app.job.rateAmount / 100).toFixed(2)}`);
+          } else if (app.job.salaryMin) {
+            paymentParts.push(`${app.job.currency} ${app.job.salaryMin}`);
+          }
+          if (app.job.paymentType) {
+            paymentParts.push(app.job.paymentType.toLowerCase().replace('_', ' '));
+          }
+          const paymentStr = paymentParts.join(' / ') || 'TBD';
+
+          const startDateStr = app.job.startDate
+            ? new Date(app.job.startDate).toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : 'TBD';
+
+          const subject = tEmployer('email.instantJobRequest.acceptedSubject', { jobTitle });
+          const text = tEmployer('notifications.templates.instantJobRequestAcceptedBody', { providerName, jobTitle });
+          const html = this.notifications.getInstantJobRequestAcceptedHtml(
+            {
+              employerName: app.job.employer?.firstName || 'there',
+              providerName,
+              jobTitle,
+              category: (app.job as any).category?.name || '',
+              location: app.job.location || '',
+              startDate: startDateStr,
+              payment: paymentStr,
+              ctaUrl: `${this.clientBaseUrl}/dashboard/employer/applications/${app.id}`,
+            },
+            tEmployer,
+            lang,
+          );
+          await this.notifications.sendEmail(employerEmail, subject, text, html);
+        }
+      } catch (err) {
+        this.logger.error(
+          '[Notification] Failed to send instant job accept notification:',
+          err,
+        );
+      }
+
+      return {
+        application: updated,
+        message: 'Job request accepted',
+      };
+    } else {
+      // Reject: transition to REJECTED with reason
+      const updated = await this.prisma.application.update({
+        where: { id: applicationId },
+        data: {
+          status: 'REJECTED',
+          rejectionReason: rejectionReason,
+        },
+        select: { id: true, status: true },
+      });
+
+      // Notify employer
+      try {
+        const tEmployer =
+          await this.emailTranslations.getTranslatorForUser(employerId);
+
+        await this.notifications.createNotification({
+          userId: employerId,
+          type: 'APPLICATION_UPDATE',
+          title: tEmployer(
+            'notifications.templates.instantJobRequestRejectedTitle',
+          ),
+          body: tEmployer(
+            'notifications.templates.instantJobRequestRejectedBody',
+            { providerName, jobTitle, reason: rejectionReason },
+          ),
+          payload: {
+            applicationId: app.id,
+            jobId: app.job.id,
+            status: 'REJECTED',
+          },
+        });
+
+        await this.notifications.sendPushNotification(
+          employerId,
+          tEmployer(
+            'notifications.templates.instantJobRequestRejectedTitle',
+          ),
+          tEmployer(
+            'notifications.templates.instantJobRequestRejectedBody',
+            { providerName, jobTitle, reason: rejectionReason },
+          ),
+          {
+            type: 'APPLICATION_UPDATE',
+            applicationId: app.id,
+            jobId: app.job.id,
+          },
+        );
+
+        const employerEmail = app.job.employer?.email;
+        if (employerEmail) {
+          const lang = (await this.emailTranslations.getUserLanguage(employerId))?.toLowerCase().startsWith('pt') ? 'pt' : 'en' as 'en' | 'pt';
+
+          const subject = tEmployer('email.instantJobRequest.rejectedSubject', { jobTitle });
+          const text = tEmployer('notifications.templates.instantJobRequestRejectedBody', { providerName, jobTitle, reason: rejectionReason });
+          const html = this.notifications.getInstantJobRequestRejectedHtml(
+            {
+              employerName: app.job.employer?.firstName || 'there',
+              providerName,
+              jobTitle,
+              category: (app.job as any).category?.name || '',
+              location: app.job.location || '',
+              reason: rejectionReason || '',
+              ctaUrl: `${this.clientBaseUrl}/dashboard/employer/service-providers`,
+            },
+            tEmployer,
+            lang,
+          );
+          await this.notifications.sendEmail(employerEmail, subject, text, html);
+        }
+      } catch (err) {
+        this.logger.error(
+          '[Notification] Failed to send instant job reject notification:',
+          err,
+        );
+      }
+
+      return {
+        application: updated,
+        message: 'Job request rejected',
+      };
+    }
   }
 
   /**
@@ -3741,6 +4017,14 @@ export class ApplicationsService {
         employerId: true,
         title: true,
         status: true,
+        location: true,
+        currency: true,
+        paymentType: true,
+        rateAmount: true,
+        salaryMin: true,
+        startDate: true,
+        category: { select: { name: true } },
+        employer: { select: { firstName: true, lastName: true } },
       },
     });
 
@@ -3766,6 +4050,8 @@ export class ApplicationsService {
       select: {
         id: true,
         role: true,
+        firstName: true,
+        email: true,
       },
     });
 
@@ -3802,7 +4088,7 @@ export class ApplicationsService {
       data: {
         job: { connect: { id: jobId } },
         applicant: { connect: { id: candidateId } },
-        status: 'PENDING',
+        status: 'REQUESTED',
         coverLetter: 'Instant job request',
         appliedAt: new Date(),
       },
@@ -3832,6 +4118,61 @@ export class ApplicationsService {
           jobId: jobId,
         },
       });
+
+      // Send push notification
+      await this.notifications.sendPushNotification(
+        candidateId,
+        (await this.emailTranslations.getTranslatorForUser(candidateId))(
+          'notifications.templates.newJobOpportunityTitle',
+        ),
+        (await this.emailTranslations.getTranslatorForUser(candidateId))(
+          'notifications.templates.newJobOpportunityBody',
+          { jobTitle: job.title },
+        ),
+        { type: 'APPLICATION_UPDATE', applicationId: application.id, jobId },
+      );
+
+      // Send email notification
+      if (candidate.email) {
+        const tForCandidate = await this.emailTranslations.getTranslatorForUser(candidateId);
+        const lang = (await this.emailTranslations.getUserLanguage(candidateId))?.toLowerCase().startsWith('pt') ? 'pt' : 'en' as 'en' | 'pt';
+
+        // Format payment string
+        const paymentParts: string[] = [];
+        if (job.rateAmount) {
+          paymentParts.push(`${job.currency} ${(job.rateAmount / 100).toFixed(2)}`);
+        } else if (job.salaryMin) {
+          paymentParts.push(`${job.currency} ${job.salaryMin}`);
+        }
+        if (job.paymentType) {
+          paymentParts.push(job.paymentType.toLowerCase().replace('_', ' '));
+        }
+        const paymentStr = paymentParts.join(' / ') || 'TBD';
+
+        // Format start date
+        const locale = lang === 'pt' ? 'pt-PT' : 'en-GB';
+        const startDateStr = job.startDate
+          ? new Date(job.startDate).toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : 'TBD';
+
+        const subject = tForCandidate('email.instantJobRequest.newRequestSubject', { jobTitle: job.title });
+        const text = tForCandidate('notifications.templates.newJobOpportunityBody', { jobTitle: job.title });
+        const html = this.notifications.getInstantJobRequestHtml(
+          {
+            providerName: candidate.firstName || 'there',
+            jobTitle: job.title,
+            category: (job as any).category?.name || '',
+            location: job.location || '',
+            startDate: startDateStr,
+            payment: paymentStr,
+            employerName: `${(job as any).employer?.firstName || ''} ${(job as any).employer?.lastName || ''}`.trim() || 'Employer',
+            ctaUrl: `${this.clientBaseUrl}/dashboard/applications`,
+          },
+          tForCandidate,
+          lang,
+        );
+        await this.notifications.sendEmail(candidate.email, subject, text, html);
+      }
     } catch (err) {
       this.logger.error(
         '[Notification] Failed to send instant job notification:',
@@ -4408,6 +4749,10 @@ export class ApplicationsService {
 
     if (app.completedAt) {
       throw new BadRequestException('This job has already been completed');
+    }
+
+    if (app.serviceProviderMarkedDoneAt) {
+      throw new BadRequestException('You have already marked this job as done');
     }
 
     // Update application to mark as done by service provider

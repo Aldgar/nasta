@@ -21,7 +21,7 @@ import { getApiBase } from "../../lib/api";
 import * as SecureStore from "expo-secure-store";
 
 const decodeJwtPayload = (
-  token: string
+  token: string,
 ): {
   sub?: string;
   id?: string;
@@ -170,7 +170,7 @@ export default function EmployerJobs() {
         } else if (activeTab === "COMPLETED") {
           // COMPLETED = jobs with status COMPLETED or CLOSED
           myJobs = myJobs.filter(
-            (job: Job) => job.status === "COMPLETED" || job.status === "CLOSED"
+            (job: Job) => job.status === "COMPLETED" || job.status === "CLOSED",
           );
         }
 
@@ -194,7 +194,7 @@ export default function EmployerJobs() {
       if (userId) {
         fetchJobs();
       }
-    }, [userId, activeTab])
+    }, [userId, activeTab]),
   );
 
   const onRefresh = useCallback(() => {
@@ -285,7 +285,7 @@ export default function EmployerJobs() {
                       text: t("jobs.goToSettings"),
                       onPress: () => router.push("/settings" as any),
                     },
-                  ]
+                  ],
                 );
                 return;
               }
@@ -475,9 +475,10 @@ export default function EmployerJobs() {
                       { text: t("common.ok") },
                       {
                         text: t("jobs.goToSettings"),
-                        onPress: () => router.push("/(tabs)/settings" as any),
+                        onPress: () =>
+                          router.push("/employer-tabs/menu" as any),
                       },
-                    ]
+                    ],
                   );
                   return;
                 }

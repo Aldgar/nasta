@@ -4,6 +4,7 @@ import Link from "next/link";
 import { api, resolveAvatarUrl } from "../../../../lib/api";
 import BrandedSelect from "../../../../components/ui/BrandedSelect";
 import { useLanguage } from "../../../../context/LanguageContext";
+import Avatar from "../../../../components/Avatar";
 
 interface Skill {
   id: string;
@@ -247,17 +248,16 @@ export default function ServiceProvidersPage() {
               >
                 {/* Top: Avatar + Name */}
                 <div className="flex items-start gap-3.5">
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt={`${p.firstName} ${p.lastName}`}
-                      className="h-12 w-12 rounded-full object-cover ring-2 ring-[var(--border-color)]"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)]/10 text-sm font-bold text-[var(--primary)] ring-2 ring-[var(--border-color)]">
-                      {initials}
-                    </div>
-                  )}
+                  <Avatar
+                    src={avatarUrl}
+                    alt={`${p.firstName} ${p.lastName}`}
+                    imgClassName="h-12 w-12 rounded-full object-cover ring-2 ring-[var(--border-color)]"
+                    fallback={
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)]/10 text-sm font-bold text-[var(--primary)] ring-2 ring-[var(--border-color)]">
+                        {initials}
+                      </div>
+                    }
+                  />
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--primary)]">
                       {p.firstName} {p.lastName}

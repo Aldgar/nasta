@@ -14,6 +14,7 @@ import GradientBackground from "../components/GradientBackground";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { getApiBase } from "../lib/api";
+import { registerPushToken } from "../lib/pushNotifications";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -156,6 +157,8 @@ export default function LoginScreen() {
         data?.accessToken || data?.access_token || data?.token || "";
       if (!token) throw new Error("No token returned");
       await SecureStore.setItemAsync("auth_token", token);
+      // Register push token for this user (removes from any previous user)
+      registerPushToken().catch(() => {});
       // Store password temporarily for password change form (will be cleared after password change)
       await SecureStore.setItemAsync("last_login_password", password);
       if (role === "user") {
@@ -352,16 +355,20 @@ export default function LoginScreen() {
                   },
                 ]}
               >
-                {Platform.OS !== "android" && (
-                  <Text
-                    style={[
-                      styles.emblemMeroitic,
-                      { color: isDark ? "#C9963F" : "#1A1207" },
-                    ]}
-                  >
-                    {"\u200A𐦠𐦴𐦯𐦡\u200A"}
-                  </Text>
-                )}
+                <Text
+                  style={[
+                    styles.emblemMeroitic,
+                    {
+                      color: isDark ? "#C9963F" : "#1A1207",
+                      fontFamily:
+                        Platform.OS === "android"
+                          ? "NotoSansMeroitic"
+                          : undefined,
+                    },
+                  ]}
+                >
+                  {"\u200A𐦠𐦴𐦯𐦡\u200A"}
+                </Text>
                 <View
                   style={[
                     styles.emblemDivider,
@@ -520,35 +527,6 @@ export default function LoginScreen() {
                 </TouchableWithoutFeedback>
               </View>
 
-              <TouchableWithoutFeedback
-                onPress={() => !loading && loginWith("admin")}
-                disabled={loading}
-              >
-                <View
-                  style={[
-                    styles.button,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "rgba(184,130,42,0.06)",
-                      borderColor: isDark
-                        ? "rgba(201,150,63,0.3)"
-                        : "rgba(184,130,42,0.3)",
-                      borderStyle: "dashed",
-                    },
-                    loading && styles.buttonLoading,
-                    styles.adminButton,
-                  ]}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={colors.text} />
-                  ) : (
-                    <Text style={[styles.buttonLabel, { color: colors.text }]}>
-                      {t("auth.admin")}
-                    </Text>
-                  )}
-                </View>
-              </TouchableWithoutFeedback>
               <TouchableWithoutFeedback
                 onPress={() => router.push("/forgot-password" as never)}
               >

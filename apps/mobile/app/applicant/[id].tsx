@@ -2169,581 +2169,604 @@ export default function ApplicantDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={{ flex: 1 }}
         >
-        <Stack.Screen options={{ headerShown: false }} />
+          <Stack.Screen options={{ headerShown: false }} />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableButton
-            style={[
-              styles.backBtn,
-              {
-                backgroundColor: isDark
-                  ? "rgba(12, 22, 42, 0.75)"
-                  : "rgba(184,130,42,0.06)",
-                borderColor: isDark ? "rgba(201,150,63,0.12)" : "transparent",
-                borderWidth: isDark ? 1 : 0,
-              },
-            ]}
-            onPress={() => router.back()}
-          >
-            <Feather name="arrow-left" size={24} color={colors.text} />
-          </TouchableButton>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {instantJob
-              ? t("jobs.instantJob")
-              : t("applications.applicantDetails")}
-          </Text>
-          <View style={{ width: 40 }} />
-        </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableButton
+              style={[
+                styles.backBtn,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.75)"
+                    : "rgba(184,130,42,0.06)",
+                  borderColor: isDark ? "rgba(201,150,63,0.12)" : "transparent",
+                  borderWidth: isDark ? 1 : 0,
+                },
+              ]}
+              onPress={() => {
+                if (instantJob) {
+                  router.replace("/(tabs)/applications" as any);
+                } else {
+                  router.back();
+                }
+              }}
+            >
+              <Feather name="arrow-left" size={24} color={colors.text} />
+            </TouchableButton>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {instantJob
+                ? t("jobs.instantJob")
+                : t("applications.applicantDetails")}
+            </Text>
+            <View style={{ width: 40 }} />
+          </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Applicant Profile Card */}
-          <TouchableButton
-            style={[
-              styles.candidateCard,
-              {
-                backgroundColor: isDark
-                  ? "rgba(12, 22, 42, 0.90)"
-                  : "rgba(255,250,240,0.92)",
-                borderColor: isDark
-                  ? "rgba(255,250,240,0.12)"
-                  : "rgba(184,130,42,0.2)",
-              },
-            ]}
-            onPress={() => {
-              if (applicant.id) {
-                router.push(`/candidate/${applicant.id}` as any);
-              }
-            }}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.candidateHeader}>
-              <View style={styles.candidateInfo}>
-                <View style={styles.avatarContainer}>
-                  {(() => {
-                    const avatarUrl =
-                      applicant.profile?.avatarUrl || applicant.avatar;
-                    if (avatarUrl) {
-                      // Construct full URL if it's a relative path
-                      const base = getApiBase();
-                      const fullUrl = avatarUrl.startsWith("http")
-                        ? avatarUrl
-                        : `${base}/${avatarUrl.startsWith("/") ? avatarUrl.slice(1) : avatarUrl}`;
-                      return (
-                        <Image
-                          source={{ uri: fullUrl }}
-                          style={styles.candidateAvatar}
-                          resizeMode="cover"
-                          onError={(event) => {
-                            const nativeError = (event as any)?.nativeEvent
-                              ?.error;
-                            console.warn(
-                              "[ApplicantDetail] Avatar failed to load:",
-                              nativeError ?? null,
-                              "url:",
-                              fullUrl,
-                            );
-                          }}
-                        />
-                      );
-                    }
-                    return (
-                      <View
-                        style={[
-                          styles.candidateAvatar,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(201,150,63,0.12)"
-                              : "#F0E8D5",
-                            justifyContent: "center",
-                            alignItems: "center",
-                          },
-                        ]}
-                      >
-                        <Feather
-                          name="user"
-                          size={24}
-                          color={isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"}
-                        />
-                      </View>
-                    );
-                  })()}
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>
-                    {fullName}
+            {/* Locked Banner when status is REQUESTED */}
+            {application.status === "REQUESTED" && (
+              <View
+                style={{
+                  backgroundColor: isDark
+                    ? "rgba(96, 165, 250, 0.12)"
+                    : "rgba(59, 130, 246, 0.08)",
+                  borderColor: isDark
+                    ? "rgba(96, 165, 250, 0.3)"
+                    : "rgba(59, 130, 246, 0.2)",
+                  borderWidth: 1,
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 16,
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                }}
+              >
+                <Feather
+                  name="clock"
+                  size={20}
+                  color={isDark ? "#60A5FA" : "#3B82F6"}
+                  style={{ marginRight: 12, marginTop: 2 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      color: isDark ? "#60A5FA" : "#3B82F6",
+                      fontWeight: "700",
+                      fontSize: 15,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {t("applications.waitingForProvider")}
                   </Text>
-                  {applicant.profile?.headline && (
-                    <Text
-                      style={[
-                        styles.headline,
-                        { color: isDark ? "#9A8E7A" : "#8A7B68", marginTop: 4 },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {applicant.profile.headline}
-                    </Text>
-                  )}
-                  {/* Rating - More Prominent */}
-                  <View style={styles.ratingRow}>
-                    <Feather name="star" size={16} color="#eab308" />
-                    <Text
-                      style={[
-                        styles.rating,
-                        {
-                          color:
-                            candidateData?.rating && candidateData.rating > 0
-                              ? isDark
-                                ? "#fbbf24"
-                                : "#ca8a04"
-                              : isDark
-                                ? "rgba(255,250,240,0.5)"
-                                : "#9A8E7A",
-                          fontWeight: "700",
-                          fontSize: 13,
-                        },
-                      ]}
-                    >
-                      {candidateData?.rating && candidateData.rating > 0
-                        ? candidateData.rating.toFixed(1)
-                        : t("applications.noRating")}
-                      {candidateData?.ratingCount &&
-                      candidateData.ratingCount > 0
-                        ? ` (${candidateData.ratingCount})`
-                        : ""}
-                    </Text>
-                  </View>
+                  <Text
+                    style={{
+                      color: isDark
+                        ? "rgba(255,250,240,0.7)"
+                        : "rgba(0,0,0,0.6)",
+                      fontSize: 13,
+                      lineHeight: 19,
+                    }}
+                  >
+                    {t("applications.requestSentToProvider")}
+                  </Text>
                 </View>
               </View>
-            </View>
-
-            {/* Bio */}
-            {(applicant.bio || applicant.profile?.bio) && (
-              <Text
-                style={[styles.bio, { color: isDark ? "#9A8E7A" : "#8A7B68" }]}
-                numberOfLines={2}
-              >
-                {applicant.profile?.bio || applicant.bio}
-              </Text>
             )}
 
-            {/* Location */}
-            <View style={styles.locationRow}>
-              <Feather
-                name="map-pin"
-                size={12}
-                color={isDark ? "#9A8E7A" : "#8A7B68"}
-              />
-              <Text
-                style={[
-                  styles.location,
-                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                ]}
-              >
-                {[
-                  applicant.profile?.city || applicant.city,
-                  applicant.profile?.country || applicant.country,
-                ]
-                  .filter(Boolean)
-                  .join(", ") ||
-                  applicant.location ||
-                  t("applications.locationNotSpecified")}
-              </Text>
-            </View>
-
-            {/* Skills with Years of Experience */}
-            {(() => {
-              const allSkills =
-                candidateData?.skills && candidateData.skills.length > 0
-                  ? candidateData.skills.map((s) => ({
-                      name: s.name,
-                      yearsExp: s.yearsExp || 0,
-                    }))
-                  : (applicant.profile?.skillsSummary || []).map((name) => ({
-                      name,
-                      yearsExp: 0,
-                    }));
-              const displaySkills = allSkills.slice(0, 3);
-              const totalSkillsCount = allSkills.length;
-
-              return (
-                displaySkills.length > 0 && (
-                  <View style={styles.skillsContainer}>
-                    {displaySkills.map((skill, idx) => (
-                      <View
-                        key={idx}
-                        style={[
-                          styles.skillTag,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(201, 150, 63, 0.2)"
-                              : "rgba(201, 150, 63, 0.1)",
-                            borderColor: isDark
-                              ? "rgba(201, 150, 63, 0.3)"
-                              : "rgba(201, 150, 63, 0.2)",
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.skillText,
-                            { color: isDark ? "#E8B86D" : "#B8822A" },
-                          ]}
-                        >
-                          {skill.name}
-                          {skill.yearsExp > 0 &&
-                            ` (${skill.yearsExp}${skill.yearsExp > 1 ? "yrs" : "yr"})`}
-                        </Text>
-                      </View>
-                    ))}
-                    {totalSkillsCount > 3 && (
-                      <Text
-                        style={[
-                          styles.moreSkills,
-                          { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                        ]}
-                      >
-                        +{totalSkillsCount - 3} {t("applications.more")}
-                      </Text>
-                    )}
-                  </View>
-                )
-              );
-            })()}
-
-            {/* Rates Section with Checkboxes */}
-            {candidateData?.rates && candidateData.rates.length > 0 && (
-              <View style={styles.ratesSection}>
-                <Text
-                  style={[
-                    styles.ratesSectionTitle,
-                    { color: colors.text, marginBottom: 12 },
-                  ]}
-                >
-                  {t("applications.selectServices")}
-                </Text>
-                {candidateData.rates.map((rate, idx) => {
-                  const paymentTypeLabel =
-                    rate.paymentType === "OTHER" && rate.otherSpecification
-                      ? rate.otherSpecification
-                      : rate.paymentType === "HOURLY"
-                        ? t("applications.hourly")
-                        : rate.paymentType === "DAILY"
-                          ? t("applications.daily")
-                          : rate.paymentType === "WEEKLY"
-                            ? t("applications.weekly")
-                            : rate.paymentType === "MONTHLY"
-                              ? t("applications.monthly")
-                              : rate.paymentType === "PROJECT"
-                                ? t("applications.project")
-                                : rate.paymentType === "OTHER"
-                                  ? t("onboarding.other")
-                                  : rate.paymentType.charAt(0) +
-                                    rate.paymentType.slice(1).toLowerCase();
-                  const isSelected = selectedRates.has(idx);
-
-                  // Check if this service was already paid for
-                  const paidSelectedRates =
-                    application?.paymentStatus?.paidSelectedRates || [];
-                  const isPaid = paidSelectedRates.some(
-                    (paidRate: any) =>
-                      paidRate.rate === rate.rate &&
-                      paidRate.paymentType === rate.paymentType &&
-                      (rate.otherSpecification
-                        ? paidRate.otherSpecification ===
-                          rate.otherSpecification
-                        : !paidRate.otherSpecification),
-                  );
-
-                  // If paid, grey it out and disable interaction
-                  const isDisabled = !!application?.completedAt || isPaid;
-
-                  return (
-                    <TouchableButton
-                      key={idx}
-                      style={[
-                        styles.rateRow,
-                        {
-                          backgroundColor: isDark
-                            ? isPaid
-                              ? "rgba(255,250,240,0.04)"
-                              : "rgba(255,250,240,0.06)"
-                            : isPaid
-                              ? "rgba(0,0,0,0.01)"
-                              : "rgba(0,0,0,0.02)",
-                          borderColor: isPaid
-                            ? isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "rgba(184,130,42,0.25)"
-                            : isSelected
-                              ? isDark
-                                ? "#4ade80"
-                                : "#22c55e"
-                              : isDark
-                                ? "rgba(201,150,63,0.12)"
-                                : "rgba(184,130,42,0.2)",
-                          borderWidth: 1,
-                          opacity: isPaid ? 0.5 : 1,
-                        },
-                      ]}
-                      onPress={async () => {
-                        // Lock when completed or paid - prevent any changes
-                        if (application?.completedAt) {
-                          Alert.alert(
-                            t("applications.jobCompleted"),
-                            t("applications.cannotModifyServices"),
-                          );
-                          return;
-                        }
-                        if (isPaid) {
-                          Alert.alert(
-                            t("applications.alreadyPaid"),
-                            t("applications.serviceAlreadyPaid"),
-                          );
-                          return;
-                        }
-                        const newSelected = new Set(selectedRates);
-                        if (isSelected) {
-                          newSelected.delete(idx);
-                        } else {
-                          newSelected.add(idx);
-                        }
-
-                        console.log("[ApplicantDetail] Toggling service:", {
-                          index: idx,
-                          rate: candidateData.rates![idx],
-                          wasSelected: isSelected,
-                          willBeSelected: !isSelected,
-                          newSelectedCount: newSelected.size,
-                          newSelectedIndices: Array.from(newSelected),
-                        });
-
-                        setSelectedRates(newSelected);
-
-                        // Save selected rates to backend in real-time
-                        await saveSelectedRatesToBackend(newSelected);
-                      }}
-                      disabled={isDisabled}
-                    >
-                      <View style={styles.checkboxContainer}>
+            {/* Applicant Profile Card */}
+            <TouchableButton
+              style={[
+                styles.candidateCard,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "rgba(255,250,240,0.92)",
+                  borderColor: isDark
+                    ? "rgba(255,250,240,0.12)"
+                    : "rgba(184,130,42,0.2)",
+                },
+              ]}
+              onPress={() => {
+                if (applicant.id) {
+                  router.push(`/candidate/${applicant.id}` as any);
+                }
+              }}
+            >
+              <View style={styles.candidateHeader}>
+                <View style={styles.candidateInfo}>
+                  <View style={styles.avatarContainer}>
+                    {(() => {
+                      const avatarUrl =
+                        applicant.profile?.avatarUrl || applicant.avatar;
+                      if (avatarUrl) {
+                        // Construct full URL if it's a relative path
+                        const base = getApiBase();
+                        const fullUrl = avatarUrl.startsWith("http")
+                          ? avatarUrl
+                          : `${base}/${avatarUrl.startsWith("/") ? avatarUrl.slice(1) : avatarUrl}`;
+                        return (
+                          <Image
+                            source={{ uri: fullUrl }}
+                            style={styles.candidateAvatar}
+                            resizeMode="cover"
+                            onError={(event) => {
+                              const nativeError = (event as any)?.nativeEvent
+                                ?.error;
+                              console.warn(
+                                "[ApplicantDetail] Avatar failed to load:",
+                                nativeError ?? null,
+                                "url:",
+                                fullUrl,
+                              );
+                            }}
+                          />
+                        );
+                      }
+                      return (
                         <View
                           style={[
-                            styles.checkbox,
+                            styles.candidateAvatar,
                             {
-                              backgroundColor: isPaid
-                                ? isDark
-                                  ? "rgba(156, 163, 175, 0.5)"
-                                  : "rgba(156, 163, 175, 0.3)"
-                                : isSelected
-                                  ? isDark
-                                    ? "#4ade80"
-                                    : "#22c55e"
-                                  : "transparent",
-                              borderColor: isPaid
-                                ? isDark
-                                  ? "rgba(156, 163, 175, 0.5)"
-                                  : "rgba(156, 163, 175, 0.5)"
-                                : isSelected
-                                  ? isDark
-                                    ? "#4ade80"
-                                    : "#22c55e"
-                                  : isDark
-                                    ? "rgba(201,150,63,0.25)"
-                                    : "#9A8E7A",
-                              borderWidth: 2,
+                              backgroundColor: isDark
+                                ? "rgba(201,150,63,0.12)"
+                                : "#F0E8D5",
+                              justifyContent: "center",
+                              alignItems: "center",
                             },
                           ]}
                         >
-                          {isPaid ? (
-                            <Feather
-                              name="lock"
-                              size={12}
-                              color={isDark ? "#9A8E7A" : "#8A7B68"}
-                            />
-                          ) : isSelected ? (
-                            <Feather name="check" size={14} color="#FFFAF0" />
-                          ) : null}
+                          <Feather
+                            name="user"
+                            size={24}
+                            color={isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"}
+                          />
                         </View>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.rateText,
-                            {
-                              color: isPaid
+                      );
+                    })()}
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>
+                      {fullName}
+                    </Text>
+                    {applicant.profile?.headline && (
+                      <Text
+                        style={[
+                          styles.headline,
+                          {
+                            color: isDark ? "#9A8E7A" : "#8A7B68",
+                            marginTop: 4,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {applicant.profile.headline}
+                      </Text>
+                    )}
+                    {/* Rating - More Prominent */}
+                    <View style={styles.ratingRow}>
+                      <Feather name="star" size={16} color="#eab308" />
+                      <Text
+                        style={[
+                          styles.rating,
+                          {
+                            color:
+                              candidateData?.rating && candidateData.rating > 0
                                 ? isDark
-                                  ? "#9A8E7A"
-                                  : "#8A7B68"
-                                : colors.text,
-                            },
-                          ]}
-                        >
-                          €{rate.rate}/{paymentTypeLabel}
-                          {isPaid && (
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontStyle: "italic",
-                                marginLeft: 4,
-                              }}
-                            >
-                              ({t("applications.paid")})
-                            </Text>
-                          )}
-                        </Text>
-                        {(rate as any).description ? (
-                          <Text
-                            style={[
-                              styles.rateDescription,
-                              {
-                                color: isPaid
-                                  ? isDark
-                                    ? "rgba(154,142,122,0.7)"
-                                    : "rgba(138,123,104,0.7)"
-                                  : isDark
-                                    ? "rgba(255,250,240,0.55)"
-                                    : "#8A7B68",
-                              },
-                            ]}
-                          >
-                            {(rate as any).description}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </TouchableButton>
-                  );
-                })}
+                                  ? "#fbbf24"
+                                  : "#ca8a04"
+                                : isDark
+                                  ? "rgba(255,250,240,0.5)"
+                                  : "#9A8E7A",
+                            fontWeight: "700",
+                            fontSize: 13,
+                          },
+                        ]}
+                      >
+                        {candidateData?.rating && candidateData.rating > 0
+                          ? candidateData.rating.toFixed(1)
+                          : t("applications.noRating")}
+                        {candidateData?.ratingCount &&
+                        candidateData.ratingCount > 0
+                          ? ` (${candidateData.ratingCount})`
+                          : ""}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               </View>
-            )}
 
-            {/* Selected Services Summary */}
-            {(() => {
-              const hasSelectedServices =
-                selectedRates.size > 0 && candidateData?.rates;
-              const approvedAdditionalRates =
-                application?.additionalRateRequests &&
-                Array.isArray(application.additionalRateRequests) &&
-                application.additionalRateRequests.filter(
-                  (req: any) => req.status === "APPROVED",
-                );
-              const hasApprovedAdditionalRates =
-                approvedAdditionalRates && approvedAdditionalRates.length > 0;
-              const acceptedNegotiations =
-                application?.negotiationRequests &&
-                Array.isArray(application.negotiationRequests) &&
-                application.negotiationRequests.filter(
-                  (req: any) => req.status === "ACCEPTED",
-                );
-              const hasAcceptedNegotiations =
-                acceptedNegotiations && acceptedNegotiations.length > 0;
-              const totalAmount = getSelectedRatesTotal();
-
-              if (
-                !hasSelectedServices &&
-                !hasApprovedAdditionalRates &&
-                !hasAcceptedNegotiations
-              ) {
-                return null;
-              }
-
-              return (
-                <View
+              {/* Bio */}
+              {(applicant.bio || applicant.profile?.bio) && (
+                <Text
                   style={[
-                    styles.summaryCard,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.2)"
-                        : "rgba(201, 150, 63, 0.1)",
-                      borderColor: isDark
-                        ? "rgba(201, 150, 63, 0.4)"
-                        : "rgba(201, 150, 63, 0.3)",
-                    },
+                    styles.bio,
+                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {applicant.profile?.bio || applicant.bio}
+                </Text>
+              )}
+
+              {/* Location */}
+              <View style={styles.locationRow}>
+                <Feather
+                  name="map-pin"
+                  size={12}
+                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                />
+                <Text
+                  style={[
+                    styles.location,
+                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.summaryTitle,
-                      { color: colors.text, marginBottom: 8 },
-                    ]}
-                  >
-                    {t("applications.selectedServices")}
-                  </Text>
-                  {/* Selected services from candidate rates - show unpaid (yellow) */}
-                  {hasSelectedServices &&
-                    Array.from(selectedRates).map((idx) => {
-                      const rate = candidateData.rates![idx];
+                  {[
+                    applicant.profile?.city || applicant.city,
+                    applicant.profile?.country || applicant.country,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") ||
+                    applicant.location ||
+                    t("applications.locationNotSpecified")}
+                </Text>
+              </View>
+
+              {/* Skills with Years of Experience */}
+              {(() => {
+                const allSkills =
+                  candidateData?.skills && candidateData.skills.length > 0
+                    ? candidateData.skills.map((s) => ({
+                        name: s.name,
+                        yearsExp: s.yearsExp || 0,
+                      }))
+                    : (applicant.profile?.skillsSummary || []).map((name) => ({
+                        name,
+                        yearsExp: 0,
+                      }));
+                const displaySkills = allSkills.slice(0, 3);
+                const totalSkillsCount = allSkills.length;
+
+                return (
+                  displaySkills.length > 0 && (
+                    <View style={styles.skillsContainer}>
+                      {displaySkills.map((skill, idx) => (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.skillTag,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(201, 150, 63, 0.2)"
+                                : "rgba(201, 150, 63, 0.1)",
+                              borderColor: isDark
+                                ? "rgba(201, 150, 63, 0.3)"
+                                : "rgba(201, 150, 63, 0.2)",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.skillText,
+                              { color: isDark ? "#E8B86D" : "#B8822A" },
+                            ]}
+                          >
+                            {skill.name}
+                            {skill.yearsExp > 0 &&
+                              ` (${skill.yearsExp}${skill.yearsExp > 1 ? "yrs" : "yr"})`}
+                          </Text>
+                        </View>
+                      ))}
+                      {totalSkillsCount > 3 && (
+                        <Text
+                          style={[
+                            styles.moreSkills,
+                            { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                          ]}
+                        >
+                          +{totalSkillsCount - 3} {t("applications.more")}
+                        </Text>
+                      )}
+                    </View>
+                  )
+                );
+              })()}
+
+              {/* Rates Section with Checkboxes */}
+              {application.status !== "REQUESTED" &&
+                candidateData?.rates &&
+                candidateData.rates.length > 0 && (
+                  <View style={styles.ratesSection}>
+                    <Text
+                      style={[
+                        styles.ratesSectionTitle,
+                        { color: colors.text, marginBottom: 12 },
+                      ]}
+                    >
+                      {t("applications.selectServices")}
+                    </Text>
+                    {candidateData.rates.map((rate, idx) => {
                       const paymentTypeLabel =
                         rate.paymentType === "OTHER" && rate.otherSpecification
                           ? rate.otherSpecification
                           : rate.paymentType === "HOURLY"
                             ? t("applications.hourly")
-                            : rate.paymentType === "HOUR"
-                              ? t("applications.hourly")
-                              : rate.paymentType === "DAILY"
-                                ? t("applications.daily")
-                                : rate.paymentType === "WEEKLY"
-                                  ? t("applications.weekly")
-                                  : rate.paymentType === "MONTHLY"
-                                    ? t("applications.monthly")
-                                    : rate.paymentType === "PROJECT"
-                                      ? t("applications.project")
-                                      : rate.paymentType === "OTHER"
-                                        ? t("onboarding.other")
-                                        : rate.paymentType.charAt(0) +
-                                          rate.paymentType
-                                            .slice(1)
-                                            .toLowerCase();
+                            : rate.paymentType === "DAILY"
+                              ? t("applications.daily")
+                              : rate.paymentType === "WEEKLY"
+                                ? t("applications.weekly")
+                                : rate.paymentType === "MONTHLY"
+                                  ? t("applications.monthly")
+                                  : rate.paymentType === "PROJECT"
+                                    ? t("applications.project")
+                                    : rate.paymentType === "OTHER"
+                                      ? t("onboarding.other")
+                                      : rate.paymentType.charAt(0) +
+                                        rate.paymentType.slice(1).toLowerCase();
+                      const isSelected = selectedRates.has(idx);
 
-                      // Check if this service is unpaid
-                      const paymentStatus = application?.paymentStatus;
-                      const unpaidServices =
-                        paymentStatus?.unpaidServices || [];
-
-                      // Helper to match services
-                      const matchService = (s1: any, s2: any): boolean => {
-                        return (
-                          Math.abs(s1.rate - s2.rate) < 0.01 &&
-                          s1.paymentType === s2.paymentType &&
-                          (s1.otherSpecification || "") ===
-                            (s2.otherSpecification || "")
-                        );
-                      };
-
-                      const isUnpaid = unpaidServices.some((unpaid: any) =>
-                        matchService(rate, unpaid),
+                      // Check if this service was already paid for
+                      const paidSelectedRates =
+                        application?.paymentStatus?.paidSelectedRates || [];
+                      const isPaid = paidSelectedRates.some(
+                        (paidRate: any) =>
+                          paidRate.rate === rate.rate &&
+                          paidRate.paymentType === rate.paymentType &&
+                          (rate.otherSpecification
+                            ? paidRate.otherSpecification ===
+                              rate.otherSpecification
+                            : !paidRate.otherSpecification),
                       );
 
-                      // Color: yellow for unpaid, default for paid
-                      const textColor = isUnpaid
-                        ? isDark
-                          ? "#fbbf24"
-                          : "#d97706" // Yellow for unpaid
-                        : isDark
-                          ? "#B8A88A"
-                          : "#6B6355"; // Default for paid
+                      // If paid, grey it out and disable interaction
+                      const isDisabled = !!application?.completedAt || isPaid;
 
                       return (
-                        <View key={`selected-${idx}`} style={styles.summaryRow}>
-                          <Text
-                            style={[styles.summaryText, { color: textColor }]}
-                          >
-                            €{rate.rate}/{paymentTypeLabel}
-                            {isUnpaid && ` (${t("applications.unpaid")})`}
-                          </Text>
-                        </View>
+                        <TouchableButton
+                          key={idx}
+                          style={[
+                            styles.rateRow,
+                            {
+                              backgroundColor: isDark
+                                ? isPaid
+                                  ? "rgba(255,250,240,0.04)"
+                                  : "rgba(255,250,240,0.06)"
+                                : isPaid
+                                  ? "rgba(0,0,0,0.01)"
+                                  : "rgba(0,0,0,0.02)",
+                              borderColor: isPaid
+                                ? isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "rgba(184,130,42,0.25)"
+                                : isSelected
+                                  ? isDark
+                                    ? "#4ade80"
+                                    : "#22c55e"
+                                  : isDark
+                                    ? "rgba(201,150,63,0.12)"
+                                    : "rgba(184,130,42,0.2)",
+                              borderWidth: 1,
+                              opacity: isPaid ? 0.5 : 1,
+                            },
+                          ]}
+                          onPress={async () => {
+                            // Lock when completed or paid - prevent any changes
+                            if (application?.completedAt) {
+                              Alert.alert(
+                                t("applications.jobCompleted"),
+                                t("applications.cannotModifyServices"),
+                              );
+                              return;
+                            }
+                            if (isPaid) {
+                              Alert.alert(
+                                t("applications.alreadyPaid"),
+                                t("applications.serviceAlreadyPaid"),
+                              );
+                              return;
+                            }
+                            const newSelected = new Set(selectedRates);
+                            if (isSelected) {
+                              newSelected.delete(idx);
+                            } else {
+                              newSelected.add(idx);
+                            }
+
+                            console.log("[ApplicantDetail] Toggling service:", {
+                              index: idx,
+                              rate: candidateData.rates![idx],
+                              wasSelected: isSelected,
+                              willBeSelected: !isSelected,
+                              newSelectedCount: newSelected.size,
+                              newSelectedIndices: Array.from(newSelected),
+                            });
+
+                            setSelectedRates(newSelected);
+
+                            // Save selected rates to backend in real-time
+                            await saveSelectedRatesToBackend(newSelected);
+                          }}
+                          disabled={isDisabled}
+                        >
+                          <View style={styles.checkboxContainer}>
+                            <View
+                              style={[
+                                styles.checkbox,
+                                {
+                                  backgroundColor: isPaid
+                                    ? isDark
+                                      ? "rgba(156, 163, 175, 0.5)"
+                                      : "rgba(156, 163, 175, 0.3)"
+                                    : isSelected
+                                      ? isDark
+                                        ? "#4ade80"
+                                        : "#22c55e"
+                                      : "transparent",
+                                  borderColor: isPaid
+                                    ? isDark
+                                      ? "rgba(156, 163, 175, 0.5)"
+                                      : "rgba(156, 163, 175, 0.5)"
+                                    : isSelected
+                                      ? isDark
+                                        ? "#4ade80"
+                                        : "#22c55e"
+                                      : isDark
+                                        ? "rgba(201,150,63,0.25)"
+                                        : "#9A8E7A",
+                                  borderWidth: 2,
+                                },
+                              ]}
+                            >
+                              {isPaid ? (
+                                <Feather
+                                  name="lock"
+                                  size={12}
+                                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                                />
+                              ) : isSelected ? (
+                                <Feather
+                                  name="check"
+                                  size={14}
+                                  color="#FFFAF0"
+                                />
+                              ) : null}
+                            </View>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.rateText,
+                                {
+                                  color: isPaid
+                                    ? isDark
+                                      ? "#9A8E7A"
+                                      : "#8A7B68"
+                                    : colors.text,
+                                },
+                              ]}
+                            >
+                              €{rate.rate}/{paymentTypeLabel}
+                              {isPaid && (
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    fontStyle: "italic",
+                                    marginLeft: 4,
+                                  }}
+                                >
+                                  ({t("applications.paid")})
+                                </Text>
+                              )}
+                            </Text>
+                            {(rate as any).description ? (
+                              <Text
+                                style={[
+                                  styles.rateDescription,
+                                  {
+                                    color: isPaid
+                                      ? isDark
+                                        ? "rgba(154,142,122,0.7)"
+                                        : "rgba(138,123,104,0.7)"
+                                      : isDark
+                                        ? "rgba(255,250,240,0.55)"
+                                        : "#8A7B68",
+                                  },
+                                ]}
+                              >
+                                {(rate as any).description}
+                              </Text>
+                            ) : null}
+                          </View>
+                        </TouchableButton>
                       );
                     })}
-                  {/* Approved additional rate requests - show unpaid (yellow) */}
-                  {hasApprovedAdditionalRates &&
-                    approvedAdditionalRates.map(
-                      (request: any, reqIdx: number) => {
-                        if (!request.rates || !Array.isArray(request.rates))
-                          return null;
+                  </View>
+                )}
 
-                        // Check if this service is unpaid (approved rates are treated as selected services)
+              {/* Selected Services Summary */}
+              {(() => {
+                const hasSelectedServices =
+                  selectedRates.size > 0 && candidateData?.rates;
+                const approvedAdditionalRates =
+                  application?.additionalRateRequests &&
+                  Array.isArray(application.additionalRateRequests) &&
+                  application.additionalRateRequests.filter(
+                    (req: any) => req.status === "APPROVED",
+                  );
+                const hasApprovedAdditionalRates =
+                  approvedAdditionalRates && approvedAdditionalRates.length > 0;
+                const acceptedNegotiations =
+                  application?.negotiationRequests &&
+                  Array.isArray(application.negotiationRequests) &&
+                  application.negotiationRequests.filter(
+                    (req: any) => req.status === "ACCEPTED",
+                  );
+                const hasAcceptedNegotiations =
+                  acceptedNegotiations && acceptedNegotiations.length > 0;
+                const totalAmount = getSelectedRatesTotal();
+
+                if (
+                  !hasSelectedServices &&
+                  !hasApprovedAdditionalRates &&
+                  !hasAcceptedNegotiations
+                ) {
+                  return null;
+                }
+
+                return (
+                  <View
+                    style={[
+                      styles.summaryCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(201, 150, 63, 0.2)"
+                          : "rgba(201, 150, 63, 0.1)",
+                        borderColor: isDark
+                          ? "rgba(201, 150, 63, 0.4)"
+                          : "rgba(201, 150, 63, 0.3)",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.summaryTitle,
+                        { color: colors.text, marginBottom: 8 },
+                      ]}
+                    >
+                      {t("applications.selectedServices")}
+                    </Text>
+                    {/* Selected services from candidate rates - show unpaid (yellow) */}
+                    {hasSelectedServices &&
+                      Array.from(selectedRates).map((idx) => {
+                        const rate = candidateData.rates![idx];
+                        const paymentTypeLabel =
+                          rate.paymentType === "OTHER" &&
+                          rate.otherSpecification
+                            ? rate.otherSpecification
+                            : rate.paymentType === "HOURLY"
+                              ? t("applications.hourly")
+                              : rate.paymentType === "HOUR"
+                                ? t("applications.hourly")
+                                : rate.paymentType === "DAILY"
+                                  ? t("applications.daily")
+                                  : rate.paymentType === "WEEKLY"
+                                    ? t("applications.weekly")
+                                    : rate.paymentType === "MONTHLY"
+                                      ? t("applications.monthly")
+                                      : rate.paymentType === "PROJECT"
+                                        ? t("applications.project")
+                                        : rate.paymentType === "OTHER"
+                                          ? t("onboarding.other")
+                                          : rate.paymentType.charAt(0) +
+                                            rate.paymentType
+                                              .slice(1)
+                                              .toLowerCase();
+
+                        // Check if this service is unpaid
                         const paymentStatus = application?.paymentStatus;
                         const unpaidServices =
                           paymentStatus?.unpaidServices || [];
@@ -2758,277 +2781,3546 @@ export default function ApplicantDetailScreen() {
                           );
                         };
 
-                        return request.rates.map(
-                          (rate: any, rateIdx: number) => {
-                            const paymentTypeLabel =
-                              rate.paymentType === "OTHER" &&
-                              rate.otherSpecification
-                                ? rate.otherSpecification
-                                : rate.paymentType === "HOURLY"
-                                  ? t("applications.hourly")
-                                  : rate.paymentType === "HOUR"
-                                    ? t("applications.hourly")
-                                    : rate.paymentType === "DAILY"
-                                      ? t("applications.daily")
-                                      : rate.paymentType === "WEEKLY"
-                                        ? t("applications.weekly")
-                                        : rate.paymentType === "MONTHLY"
-                                          ? t("applications.monthly")
-                                          : rate.paymentType === "PROJECT"
-                                            ? t("applications.project")
-                                            : rate.paymentType === "OTHER"
-                                              ? t("onboarding.other")
-                                              : rate.paymentType.charAt(0) +
-                                                rate.paymentType
-                                                  .slice(1)
-                                                  .toLowerCase();
-
-                            const isUnpaid = unpaidServices.some(
-                              (unpaid: any) => matchService(rate, unpaid),
-                            );
-
-                            // Color: yellow for unpaid, default for paid
-                            const textColor = isUnpaid
-                              ? isDark
-                                ? "#fbbf24"
-                                : "#d97706" // Yellow for unpaid
-                              : isDark
-                                ? "#B8A88A"
-                                : "#6B6355"; // Default for paid
-
-                            return (
-                              <View
-                                key={`approved-${reqIdx}-${rateIdx}`}
-                                style={styles.summaryRow}
-                              >
-                                <Text
-                                  style={[
-                                    styles.summaryText,
-                                    { color: textColor },
-                                  ]}
-                                >
-                                  €{rate.rate}/{paymentTypeLabel} (
-                                  {t("applications.approved")})
-                                  {isUnpaid && ` (${t("applications.unpaid")})`}
-                                </Text>
-                              </View>
-                            );
-                          },
+                        const isUnpaid = unpaidServices.some((unpaid: any) =>
+                          matchService(rate, unpaid),
                         );
-                      },
-                    )}
-                  {/* Accepted negotiation rates - show unpaid (yellow) */}
-                  {hasAcceptedNegotiations &&
-                    acceptedNegotiations.map((request: any, reqIdx: number) => {
-                      // If there's an accepted counter offer, use its rates instead
-                      const ratesToDisplay =
-                        request.counterOffer &&
-                        request.counterOffer.status === "ACCEPTED"
-                          ? request.counterOffer.rates
-                          : request.rates;
 
-                      if (!ratesToDisplay || !Array.isArray(ratesToDisplay))
-                        return null;
+                        // Color: yellow for unpaid, default for paid
+                        const textColor = isUnpaid
+                          ? isDark
+                            ? "#fbbf24"
+                            : "#d97706" // Yellow for unpaid
+                          : isDark
+                            ? "#B8A88A"
+                            : "#6B6355"; // Default for paid
 
-                      const isCounterOffer =
-                        request.counterOffer &&
-                        request.counterOffer.status === "ACCEPTED";
+                        return (
+                          <View
+                            key={`selected-${idx}`}
+                            style={styles.summaryRow}
+                          >
+                            <Text
+                              style={[styles.summaryText, { color: textColor }]}
+                            >
+                              €{rate.rate}/{paymentTypeLabel}
+                              {isUnpaid && ` (${t("applications.unpaid")})`}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    {/* Approved additional rate requests - show unpaid (yellow) */}
+                    {hasApprovedAdditionalRates &&
+                      approvedAdditionalRates.map(
+                        (request: any, reqIdx: number) => {
+                          if (!request.rates || !Array.isArray(request.rates))
+                            return null;
 
-                      // Check if this negotiation is unpaid
+                          // Check if this service is unpaid (approved rates are treated as selected services)
+                          const paymentStatus = application?.paymentStatus;
+                          const unpaidServices =
+                            paymentStatus?.unpaidServices || [];
+
+                          // Helper to match services
+                          const matchService = (s1: any, s2: any): boolean => {
+                            return (
+                              Math.abs(s1.rate - s2.rate) < 0.01 &&
+                              s1.paymentType === s2.paymentType &&
+                              (s1.otherSpecification || "") ===
+                                (s2.otherSpecification || "")
+                            );
+                          };
+
+                          return request.rates.map(
+                            (rate: any, rateIdx: number) => {
+                              const paymentTypeLabel =
+                                rate.paymentType === "OTHER" &&
+                                rate.otherSpecification
+                                  ? rate.otherSpecification
+                                  : rate.paymentType === "HOURLY"
+                                    ? t("applications.hourly")
+                                    : rate.paymentType === "HOUR"
+                                      ? t("applications.hourly")
+                                      : rate.paymentType === "DAILY"
+                                        ? t("applications.daily")
+                                        : rate.paymentType === "WEEKLY"
+                                          ? t("applications.weekly")
+                                          : rate.paymentType === "MONTHLY"
+                                            ? t("applications.monthly")
+                                            : rate.paymentType === "PROJECT"
+                                              ? t("applications.project")
+                                              : rate.paymentType === "OTHER"
+                                                ? t("onboarding.other")
+                                                : rate.paymentType.charAt(0) +
+                                                  rate.paymentType
+                                                    .slice(1)
+                                                    .toLowerCase();
+
+                              const isUnpaid = unpaidServices.some(
+                                (unpaid: any) => matchService(rate, unpaid),
+                              );
+
+                              // Color: yellow for unpaid, default for paid
+                              const textColor = isUnpaid
+                                ? isDark
+                                  ? "#fbbf24"
+                                  : "#d97706" // Yellow for unpaid
+                                : isDark
+                                  ? "#B8A88A"
+                                  : "#6B6355"; // Default for paid
+
+                              return (
+                                <View
+                                  key={`approved-${reqIdx}-${rateIdx}`}
+                                  style={styles.summaryRow}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.summaryText,
+                                      { color: textColor },
+                                    ]}
+                                  >
+                                    €{rate.rate}/{paymentTypeLabel} (
+                                    {t("applications.approved")})
+                                    {isUnpaid &&
+                                      ` (${t("applications.unpaid")})`}
+                                  </Text>
+                                </View>
+                              );
+                            },
+                          );
+                        },
+                      )}
+                    {/* Accepted negotiation rates - show unpaid (yellow) */}
+                    {hasAcceptedNegotiations &&
+                      acceptedNegotiations.map(
+                        (request: any, reqIdx: number) => {
+                          // If there's an accepted counter offer, use its rates instead
+                          const ratesToDisplay =
+                            request.counterOffer &&
+                            request.counterOffer.status === "ACCEPTED"
+                              ? request.counterOffer.rates
+                              : request.rates;
+
+                          if (!ratesToDisplay || !Array.isArray(ratesToDisplay))
+                            return null;
+
+                          const isCounterOffer =
+                            request.counterOffer &&
+                            request.counterOffer.status === "ACCEPTED";
+
+                          // Check if this negotiation is unpaid
+                          const paymentStatus = application?.paymentStatus;
+                          const unpaidNegotiations =
+                            paymentStatus?.unpaidNegotiations || [];
+                          const isUnpaid = unpaidNegotiations.some(
+                            (unpaid: any) => unpaid.id === request.id,
+                          );
+
+                          // Color: yellow for unpaid, default for paid
+                          const textColor = isUnpaid
+                            ? isDark
+                              ? "#fbbf24"
+                              : "#d97706" // Yellow for unpaid
+                            : isDark
+                              ? "#B8A88A"
+                              : "#6B6355"; // Default for paid
+
+                          return ratesToDisplay.map(
+                            (rate: any, rateIdx: number) => {
+                              const paymentTypeLabel =
+                                rate.paymentType === "OTHER" &&
+                                rate.otherSpecification
+                                  ? rate.otherSpecification
+                                  : rate.paymentType === "HOURLY"
+                                    ? t("applications.hourly")
+                                    : rate.paymentType === "HOUR"
+                                      ? t("applications.hourly")
+                                      : rate.paymentType === "DAILY"
+                                        ? t("applications.daily")
+                                        : rate.paymentType === "WEEKLY"
+                                          ? t("applications.weekly")
+                                          : rate.paymentType === "MONTHLY"
+                                            ? t("applications.monthly")
+                                            : rate.paymentType === "PROJECT"
+                                              ? t("applications.project")
+                                              : rate.paymentType === "OTHER"
+                                                ? t("onboarding.other")
+                                                : rate.paymentType.charAt(0) +
+                                                  rate.paymentType
+                                                    .slice(1)
+                                                    .toLowerCase();
+                              return (
+                                <View
+                                  key={`negotiation-${reqIdx}-${rateIdx}`}
+                                  style={styles.summaryRow}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.summaryText,
+                                      { color: textColor },
+                                    ]}
+                                  >
+                                    €{rate.rate}/{paymentTypeLabel} (
+                                    {isCounterOffer
+                                      ? t(
+                                          "applications.counterOfferAcceptedTitle",
+                                        )
+                                      : t(
+                                          "applications.negotiationAcceptedTitle",
+                                        )}
+                                    )
+                                    {isUnpaid &&
+                                      ` (${t("applications.unpaid")})`}
+                                  </Text>
+                                </View>
+                              );
+                            },
+                          );
+                        },
+                      )}
+                    {/* Show paid and unpaid amounts separately */}
+                    {(() => {
                       const paymentStatus = application?.paymentStatus;
-                      const unpaidNegotiations =
-                        paymentStatus?.unpaidNegotiations || [];
-                      const isUnpaid = unpaidNegotiations.some(
-                        (unpaid: any) => unpaid.id === request.id,
-                      );
+                      const paidAmount = paymentStatus?.paidAmount || 0;
+                      const unpaidAmount = paymentStatus?.unpaidAmount || 0;
 
-                      // Color: yellow for unpaid, default for paid
-                      const textColor = isUnpaid
-                        ? isDark
-                          ? "#fbbf24"
-                          : "#d97706" // Yellow for unpaid
-                        : isDark
-                          ? "#B8A88A"
-                          : "#6B6355"; // Default for paid
-
-                      return ratesToDisplay.map(
-                        (rate: any, rateIdx: number) => {
-                          const paymentTypeLabel =
-                            rate.paymentType === "OTHER" &&
-                            rate.otherSpecification
-                              ? rate.otherSpecification
-                              : rate.paymentType === "HOURLY"
-                                ? t("applications.hourly")
-                                : rate.paymentType === "HOUR"
-                                  ? t("applications.hourly")
-                                  : rate.paymentType === "DAILY"
-                                    ? t("applications.daily")
-                                    : rate.paymentType === "WEEKLY"
-                                      ? t("applications.weekly")
-                                      : rate.paymentType === "MONTHLY"
-                                        ? t("applications.monthly")
-                                        : rate.paymentType === "PROJECT"
-                                          ? t("applications.project")
-                                          : rate.paymentType === "OTHER"
-                                            ? t("onboarding.other")
-                                            : rate.paymentType.charAt(0) +
-                                              rate.paymentType
-                                                .slice(1)
-                                                .toLowerCase();
-                          return (
+                      return (
+                        <>
+                          {paidAmount > 0 && (
                             <View
-                              key={`negotiation-${reqIdx}-${rateIdx}`}
-                              style={styles.summaryRow}
+                              style={[
+                                styles.summaryTotal,
+                                {
+                                  borderTopColor: isDark
+                                    ? "rgba(201,150,63,0.12)"
+                                    : "rgba(184,130,42,0.2)",
+                                  borderTopWidth: 1,
+                                  paddingTop: 8,
+                                  marginTop: 8,
+                                },
+                              ]}
                             >
                               <Text
                                 style={[
-                                  styles.summaryText,
-                                  { color: textColor },
+                                  styles.summaryTotalLabel,
+                                  { color: colors.text },
                                 ]}
                               >
-                                €{rate.rate}/{paymentTypeLabel} (
-                                {isCounterOffer
-                                  ? t("applications.counterOfferAcceptedTitle")
-                                  : t("applications.negotiationAcceptedTitle")}
-                                ){isUnpaid && ` (${t("applications.unpaid")})`}
+                                {t("applications.paidAmount")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.summaryTotalAmount,
+                                  { color: "#22c55e" },
+                                ]}
+                              >
+                                {application.currency?.toUpperCase() || "EUR"}{" "}
+                                {paidAmount.toFixed(2)}
                               </Text>
                             </View>
-                          );
-                        },
-                      );
-                    })}
-                  {/* Show paid and unpaid amounts separately */}
-                  {(() => {
-                    const paymentStatus = application?.paymentStatus;
-                    const paidAmount = paymentStatus?.paidAmount || 0;
-                    const unpaidAmount = paymentStatus?.unpaidAmount || 0;
+                          )}
+                          {unpaidAmount > 0 && (
+                            <View
+                              style={[
+                                styles.summaryTotal,
+                                {
+                                  borderTopWidth: paidAmount > 0 ? 0 : 1,
+                                  borderTopColor: isDark
+                                    ? "rgba(201,150,63,0.12)"
+                                    : "rgba(184,130,42,0.2)",
+                                  paddingTop: paidAmount > 0 ? 0 : 8,
+                                  marginTop: paidAmount > 0 ? 4 : 8,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.summaryTotalLabel,
+                                  { color: colors.text },
+                                ]}
+                              >
+                                {t("applications.unpaidAmount")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.summaryTotalAmount,
+                                  { color: isDark ? "#fbbf24" : "#d97706" },
+                                ]}
+                              >
+                                {application.currency?.toUpperCase() || "EUR"}{" "}
+                                {unpaidAmount.toFixed(2)}
+                              </Text>
+                            </View>
+                          )}
+                          <View
+                            style={[
+                              styles.summaryTotal,
+                              {
+                                borderTopColor: isDark
+                                  ? "rgba(201,150,63,0.12)"
+                                  : "rgba(184,130,42,0.2)",
+                                borderTopWidth:
+                                  paidAmount > 0 || unpaidAmount > 0 ? 1 : 0,
+                                paddingTop:
+                                  paidAmount > 0 || unpaidAmount > 0 ? 8 : 0,
+                                marginTop:
+                                  paidAmount > 0 || unpaidAmount > 0 ? 8 : 0,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.summaryTotalLabel,
+                                { color: colors.text, fontWeight: "800" },
+                              ]}
+                            >
+                              {t("applications.totalAmount")}:
+                            </Text>
+                            <Text
+                              style={[
+                                styles.summaryTotalAmount,
+                                { color: colors.tint, fontWeight: "800" },
+                              ]}
+                            >
+                              {application.currency?.toUpperCase() || "EUR"}{" "}
+                              {totalAmount.toFixed(2)}
+                            </Text>
+                          </View>
+                          {/* Additional Amount Needed - Calculated in this card */}
+                          {(() => {
+                            const paymentStatus = application?.paymentStatus;
+                            const paidAmount = paymentStatus?.paidAmount ?? 0;
+                            const unpaidAmount =
+                              paymentStatus?.unpaidAmount ?? 0;
 
-                    return (
-                      <>
-                        {paidAmount > 0 && (
-                          <View
-                            style={[
-                              styles.summaryTotal,
-                              {
-                                borderTopColor: isDark
-                                  ? "rgba(201,150,63,0.12)"
-                                  : "rgba(184,130,42,0.2)",
+                            // This is the source of truth calculation
+                            const additionalAmountNeeded =
+                              unpaidAmount > 0.01
+                                ? unpaidAmount
+                                : Math.max(0, totalAmount - paidAmount);
+
+                            if (additionalAmountNeeded > 0.01) {
+                              return (
+                                <View
+                                  style={[
+                                    styles.summaryTotal,
+                                    {
+                                      borderTopColor: isDark
+                                        ? "rgba(201,150,63,0.12)"
+                                        : "rgba(184,130,42,0.2)",
+                                      borderTopWidth: 1,
+                                      paddingTop: 8,
+                                      marginTop: 8,
+                                    },
+                                  ]}
+                                >
+                                  <View style={{ flexDirection: "column" }}>
+                                    <Text
+                                      style={[
+                                        styles.paymentSummaryLabel,
+                                        {
+                                          color: isDark ? "#fbbf24" : "#d97706",
+                                          fontSize: 16,
+                                          fontWeight: "700",
+                                        },
+                                      ]}
+                                    >
+                                      {t("applications.paymentRequired")}:
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.paymentSummaryValue,
+                                        {
+                                          color: isDark ? "#fbbf24" : "#d97706",
+                                          fontSize: 20,
+                                          fontWeight: "700",
+                                          marginTop: 6,
+                                          width: "100%",
+                                          textAlign: "right",
+                                        },
+                                      ]}
+                                    >
+                                      {application.currency?.toUpperCase() ||
+                                        "EUR"}{" "}
+                                      {additionalAmountNeeded.toFixed(2)}
+                                    </Text>
+                                  </View>
+                                </View>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </>
+                      );
+                    })()}
+
+                    {/* Payment Action Button - Single Source of Truth for Payment */}
+                    {application.status !== "REQUESTED" &&
+                      (() => {
+                        const paymentStatus = application?.paymentStatus;
+                        const paidAmount = paymentStatus?.paidAmount ?? 0;
+                        const unpaidAmount = paymentStatus?.unpaidAmount ?? 0;
+                        const paymentCompleted =
+                          paymentStatus?.completed ?? false;
+
+                        // Calculate additional amount needed - this is the source of truth
+                        const additionalAmountNeeded =
+                          unpaidAmount > 0.01
+                            ? unpaidAmount
+                            : Math.max(0, totalAmount - paidAmount);
+
+                        // Show pay button if there's an unpaid amount
+                        if (additionalAmountNeeded > 0.01) {
+                          return (
+                            <View
+                              style={{
+                                marginTop: 16,
+                                paddingTop: 16,
                                 borderTopWidth: 1,
-                                paddingTop: 8,
-                                marginTop: 8,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.summaryTotalLabel,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {t("applications.paidAmount")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.summaryTotalAmount,
-                                { color: "#22c55e" },
-                              ]}
-                            >
-                              {application.currency?.toUpperCase() || "EUR"}{" "}
-                              {paidAmount.toFixed(2)}
-                            </Text>
-                          </View>
-                        )}
-                        {unpaidAmount > 0 && (
-                          <View
-                            style={[
-                              styles.summaryTotal,
-                              {
-                                borderTopWidth: paidAmount > 0 ? 0 : 1,
                                 borderTopColor: isDark
                                   ? "rgba(201,150,63,0.12)"
                                   : "rgba(184,130,42,0.2)",
-                                paddingTop: paidAmount > 0 ? 0 : 8,
-                                marginTop: paidAmount > 0 ? 4 : 8,
-                              },
-                            ]}
+                              }}
+                            >
+                              <TouchableButton
+                                style={[
+                                  {
+                                    // In dark theme, `colors.tint` is white; keep CTA readable by using the primary tint.
+                                    backgroundColor: Colors.light.tint,
+                                    paddingVertical: 14,
+                                    paddingHorizontal: 20,
+                                    borderRadius: 8,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 8,
+                                  },
+                                ]}
+                                onPress={() => setShowPaymentModal(true)}
+                              >
+                                <Feather
+                                  name="credit-card"
+                                  size={18}
+                                  color="#FFFAF0"
+                                />
+                                <Text
+                                  style={{
+                                    color: "#FFFAF0",
+                                    fontSize: 16,
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  {paymentCompleted
+                                    ? t("applications.payAdditional")
+                                    : t("applications.proceedToPayment")}
+                                </Text>
+                              </TouchableButton>
+                            </View>
+                          );
+                        }
+
+                        // Show success message ONLY if everything is truly paid
+                        // Check: no unpaid amount, no unpaid services, no unpaid negotiations
+                        const unpaidServices =
+                          paymentStatus?.unpaidServices || [];
+                        const unpaidNegotiations =
+                          paymentStatus?.unpaidNegotiations || [];
+                        const hasUnpaidItems =
+                          unpaidServices.length > 0 ||
+                          unpaidNegotiations.length > 0;
+
+                        // Only show "All services are paid" if:
+                        // 1. There's a paid amount
+                        // 2. No additional amount needed
+                        // 3. No unpaid services
+                        // 4. No unpaid negotiations
+                        if (
+                          paidAmount > 0 &&
+                          additionalAmountNeeded <= 0.01 &&
+                          !hasUnpaidItems
+                        ) {
+                          return (
+                            <View
+                              style={{
+                                marginTop: 16,
+                                paddingTop: 16,
+                                borderTopWidth: 1,
+                                borderTopColor: isDark
+                                  ? "rgba(201,150,63,0.12)"
+                                  : "rgba(184,130,42,0.2)",
+                              }}
+                            >
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  padding: 12,
+                                  backgroundColor: isDark
+                                    ? "rgba(34, 197, 94, 0.1)"
+                                    : "rgba(34, 197, 94, 0.05)",
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: isDark
+                                    ? "rgba(34, 197, 94, 0.3)"
+                                    : "rgba(34, 197, 94, 0.2)",
+                                }}
+                              >
+                                <Feather
+                                  name="check-circle"
+                                  size={18}
+                                  color="#22c55e"
+                                />
+                                <Text
+                                  style={{
+                                    color: "#22c55e",
+                                    fontSize: 14,
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  {t("applications.allServicesPaid")}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        }
+
+                        return null;
+                      })()}
+                  </View>
+                );
+              })()}
+
+              {/* Card Footer */}
+              <View
+                style={[
+                  styles.cardFooter,
+                  {
+                    borderTopColor: isDark
+                      ? "rgba(201,150,63,0.12)"
+                      : "rgba(184,130,42,0.06)",
+                  },
+                ]}
+              >
+                <Text style={[styles.cta, { color: colors.tint }]}>
+                  {t("applications.viewFullProfile")} →
+                </Text>
+              </View>
+            </TouchableButton>
+
+            {/* Suggest Negotiation Button */}
+            {application &&
+              !application.completedAt &&
+              application.status !== "REQUESTED" && (
+                <TouchableButton
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => setShowNegotiationModal(true)}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Text style={{ color: colors.tint, fontSize: 20 }}>€</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.tint }]}>
+                      {t("applications.suggestNegotiation")}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      { color: isDark ? "#9A8E7A" : "#8A7B68", marginTop: 8 },
+                    ]}
+                  >
+                    {t("applications.proposeDifferentRate")}
+                  </Text>
+                </TouchableButton>
+              )}
+
+            {/* Application Details */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "rgba(255,250,240,0.92)",
+                  borderColor: isDark
+                    ? "rgba(255,250,240,0.12)"
+                    : "rgba(184,130,42,0.2)",
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {t("applications.applicationDetails")}
+              </Text>
+              <View style={styles.infoRow}>
+                <Text
+                  style={[
+                    styles.label,
+                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                  ]}
+                >
+                  {t("applications.jobTitle")}:
+                </Text>
+                <Text style={[styles.value, { color: colors.text }]}>
+                  {application.job.title}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text
+                  style={[
+                    styles.label,
+                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                  ]}
+                >
+                  {t("applications.applied")}:
+                </Text>
+                <Text style={[styles.value, { color: colors.text }]}>
+                  {new Date(application.appliedAt).toLocaleDateString()} at{" "}
+                  {new Date(application.appliedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text
+                  style={[
+                    styles.label,
+                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                  ]}
+                >
+                  {t("applications.status")}:
+                </Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        application.status === "REQUESTED"
+                          ? "#60A5FA20"
+                          : application.status === "ACCEPTED"
+                            ? "#22c55e20"
+                            : application.status === "REJECTED"
+                              ? "#ef444420"
+                              : "#f59e0b20",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          application.status === "REQUESTED"
+                            ? "#60A5FA"
+                            : application.status === "ACCEPTED"
+                              ? "#22c55e"
+                              : application.status === "REJECTED"
+                                ? "#ef4444"
+                                : "#f59e0b",
+                      },
+                    ]}
+                  >
+                    {application.status === "REQUESTED"
+                      ? t("applications.statusRequested")
+                      : application.status === "ACCEPTED"
+                        ? t("applications.statusAccepted")
+                        : application.status === "REJECTED"
+                          ? t("applications.statusRejected")
+                          : application.status === "PENDING"
+                            ? t("applications.statusPending")
+                            : application.status}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Service Verification Code - Show inside Application Details when ACCEPTED */}
+              {application.status === "ACCEPTED" &&
+                ((application.verificationCodeVisible ??
+                  !!application.verificationCode) ||
+                  !!application.verificationCodeMessage) && (
+                  <View
+                    style={{
+                      marginTop: 24,
+                      paddingTop: 24,
+                      borderTopWidth: 1,
+                      borderTopColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 8,
+                        gap: 8,
+                      }}
+                    >
+                      <Feather
+                        name="key"
+                        size={16}
+                        color={isDark ? "#E8B86D" : "#A67A25"}
+                      />
+                      <Text
+                        style={[
+                          styles.label,
+                          {
+                            color: isDark ? "#9A8E7A" : "#8A7B68",
+                            marginBottom: 0,
+                          },
+                        ]}
+                      >
+                        {t("applications.serviceVerificationCode")}:
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        backgroundColor: isDark
+                          ? "rgba(201, 150, 63, 0.15)"
+                          : "rgba(201, 150, 63, 0.08)",
+                        borderWidth: 1,
+                        borderColor: isDark
+                          ? "rgba(201, 150, 63, 0.3)"
+                          : "rgba(201, 150, 63, 0.2)",
+                        borderRadius: 4,
+                        padding: 20,
+                        marginTop: 12,
+                        alignItems: "center",
+                      }}
+                    >
+                      {application.verificationCodeMessage ? (
+                        <View
+                          style={{
+                            width: "100%",
+                            backgroundColor: isDark
+                              ? "rgba(251, 191, 36, 0.1)"
+                              : "rgba(251, 191, 36, 0.08)",
+                            borderColor: isDark
+                              ? "rgba(251, 191, 36, 0.3)"
+                              : "rgba(251, 191, 36, 0.4)",
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            padding: 12,
+                            marginBottom: 12,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: isDark ? "#fbbf24" : "#d97706",
+                              fontSize: 13,
+                              lineHeight: 18,
+                              textAlign: "left",
+                            }}
                           >
+                            ⚠️ {application.verificationCodeMessage}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text
+                          style={{
+                            color: isDark ? "#c4b5fd" : "#4c1d95",
+                            fontSize: 12,
+                            textAlign: "center",
+                            lineHeight: 18,
+                            marginBottom: 16,
+                          }}
+                        >
+                          {t("applications.shareCodeWithProvider")}
+                        </Text>
+                      )}
+                      {application.verificationCode ? (
+                        <View
+                          style={{
+                            backgroundColor: isDark ? "#1e1b4b" : "#FFFAF0",
+                            paddingVertical: 16,
+                            paddingHorizontal: 32,
+                            borderRadius: 4,
+                            borderWidth: 2,
+                            borderColor: isDark ? "#C9963F" : "#C9963F",
+                            minWidth: 140,
+                            alignItems: "center",
+                            shadowColor: "#C9963F",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 8,
+                            elevation: 0,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: isDark ? "#F0E8D5" : "#A67A25",
+                              fontSize: 36,
+                              fontWeight: "700",
+                              letterSpacing: 8,
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {application.verificationCode}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            backgroundColor: isDark ? "#1e1b4b" : "#FFFAF0",
+                            paddingVertical: 16,
+                            paddingHorizontal: 32,
+                            borderRadius: 4,
+                            borderWidth: 2,
+                            borderColor: isDark ? "#C9963F" : "#C9963F",
+                            minWidth: 140,
+                            alignItems: "center",
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <Feather
+                              name="lock"
+                              size={18}
+                              color={isDark ? "#F0E8D5" : "#A67A25"}
+                            />
                             <Text
-                              style={[
-                                styles.summaryTotalLabel,
-                                { color: colors.text },
-                              ]}
+                              style={{
+                                color: isDark ? "#F0E8D5" : "#A67A25",
+                                fontSize: 16,
+                                fontWeight: "700",
+                              }}
                             >
-                              {t("applications.unpaidAmount")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.summaryTotalAmount,
-                                { color: isDark ? "#fbbf24" : "#d97706" },
-                              ]}
-                            >
-                              {application.currency?.toUpperCase() || "EUR"}{" "}
-                              {unpaidAmount.toFixed(2)}
+                              {t("applications.locked")}
                             </Text>
                           </View>
-                        )}
+                        </View>
+                      )}
+                      {application.verificationCodeVerifiedAt && (
+                        <Text
+                          style={{
+                            color: isDark ? "#E8B86D" : "#A67A25",
+                            fontSize: 11,
+                            marginTop: 16,
+                            fontStyle: "italic",
+                          }}
+                        >
+                          {t("applications.verified")}:{" "}
+                          {new Date(
+                            application.verificationCodeVerifiedAt,
+                          ).toLocaleDateString()}{" "}
+                          at{" "}
+                          {new Date(
+                            application.verificationCodeVerifiedAt,
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+              {application.coverLetter && (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    {t("applications.coverLetter")}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.coverLetterText,
+                      { color: isDark ? "#B8A88A" : "#6B6355" },
+                    ]}
+                  >
+                    {application.coverLetter}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Tracking Timeline */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "rgba(255,250,240,0.92)",
+                  borderColor: isDark
+                    ? "rgba(255,250,240,0.12)"
+                    : "rgba(184,130,42,0.2)",
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {t("tracking.title") || "Tracking Timeline"}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? "#9A8E7A" : "#8A7B68",
+                  marginBottom: 16,
+                }}
+              >
+                {t("tracking.subtitle") ||
+                  "Follow the progress of this application"}
+              </Text>
+              <TrackingTimeline
+                steps={buildEmployerTimeline(application, t)}
+                isDark={isDark}
+                colors={colors}
+              />
+            </View>
+
+            {/* Additional Rate Requests */}
+            {application.additionalRateRequests &&
+              Array.isArray(application.additionalRateRequests) &&
+              application.additionalRateRequests.length > 0 && (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: colors.text, marginBottom: 12 },
+                    ]}
+                  >
+                    {t("applications.additionalRateRequests")}
+                  </Text>
+                  {(application.additionalRateRequests as any[]).map(
+                    (request: any, idx: number) => {
+                      const isPending = request.status === "PENDING";
+                      return (
                         <View
+                          key={request.id || idx}
                           style={[
-                            styles.summaryTotal,
+                            styles.requestCard,
                             {
-                              borderTopColor: isDark
+                              backgroundColor: isDark
+                                ? "rgba(255,250,240,0.06)"
+                                : "rgba(0,0,0,0.02)",
+                              borderColor: isDark
                                 ? "rgba(201,150,63,0.12)"
                                 : "rgba(184,130,42,0.2)",
-                              borderTopWidth:
-                                paidAmount > 0 || unpaidAmount > 0 ? 1 : 0,
-                              paddingTop:
-                                paidAmount > 0 || unpaidAmount > 0 ? 8 : 0,
-                              marginTop:
-                                paidAmount > 0 || unpaidAmount > 0 ? 8 : 0,
+                              marginBottom:
+                                idx <
+                                (application.additionalRateRequests as any[])
+                                  .length -
+                                  1
+                                  ? 12
+                                  : 0,
                             },
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.summaryTotalLabel,
-                              { color: colors.text, fontWeight: "800" },
-                            ]}
-                          >
-                            {t("applications.totalAmount")}:
-                          </Text>
-                          <Text
-                            style={[
-                              styles.summaryTotalAmount,
-                              { color: colors.tint, fontWeight: "800" },
-                            ]}
-                          >
-                            {application.currency?.toUpperCase() || "EUR"}{" "}
-                            {totalAmount.toFixed(2)}
-                          </Text>
-                        </View>
-                        {/* Additional Amount Needed - Calculated in this card */}
-                        {(() => {
-                          const paymentStatus = application?.paymentStatus;
-                          const paidAmount = paymentStatus?.paidAmount ?? 0;
-                          const unpaidAmount = paymentStatus?.unpaidAmount ?? 0;
-
-                          // This is the source of truth calculation
-                          const additionalAmountNeeded =
-                            unpaidAmount > 0.01
-                              ? unpaidAmount
-                              : Math.max(0, totalAmount - paidAmount);
-
-                          if (additionalAmountNeeded > 0.01) {
-                            return (
-                              <View
+                          <View style={styles.requestHeader}>
+                            <View
+                              style={[
+                                styles.requestStatusBadge,
+                                {
+                                  backgroundColor:
+                                    request.status === "APPROVED"
+                                      ? "#22c55e20"
+                                      : request.status === "REJECTED"
+                                        ? "#ef444420"
+                                        : "#f59e0b20",
+                                },
+                              ]}
+                            >
+                              <Text
                                 style={[
-                                  styles.summaryTotal,
+                                  styles.requestStatusText,
                                   {
-                                    borderTopColor: isDark
+                                    color:
+                                      request.status === "APPROVED"
+                                        ? "#22c55e"
+                                        : request.status === "REJECTED"
+                                          ? "#ef4444"
+                                          : "#f59e0b",
+                                  },
+                                ]}
+                              >
+                                {request.status === "APPROVED"
+                                  ? `✓ ${t("applications.approved")}`
+                                  : request.status === "REJECTED"
+                                    ? `✗ ${t("applications.statusRejected")}`
+                                    : `⏳ ${t("applications.statusPending")}`}
+                              </Text>
+                            </View>
+                            <Text
+                              style={[
+                                styles.requestDate,
+                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                              ]}
+                            >
+                              {new Date(
+                                request.requestedAt,
+                              ).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          {request.rates &&
+                            Array.isArray(request.rates) &&
+                            request.rates.map((rate: any, rateIdx: number) => {
+                              const paymentTypeLabel =
+                                rate.paymentType === "OTHER" &&
+                                rate.otherSpecification
+                                  ? rate.otherSpecification
+                                  : rate.paymentType.charAt(0) +
+                                    rate.paymentType.slice(1).toLowerCase();
+                              return (
+                                <Text
+                                  key={rateIdx}
+                                  style={[
+                                    styles.requestRate,
+                                    { color: colors.text },
+                                  ]}
+                                >
+                                  €{rate.rate}/{paymentTypeLabel}
+                                </Text>
+                              );
+                            })}
+                          <Text
+                            style={[
+                              styles.requestTotal,
+                              { color: colors.text },
+                            ]}
+                          >
+                            {t("applications.total")}: EUR{" "}
+                            {request.totalAmount?.toFixed(2) || "0.00"}
+                          </Text>
+                          {request.message && (
+                            <Text
+                              style={[
+                                styles.requestMessage,
+                                { color: isDark ? "#B8A88A" : "#6B6355" },
+                              ]}
+                            >
+                              {request.message}
+                            </Text>
+                          )}
+                          {request.responseMessage && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.06)"
+                                    : "rgba(0,0,0,0.02)",
+                                  marginTop: 12,
+                                  padding: 10,
+                                  borderRadius: 8,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                                ]}
+                              >
+                                {t("applications.yourResponse")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {request.responseMessage}
+                              </Text>
+                            </View>
+                          )}
+                          {isPending && !application?.completedAt && (
+                            <View style={styles.requestActions}>
+                              <TouchableButton
+                                style={[
+                                  styles.respondButton,
+                                  styles.rejectButton,
+                                  {
+                                    backgroundColor: isDark
+                                      ? "rgba(239, 68, 68, 0.2)"
+                                      : "rgba(239, 68, 68, 0.1)",
+                                    borderColor: isDark
+                                      ? "rgba(239, 68, 68, 0.4)"
+                                      : "rgba(239, 68, 68, 0.3)",
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setSelectedRequestId(request.id);
+                                  setSelectedRequestStatus("REJECTED");
+                                  setRespondMessage("");
+                                  setShowRespondModal(true);
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.respondButtonText,
+                                    { color: "#ef4444" },
+                                  ]}
+                                >
+                                  {t("applications.reject")}
+                                </Text>
+                              </TouchableButton>
+                              <TouchableButton
+                                style={[
+                                  styles.respondButton,
+                                  styles.approveButton,
+                                  {
+                                    backgroundColor: isDark
+                                      ? "#22c55e"
+                                      : "#22c55e",
+                                    borderColor: isDark ? "#22c55e" : "#22c55e",
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setSelectedRequestId(request.id);
+                                  setSelectedRequestStatus("APPROVED");
+                                  setRespondMessage("");
+                                  setShowRespondModal(true);
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.respondButtonText,
+                                    { color: "#FFFAF0" },
+                                  ]}
+                                >
+                                  {t("applications.approve")}
+                                </Text>
+                              </TouchableButton>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    },
+                  )}
+                </View>
+              )}
+
+            {/* Negotiation Requests from Service Provider (Employer can respond) */}
+            {application.negotiationRequests &&
+              Array.isArray(application.negotiationRequests) &&
+              application.negotiationRequests.filter(
+                (req: any) => req.suggestedByRole === "JOB_SEEKER",
+              ).length > 0 && (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: colors.text, marginBottom: 12 },
+                    ]}
+                  >
+                    {t("applications.negotiationRequests")}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      {
+                        color: isDark ? "#9A8E7A" : "#8A7B68",
+                        marginBottom: 16,
+                      },
+                    ]}
+                  >
+                    {t("applications.providerRequestedRates")}
+                  </Text>
+                  {application.negotiationRequests
+                    .filter((req: any) => req.suggestedByRole === "JOB_SEEKER")
+                    .map((request: any, idx: number, arr: any[]) => {
+                      const isAccepted = request.status === "ACCEPTED";
+                      const isRejected = request.status === "REJECTED";
+                      const hasCounterOffer =
+                        request.status === "COUNTER_OFFERED" &&
+                        request.counterOffer;
+                      const isPending = request.status === "PENDING";
+                      return (
+                        <View
+                          key={request.id || idx}
+                          style={[
+                            styles.requestCard,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(255,250,240,0.06)"
+                                : "rgba(0,0,0,0.02)",
+                              borderColor: isAccepted
+                                ? "#22c55e"
+                                : isRejected
+                                  ? "#ef4444"
+                                  : hasCounterOffer
+                                    ? "#C9963F"
+                                    : isDark
                                       ? "rgba(201,150,63,0.12)"
                                       : "rgba(184,130,42,0.2)",
+                              marginBottom: idx < arr.length - 1 ? 12 : 0,
+                            },
+                          ]}
+                        >
+                          <View style={styles.requestHeader}>
+                            <Text
+                              style={[
+                                styles.requestStatusText,
+                                {
+                                  color: isAccepted
+                                    ? "#22c55e"
+                                    : isRejected
+                                      ? "#ef4444"
+                                      : hasCounterOffer
+                                        ? "#C9963F"
+                                        : "#f59e0b",
+                                },
+                              ]}
+                            >
+                              {isAccepted
+                                ? `✓ ${t("applications.statusAccepted")}`
+                                : isRejected
+                                  ? `✗ ${t("applications.statusRejected")}`
+                                  : hasCounterOffer
+                                    ? `💬 ${t("applications.counterOfferSentTitle")}`
+                                    : `⏳ ${t("applications.statusPending")}`}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.requestDate,
+                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                              ]}
+                            >
+                              {new Date(
+                                request.suggestedAt,
+                              ).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          {request.rates &&
+                            Array.isArray(request.rates) &&
+                            request.rates.map((rate: any, rateIdx: number) => {
+                              const paymentTypeLabel =
+                                rate.paymentType === "OTHER" &&
+                                rate.otherSpecification
+                                  ? rate.otherSpecification
+                                  : rate.paymentType.charAt(0) +
+                                    rate.paymentType.slice(1).toLowerCase();
+                              return (
+                                <Text
+                                  key={rateIdx}
+                                  style={[
+                                    styles.requestRate,
+                                    { color: colors.text },
+                                  ]}
+                                >
+                                  €{rate.rate}/{paymentTypeLabel}
+                                </Text>
+                              );
+                            })}
+                          <Text
+                            style={[
+                              styles.requestTotal,
+                              { color: colors.text },
+                            ]}
+                          >
+                            {t("applications.total")}: EUR{" "}
+                            {request.totalAmount?.toFixed(2) || "0.00"}
+                          </Text>
+                          {request.message && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.06)"
+                                    : "rgba(0,0,0,0.02)",
+                                  marginTop: 12,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                                ]}
+                              >
+                                {t("applications.providerExplanation")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {request.message}
+                              </Text>
+                            </View>
+                          )}
+                          {request.responseMessage && !hasCounterOffer && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.06)"
+                                    : "rgba(0,0,0,0.02)",
+                                  marginTop: 12,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                                ]}
+                              >
+                                {t("applications.yourResponse")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {request.responseMessage}
+                              </Text>
+                            </View>
+                          )}
+                          {hasCounterOffer && request.counterOffer && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(201, 150, 63, 0.1)"
+                                    : "rgba(201, 150, 63, 0.05)",
+                                  marginTop: 12,
+                                  borderLeftWidth: 3,
+                                  borderLeftColor: "#C9963F",
+                                  paddingLeft: 12,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: "#C9963F", fontWeight: "700" },
+                                ]}
+                              >
+                                {t("applications.yourCounterOffer")}:
+                              </Text>
+                              {request.counterOffer.rates &&
+                                Array.isArray(request.counterOffer.rates) &&
+                                request.counterOffer.rates.map(
+                                  (rate: any, rateIdx: number) => {
+                                    const paymentTypeLabel =
+                                      rate.paymentType === "OTHER" &&
+                                      rate.otherSpecification
+                                        ? rate.otherSpecification
+                                        : rate.paymentType === "HOURLY"
+                                          ? t("applications.hourly")
+                                          : rate.paymentType === "HOUR"
+                                            ? t("applications.hourly")
+                                            : rate.paymentType === "DAILY"
+                                              ? t("applications.daily")
+                                              : rate.paymentType === "WEEKLY"
+                                                ? t("applications.weekly")
+                                                : rate.paymentType === "MONTHLY"
+                                                  ? t("applications.monthly")
+                                                  : rate.paymentType ===
+                                                      "PROJECT"
+                                                    ? t("applications.project")
+                                                    : rate.paymentType ===
+                                                        "OTHER"
+                                                      ? t("onboarding.other")
+                                                      : rate.paymentType.charAt(
+                                                          0,
+                                                        ) +
+                                                        rate.paymentType
+                                                          .slice(1)
+                                                          .toLowerCase();
+                                    return (
+                                      <Text
+                                        key={rateIdx}
+                                        style={[
+                                          styles.requestRate,
+                                          { color: colors.text, marginTop: 4 },
+                                        ]}
+                                      >
+                                        €{rate.rate}/{paymentTypeLabel}
+                                      </Text>
+                                    );
+                                  },
+                                )}
+                              <Text
+                                style={[
+                                  styles.requestTotal,
+                                  { color: colors.text, marginTop: 4 },
+                                ]}
+                              >
+                                {t("applications.total")}:{" "}
+                                {application.currency?.toUpperCase() || "EUR"}{" "}
+                                {request.counterOffer.totalAmount?.toFixed(2) ||
+                                  "0.00"}
+                              </Text>
+                              {request.counterOffer.message && (
+                                <Text
+                                  style={[
+                                    styles.responseText,
+                                    {
+                                      color: isDark ? "#B8A88A" : "#6B6355",
+                                      marginTop: 8,
+                                    },
+                                  ]}
+                                >
+                                  {request.counterOffer.message}
+                                </Text>
+                              )}
+                              {request.counterOffer.status === "PENDING" && (
+                                <Text
+                                  style={[
+                                    styles.responseLabel,
+                                    {
+                                      color: "#f59e0b",
+                                      marginTop: 8,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  ⏳{" "}
+                                  {t("applications.waitingForProviderResponse")}
+                                </Text>
+                              )}
+                              {request.counterOffer.status === "ACCEPTED" && (
+                                <Text
+                                  style={[
+                                    styles.responseLabel,
+                                    {
+                                      color: "#22c55e",
+                                      marginTop: 8,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  ✓{" "}
+                                  {t("applications.counterOfferAcceptedTitle")}
+                                </Text>
+                              )}
+                              {request.counterOffer.status === "REJECTED" && (
+                                <Text
+                                  style={[
+                                    styles.responseLabel,
+                                    {
+                                      color: "#ef4444",
+                                      marginTop: 8,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  ✗{" "}
+                                  {t("applications.counterOfferRejectedTitle")}
+                                </Text>
+                              )}
+                            </View>
+                          )}
+                          {isPending && (
+                            <View style={{ marginTop: 12 }}>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  gap: 8,
+                                  marginBottom: 8,
+                                }}
+                              >
+                                <TouchableButton
+                                  style={{
+                                    flex: 1,
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    backgroundColor: "#22c55e",
+                                    alignItems: "center",
+                                  }}
+                                  onPress={() => {
+                                    setSelectedEmployerNegotiationId(
+                                      request.id,
+                                    );
+                                    setSelectedEmployerNegotiationStatus(
+                                      "ACCEPTED",
+                                    );
+                                    setEmployerNegotiationResponseMessage("");
+                                    setShowEmployerNegotiationRespondModal(
+                                      true,
+                                    );
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: "#FFFAF0",
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    {t("applications.accept")}
+                                  </Text>
+                                </TouchableButton>
+                                <TouchableButton
+                                  style={{
+                                    flex: 1,
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    backgroundColor: "#ef4444",
+                                    alignItems: "center",
+                                  }}
+                                  onPress={() => {
+                                    setSelectedEmployerNegotiationId(
+                                      request.id,
+                                    );
+                                    setSelectedEmployerNegotiationStatus(
+                                      "REJECTED",
+                                    );
+                                    setEmployerNegotiationResponseMessage("");
+                                    setShowEmployerNegotiationRespondModal(
+                                      true,
+                                    );
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: "#FFFAF0",
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    {t("applications.reject")}
+                                  </Text>
+                                </TouchableButton>
+                              </View>
+                              <TouchableButton
+                                style={{
+                                  padding: 12,
+                                  borderRadius: 8,
+                                  backgroundColor: isDark
+                                    ? "#C9963F"
+                                    : "#C9963F",
+                                  alignItems: "center",
+                                  borderWidth: 1,
+                                  borderColor: "#C9963F",
+                                }}
+                                onPress={() => {
+                                  setSelectedEmployerNegotiationId(request.id);
+                                  setEmployerCounterOfferRates([
+                                    { rate: "", paymentType: "HOURLY" },
+                                  ]);
+                                  setEmployerCounterOfferMessage("");
+                                  setShowEmployerCounterOfferModal(true);
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: "#FFFAF0",
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  {t("applications.requestDifferentRate")}
+                                </Text>
+                              </TouchableButton>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                </View>
+              )}
+
+            {/* Negotiation Suggestions from Employer (Read-only, show service provider response) */}
+            {application.negotiationRequests &&
+              Array.isArray(application.negotiationRequests) &&
+              application.negotiationRequests.filter(
+                (req: any) => req.suggestedByRole === "EMPLOYER",
+              ).length > 0 && (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: colors.text, marginBottom: 12 },
+                    ]}
+                  >
+                    {t("applications.negotiationSuggestions")}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      {
+                        color: isDark ? "#9A8E7A" : "#8A7B68",
+                        marginBottom: 16,
+                      },
+                    ]}
+                  >
+                    {t("applications.yourNegotiationSuggestions")}
+                  </Text>
+                  {application.negotiationRequests
+                    .filter((req: any) => req.suggestedByRole === "EMPLOYER")
+                    .map((request: any, idx: number, arr: any[]) => {
+                      const isAccepted = request.status === "ACCEPTED";
+                      const isRejected = request.status === "REJECTED";
+                      const hasCounterOffer =
+                        request.status === "COUNTER_OFFERED" &&
+                        request.counterOffer;
+                      return (
+                        <View
+                          key={request.id || idx}
+                          style={[
+                            styles.requestCard,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(255,250,240,0.06)"
+                                : "rgba(0,0,0,0.02)",
+                              borderColor: isAccepted
+                                ? "#22c55e"
+                                : isRejected
+                                  ? "#ef4444"
+                                  : hasCounterOffer
+                                    ? "#C9963F"
+                                    : isDark
+                                      ? "rgba(201,150,63,0.12)"
+                                      : "rgba(184,130,42,0.2)",
+                              marginBottom: idx < arr.length - 1 ? 12 : 0,
+                            },
+                          ]}
+                        >
+                          <View style={styles.requestHeader}>
+                            <Text
+                              style={[
+                                styles.requestStatusText,
+                                {
+                                  color: isAccepted
+                                    ? "#22c55e"
+                                    : isRejected
+                                      ? "#ef4444"
+                                      : hasCounterOffer
+                                        ? "#C9963F"
+                                        : "#f59e0b",
+                                },
+                              ]}
+                            >
+                              {isAccepted
+                                ? `✓ ${t("applications.accepted")}`
+                                : isRejected
+                                  ? `✗ ${t("applications.rejected")}`
+                                  : hasCounterOffer
+                                    ? `💬 ${t("applications.counterOfferReceived")}`
+                                    : `⏳ ${t("applications.pendingResponse")}`}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.requestDate,
+                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                              ]}
+                            >
+                              {new Date(
+                                request.suggestedAt,
+                              ).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          {request.rates &&
+                            Array.isArray(request.rates) &&
+                            request.rates.map((rate: any, rateIdx: number) => {
+                              const paymentTypeLabel =
+                                rate.paymentType === "OTHER" &&
+                                rate.otherSpecification
+                                  ? rate.otherSpecification
+                                  : rate.paymentType === "HOURLY"
+                                    ? t("applications.hourly")
+                                    : rate.paymentType === "HOUR"
+                                      ? t("applications.hourly")
+                                      : rate.paymentType === "DAILY"
+                                        ? t("applications.daily")
+                                        : rate.paymentType === "WEEKLY"
+                                          ? t("applications.weekly")
+                                          : rate.paymentType === "MONTHLY"
+                                            ? t("applications.monthly")
+                                            : rate.paymentType === "PROJECT"
+                                              ? t("applications.project")
+                                              : rate.paymentType === "OTHER"
+                                                ? t("onboarding.other")
+                                                : rate.paymentType.charAt(0) +
+                                                  rate.paymentType
+                                                    .slice(1)
+                                                    .toLowerCase();
+                              return (
+                                <Text
+                                  key={rateIdx}
+                                  style={[
+                                    styles.requestRate,
+                                    { color: colors.text },
+                                  ]}
+                                >
+                                  €{rate.rate}/{paymentTypeLabel}
+                                </Text>
+                              );
+                            })}
+                          <Text
+                            style={[
+                              styles.requestTotal,
+                              { color: colors.text },
+                            ]}
+                          >
+                            {t("applications.total")}:{" "}
+                            {application.currency?.toUpperCase() || "EUR"}{" "}
+                            {request.totalAmount?.toFixed(2) || "0.00"}
+                          </Text>
+                          {request.message && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.06)"
+                                    : "rgba(0,0,0,0.02)",
+                                  marginTop: 12,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                                ]}
+                              >
+                                {t("applications.yourExplanation")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {request.message}
+                              </Text>
+                            </View>
+                          )}
+                          {request.responseMessage && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.06)"
+                                    : "rgba(0,0,0,0.02)",
+                                  marginTop: 12,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                                ]}
+                              >
+                                Service Provider Response:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {request.responseMessage}
+                              </Text>
+                            </View>
+                          )}
+                          {hasCounterOffer && request.counterOffer && (
+                            <View
+                              style={[
+                                styles.responseMessage,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(201, 150, 63, 0.1)"
+                                    : "rgba(201, 150, 63, 0.05)",
+                                  marginTop: 12,
+                                  borderLeftWidth: 3,
+                                  borderLeftColor: "#C9963F",
+                                  paddingLeft: 12,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: "#C9963F", fontWeight: "700" },
+                                ]}
+                              >
+                                {t("applications.counterOffer")}:
+                              </Text>
+                              {request.counterOffer.rates &&
+                                Array.isArray(request.counterOffer.rates) &&
+                                request.counterOffer.rates.map(
+                                  (rate: any, rateIdx: number) => {
+                                    const paymentTypeLabel =
+                                      rate.paymentType === "OTHER" &&
+                                      rate.otherSpecification
+                                        ? rate.otherSpecification
+                                        : rate.paymentType.charAt(0) +
+                                          rate.paymentType
+                                            .slice(1)
+                                            .toLowerCase();
+                                    return (
+                                      <Text
+                                        key={rateIdx}
+                                        style={[
+                                          styles.requestRate,
+                                          { color: colors.text, marginTop: 4 },
+                                        ]}
+                                      >
+                                        €{rate.rate}/{paymentTypeLabel}
+                                      </Text>
+                                    );
+                                  },
+                                )}
+                              <Text
+                                style={[
+                                  styles.requestTotal,
+                                  { color: colors.text, marginTop: 4 },
+                                ]}
+                              >
+                                {t("applications.total")}:{" "}
+                                {application.currency?.toUpperCase() || "EUR"}{" "}
+                                {request.counterOffer.totalAmount?.toFixed(2) ||
+                                  "0.00"}
+                              </Text>
+                              {request.counterOffer.message && (
+                                <Text
+                                  style={[
+                                    styles.responseText,
+                                    {
+                                      color: isDark ? "#B8A88A" : "#6B6355",
+                                      marginTop: 8,
+                                    },
+                                  ]}
+                                >
+                                  {request.counterOffer.message}
+                                </Text>
+                              )}
+                              {request.counterOffer.status === "PENDING" && (
+                                <View
+                                  style={{
+                                    flexDirection: "row",
+                                    gap: 8,
+                                    marginTop: 12,
+                                  }}
+                                >
+                                  <TouchableButton
+                                    style={{
+                                      flex: 1,
+                                      padding: 12,
+                                      borderRadius: 8,
+                                      backgroundColor: "#22c55e",
+                                      alignItems: "center",
+                                    }}
+                                    onPress={() => {
+                                      setSelectedCounterOfferRequestId(
+                                        request.id,
+                                      );
+                                      setSelectedCounterOfferId(
+                                        request.counterOffer.id,
+                                      );
+                                      setCounterOfferResponseStatus("ACCEPTED");
+                                      setCounterOfferResponseMessage("");
+                                      handleRespondToCounterOffer();
+                                    }}
+                                    disabled={respondingToCounterOffer}
+                                  >
+                                    {respondingToCounterOffer ? (
+                                      <ActivityIndicator color="#FFFAF0" />
+                                    ) : (
+                                      <Text
+                                        style={{
+                                          color: "#FFFAF0",
+                                          fontWeight: "700",
+                                        }}
+                                      >
+                                        {t("common.accept")}
+                                      </Text>
+                                    )}
+                                  </TouchableButton>
+                                  <TouchableButton
+                                    style={{
+                                      flex: 1,
+                                      padding: 12,
+                                      borderRadius: 8,
+                                      backgroundColor: "#ef4444",
+                                      alignItems: "center",
+                                    }}
+                                    onPress={() => {
+                                      setSelectedCounterOfferRequestId(
+                                        request.id,
+                                      );
+                                      setSelectedCounterOfferId(
+                                        request.counterOffer.id,
+                                      );
+                                      setCounterOfferResponseStatus("REJECTED");
+                                      setCounterOfferResponseMessage("");
+                                      handleRespondToCounterOffer();
+                                    }}
+                                    disabled={respondingToCounterOffer}
+                                  >
+                                    {respondingToCounterOffer ? (
+                                      <ActivityIndicator color="#FFFAF0" />
+                                    ) : (
+                                      <Text
+                                        style={{
+                                          color: "#FFFAF0",
+                                          fontWeight: "700",
+                                        }}
+                                      >
+                                        {t("applications.reject")}
+                                      </Text>
+                                    )}
+                                  </TouchableButton>
+                                </View>
+                              )}
+                              {request.counterOffer.status === "ACCEPTED" && (
+                                <Text
+                                  style={[
+                                    styles.responseLabel,
+                                    {
+                                      color: "#22c55e",
+                                      marginTop: 8,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  ✓ Counter Offer Accepted
+                                </Text>
+                              )}
+                              {request.counterOffer.status === "REJECTED" && (
+                                <Text
+                                  style={[
+                                    styles.responseLabel,
+                                    {
+                                      color: "#ef4444",
+                                      marginTop: 8,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  ✗ Counter Offer Rejected
+                                </Text>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                </View>
+              )}
+
+            {/* Additional Time Requests Section */}
+            {application.status === "ACCEPTED" &&
+              !application.completedAt &&
+              (application.additionalTimeRequests &&
+              Array.isArray(application.additionalTimeRequests) &&
+              application.additionalTimeRequests.length > 0 ? (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                      marginBottom: 16,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: colors.text, marginBottom: 12 },
+                    ]}
+                  >
+                    {t("applications.additionalTimeRequests")}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      {
+                        color: isDark ? "#9A8E7A" : "#8A7B68",
+                        marginBottom: 16,
+                      },
+                    ]}
+                  >
+                    {t("applications.additionalTimeRequestsDescription")}
+                  </Text>
+                  {application.additionalTimeRequests.map(
+                    (request: any, idx: number) => {
+                      const isPending = request.status === "PENDING";
+                      const isPendingApproval =
+                        request.status === "PENDING_EMPLOYER_APPROVAL";
+                      const isAccepted = request.status === "ACCEPTED";
+                      const isRejected = request.status === "REJECTED";
+
+                      return (
+                        <View
+                          key={request.id || idx}
+                          style={[
+                            styles.requestCard,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(255,250,240,0.06)"
+                                : "rgba(0,0,0,0.02)",
+                              borderColor: isAccepted
+                                ? "#22c55e"
+                                : isRejected
+                                  ? "#ef4444"
+                                  : isPendingApproval
+                                    ? "#f59e0b"
+                                    : isDark
+                                      ? "rgba(201,150,63,0.12)"
+                                      : "rgba(184,130,42,0.2)",
+                              marginBottom:
+                                idx <
+                                application.additionalTimeRequests!.length - 1
+                                  ? 12
+                                  : 0,
+                            },
+                          ]}
+                        >
+                          <View style={styles.requestHeader}>
+                            <Text
+                              style={[
+                                styles.requestStatusText,
+                                {
+                                  color: isAccepted
+                                    ? "#22c55e"
+                                    : isRejected
+                                      ? "#ef4444"
+                                      : isPendingApproval
+                                        ? "#f59e0b"
+                                        : "#C9963F",
+                                },
+                              ]}
+                            >
+                              {isAccepted
+                                ? `✓ ${t("applications.accepted")}`
+                                : isRejected
+                                  ? `✗ ${t("applications.rejected")}`
+                                  : isPendingApproval
+                                    ? `⏳ ${t("applications.awaitingYourResponse")}`
+                                    : `📤 ${t("applications.pendingServiceProviderResponse")}`}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.requestDate,
+                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                              ]}
+                            >
+                              {new Date(
+                                request.requestedAt,
+                              ).toLocaleDateString()}
+                            </Text>
+                          </View>
+
+                          {request.requestedBy === "EMPLOYER" && (
+                            <View style={{ marginTop: 8 }}>
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {t("applications.yourRequest")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  {
+                                    color: isDark ? "#B8A88A" : "#6B6355",
+                                    marginTop: 4,
+                                  },
+                                ]}
+                              >
+                                {request.message}
+                              </Text>
+                            </View>
+                          )}
+
+                          {isPendingApproval && request.additionalDays && (
+                            <View
+                              style={[
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(245, 158, 11, 0.1)"
+                                    : "rgba(245, 158, 11, 0.05)",
+                                  marginTop: 12,
+                                  padding: 12,
+                                  borderRadius: 8,
+                                  borderLeftWidth: 3,
+                                  borderLeftColor: "#f59e0b",
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: "#f59e0b", fontWeight: "700" },
+                                ]}
+                              >
+                                {t("applications.serviceProviderResponse")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  {
+                                    color: colors.text,
+                                    marginTop: 4,
+                                    fontWeight: "700",
+                                  },
+                                ]}
+                              >
+                                {t("applications.additionalDaysRequested")}:{" "}
+                                {request.additionalDays}
+                              </Text>
+                              {request.explanation && (
+                                <Text
+                                  style={[
+                                    styles.responseText,
+                                    {
+                                      color: isDark ? "#B8A88A" : "#6B6355",
+                                      marginTop: 8,
+                                    },
+                                  ]}
+                                >
+                                  {request.explanation}
+                                </Text>
+                              )}
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  gap: 8,
+                                  marginTop: 12,
+                                }}
+                              >
+                                <TouchableButton
+                                  style={{
+                                    flex: 1,
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    backgroundColor: "#22c55e",
+                                    alignItems: "center",
+                                  }}
+                                  onPress={() => {
+                                    setSelectedAdditionalTimeRequestId(
+                                      request.id,
+                                    );
+                                    setAdditionalTimeResponseStatus("ACCEPTED");
+                                    setShowAdditionalTimeResponseModal(true);
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: "#FFFAF0",
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    {t("applications.accept")}
+                                  </Text>
+                                </TouchableButton>
+                                <TouchableButton
+                                  style={{
+                                    flex: 1,
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    backgroundColor: "#ef4444",
+                                    alignItems: "center",
+                                  }}
+                                  onPress={() => {
+                                    setSelectedAdditionalTimeRequestId(
+                                      request.id,
+                                    );
+                                    setAdditionalTimeResponseStatus("REJECTED");
+                                    setShowAdditionalTimeResponseModal(true);
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: "#FFFAF0",
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    {t("applications.reject")}
+                                  </Text>
+                                </TouchableButton>
+                              </View>
+                            </View>
+                          )}
+
+                          {isAccepted && (
+                            <View style={{ marginTop: 12 }}>
+                              {request.additionalDays && (
+                                <View
+                                  style={[
+                                    {
+                                      backgroundColor: isDark
+                                        ? "rgba(34, 197, 94, 0.1)"
+                                        : "rgba(34, 197, 94, 0.05)",
+                                      padding: 12,
+                                      borderRadius: 8,
+                                      borderLeftWidth: 3,
+                                      borderLeftColor: "#22c55e",
+                                      marginBottom:
+                                        request.employerResponseMessage
+                                          ? 12
+                                          : 0,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.responseLabel,
+                                      { color: "#22c55e", fontWeight: "700" },
+                                    ]}
+                                  >
+                                    {t(
+                                      "applications.serviceProviderResponseAccepted",
+                                    )}
+                                    :
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.responseText,
+                                      {
+                                        color: colors.text,
+                                        marginTop: 4,
+                                        fontWeight: "700",
+                                      },
+                                    ]}
+                                  >
+                                    {t("applications.additionalDays")}:{" "}
+                                    {request.additionalDays}{" "}
+                                    {request.additionalDays !== 1
+                                      ? t("common.days")
+                                      : t("common.day")}
+                                  </Text>
+                                  {request.explanation && (
+                                    <Text
+                                      style={[
+                                        styles.responseText,
+                                        {
+                                          color: isDark ? "#B8A88A" : "#6B6355",
+                                          marginTop: 8,
+                                        },
+                                      ]}
+                                    >
+                                      {request.explanation}
+                                    </Text>
+                                  )}
+                                </View>
+                              )}
+                              {request.employerResponseMessage && (
+                                <View>
+                                  <Text
+                                    style={[
+                                      styles.responseLabel,
+                                      { color: isDark ? "#B8A88A" : "#6B6355" },
+                                    ]}
+                                  >
+                                    {t("applications.yourResponse")}:
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.responseText,
+                                      {
+                                        color: isDark ? "#B8A88A" : "#6B6355",
+                                        marginTop: 4,
+                                      },
+                                    ]}
+                                  >
+                                    {request.employerResponseMessage}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
+
+                          {isRejected && request.employerResponseMessage && (
+                            <View style={{ marginTop: 12 }}>
+                              <Text
+                                style={[
+                                  styles.responseLabel,
+                                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                                ]}
+                              >
+                                {t("applications.yourResponse")}:
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.responseText,
+                                  {
+                                    color: isDark ? "#B8A88A" : "#6B6355",
+                                    marginTop: 4,
+                                  },
+                                ]}
+                              >
+                                {request.employerResponseMessage}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    },
+                  )}
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                      marginBottom: 16,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: colors.text, marginBottom: 12 },
+                    ]}
+                  >
+                    {t("applications.additionalTimeRequests")}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                    ]}
+                  >
+                    {t("applications.noAdditionalTimeRequestsYet")}
+                  </Text>
+                </View>
+              ))}
+
+            {/* Service Provider Marked Job as Done Notification */}
+            {application.status === "ACCEPTED" &&
+              !application.completedAt &&
+              application.serviceProviderMarkedDoneAt && (
+                <View
+                  style={[
+                    styles.paymentBanner,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(34, 197, 94, 0.15)"
+                        : "rgba(34, 197, 94, 0.1)",
+                      borderColor: isDark
+                        ? "rgba(34, 197, 94, 0.5)"
+                        : "#22c55e",
+                      marginBottom: 16,
+                    },
+                  ]}
+                >
+                  <Feather name="check-circle" size={20} color="#22c55e" />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text
+                      style={[styles.paymentBannerTitle, { color: "#22c55e" }]}
+                    >
+                      {t("applications.serviceProviderMarkedJobAsDone")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.paymentBannerText,
+                        {
+                          color: isDark ? "#86efac" : "#065f46",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("applications.serviceProviderMarkedJobAsDoneMessage")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.paymentSubtitle,
+                        {
+                          color: isDark ? "#6ee7b7" : "#047857",
+                          fontSize: 12,
+                          marginTop: 4,
+                        },
+                      ]}
+                    >
+                      {t("applications.markedAsDoneOn")}:{" "}
+                      {new Date(
+                        application.serviceProviderMarkedDoneAt,
+                      ).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+            {/* Auto-Completion Warning Banner with Timer */}
+            {application.status === "ACCEPTED" &&
+              !application.completedAt &&
+              application.verificationCodeVerifiedAt &&
+              (() => {
+                // Use verificationCodeVerifiedAt (when service started) instead of startDate
+                const serviceStartDate = new Date(
+                  application.verificationCodeVerifiedAt,
+                );
+
+                // Calculate total additional days from all ACCEPTED requests
+                // Only count requests where employer accepted the service provider's response
+                // The request must have additionalDays (set when service provider responded)
+                const allRequests = application.additionalTimeRequests || [];
+                const acceptedRequests = allRequests.filter((req: any) => {
+                  // Request must be accepted AND have additionalDays (meaning service provider responded)
+                  const hasAdditionalDays =
+                    req.additionalDays !== undefined &&
+                    req.additionalDays !== null;
+                  const daysValue = Number(req.additionalDays) || 0;
+                  return (
+                    req.status === "ACCEPTED" &&
+                    hasAdditionalDays &&
+                    daysValue > 0
+                  );
+                });
+
+                const totalAdditionalDays = acceptedRequests.reduce(
+                  (sum: number, req: any) => {
+                    const days = Number(req.additionalDays) || 0;
+                    return sum + days;
+                  },
+                  0,
+                );
+
+                // Debug: Log for troubleshooting (can be removed later)
+                if (allRequests.length > 0) {
+                  console.log(
+                    "[Timer Debug] All requests:",
+                    JSON.stringify(allRequests, null, 2),
+                  );
+                  console.log(
+                    "[Timer Debug] Accepted requests with days:",
+                    acceptedRequests,
+                  );
+                  console.log(
+                    "[Timer Debug] Total additional days:",
+                    totalAdditionalDays,
+                  );
+                }
+
+                // Base deadline is 4 days from service start, plus any accepted additional days
+                const autoCompleteDate = new Date(serviceStartDate);
+                autoCompleteDate.setDate(
+                  autoCompleteDate.getDate() + 4 + totalAdditionalDays,
+                );
+
+                const now = new Date();
+                const timeDiff = autoCompleteDate.getTime() - now.getTime();
+                const daysUntilAutoComplete = Math.ceil(
+                  timeDiff / (1000 * 60 * 60 * 24),
+                );
+                const hoursUntilAutoComplete = Math.ceil(
+                  timeDiff / (1000 * 60 * 60),
+                );
+                const minutesUntilAutoComplete = Math.ceil(
+                  timeDiff / (1000 * 60),
+                );
+
+                // Determine color based on remaining time
+                // Red: 12 hours or less
+                // Yellow: More than 12 hours but 2 days or less
+                // Green: More than 2 days
+                const hoursRemaining = timeDiff / (1000 * 60 * 60);
+                const isRed = hoursRemaining <= 12;
+                const isYellow = hoursRemaining > 12 && hoursRemaining <= 48; // 2 days = 48 hours
+                const isGreen = hoursRemaining > 48;
+
+                const timerColor = isRed
+                  ? "#ef4444" // Red
+                  : isYellow
+                    ? "#f59e0b" // Yellow/Orange
+                    : "#22c55e"; // Green
+
+                const timerBgColor = isRed
+                  ? isDark
+                    ? "rgba(239, 68, 68, 0.15)"
+                    : "rgba(239, 68, 68, 0.1)"
+                  : isYellow
+                    ? isDark
+                      ? "rgba(245, 158, 11, 0.15)"
+                      : "rgba(245, 158, 11, 0.1)"
+                    : isDark
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : "rgba(34, 197, 94, 0.1)";
+
+                const timerBorderColor = isRed
+                  ? isDark
+                    ? "rgba(239, 68, 68, 0.5)"
+                    : "#ef4444"
+                  : isYellow
+                    ? isDark
+                      ? "rgba(245, 158, 11, 0.5)"
+                      : "#f59e0b"
+                    : isDark
+                      ? "rgba(34, 197, 94, 0.5)"
+                      : "#22c55e";
+
+                const timerTextColor = isRed
+                  ? isDark
+                    ? "#fca5a5"
+                    : "#991b1b"
+                  : isYellow
+                    ? isDark
+                      ? "#fcd34d"
+                      : "#92400e"
+                    : isDark
+                      ? "#86efac"
+                      : "#065f46";
+
+                // Check if there's a pending additional time request
+                const hasPendingRequest =
+                  application.additionalTimeRequests?.some(
+                    (req) =>
+                      req.status === "PENDING" ||
+                      req.status === "PENDING_EMPLOYER_APPROVAL",
+                  );
+
+                // Always show timer if service has started
+                return (
+                  <View
+                    style={[
+                      styles.paymentBanner,
+                      {
+                        backgroundColor: timerBgColor,
+                        borderColor: timerBorderColor,
+                        marginBottom: 16,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name={
+                        isRed
+                          ? "alert-triangle"
+                          : isYellow
+                            ? "alert-circle"
+                            : "clock"
+                      }
+                      size={20}
+                      color={timerColor}
+                    />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text
+                        style={[
+                          styles.paymentBannerTitle,
+                          { color: timerColor },
+                        ]}
+                      >
+                        {t("applications.autoCompletionTimer")}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.paymentBannerText,
+                          { color: timerTextColor, marginBottom: 8 },
+                        ]}
+                      >
+                        {daysUntilAutoComplete < 0
+                          ? t("applications.autoCompletionDeadlinePassed", {
+                              days: Math.abs(daysUntilAutoComplete),
+                            })
+                          : daysUntilAutoComplete === 0
+                            ? t("applications.autoCompletionToday")
+                            : daysUntilAutoComplete === 1
+                              ? t("applications.timeRemainingHours", {
+                                  hours: hoursUntilAutoComplete,
+                                })
+                              : t("applications.timeRemainingDaysHours", {
+                                  days: daysUntilAutoComplete,
+                                  hours: Math.floor(
+                                    (timeDiff % (1000 * 60 * 60 * 24)) /
+                                      (1000 * 60 * 60),
+                                  ),
+                                })}
+                      </Text>
+                      {!hasPendingRequest && (
+                        <TouchableOpacity
+                          onPress={() => setShowAdditionalTimeModal(true)}
+                          activeOpacity={0.7}
+                          style={{
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
+                            borderRadius: 6,
+                            backgroundColor: timerColor,
+                            alignSelf: "flex-start",
+                            marginTop: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#FFFAF0",
+                              fontSize: 12,
+                              fontWeight: "700",
+                            }}
+                          >
+                            {t("applications.requestAdditionalTime")}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })()}
+
+            {/* Job Completed Banner */}
+            {application.completedAt && (
+              <View
+                style={[
+                  styles.completedBanner,
+                  {
+                    backgroundColor: isDark ? "#065f46" : "#d1fae5",
+                    borderColor: isDark ? "#10b981" : "#34d399",
+                  },
+                ]}
+              >
+                <Feather name="check-circle" size={24} color="#10b981" />
+                <View style={styles.completedBannerContent}>
+                  <Text
+                    style={[
+                      styles.completedBannerTitle,
+                      { color: isDark ? "#6ee7b7" : "#065f46" },
+                    ]}
+                  >
+                    {t("applications.jobCompleted")}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.completedBannerText,
+                      { color: isDark ? "#a7f3d0" : "#047857" },
+                    ]}
+                  >
+                    {t("applications.jobCompletedAllActionsLocked")}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            {!application.completedAt && (
+              <View style={styles.actionsContainer}>
+                {(() => {
+                  const paymentRequired = isPaymentRequired();
+                  console.log(
+                    "[ApplicantDetail] Rendering buttons, paymentRequired:",
+                    paymentRequired,
+                    "completedAt:",
+                    application?.completedAt,
+                  );
+                  return (
+                    <>
+                      {application.status === "ACCEPTED" &&
+                        !isPaymentRequired() &&
+                        !application.completedAt &&
+                        application.verificationCodeVerifiedAt && (
+                          <TouchableButton
+                            style={[
+                              styles.actionButton,
+                              {
+                                backgroundColor: "#22c55e",
+                                borderColor: "#22c55e",
+                              },
+                            ]}
+                            onPress={handleMarkJobComplete}
+                            disabled={completingJob}
+                          >
+                            {completingJob ? (
+                              <ActivityIndicator color="#FFFAF0" />
+                            ) : (
+                              <>
+                                <Feather
+                                  name="check-circle"
+                                  size={20}
+                                  color="#FFFAF0"
+                                />
+                                <Text style={styles.actionButtonText}>
+                                  {t("applications.markJobAsComplete")}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableButton>
+                        )}
+                      {application.status === "ACCEPTED" &&
+                        !isPaymentRequired() &&
+                        !application.completedAt &&
+                        !application.verificationCodeVerifiedAt && (
+                          <View
+                            style={{
+                              backgroundColor: isDark
+                                ? "rgba(34,197,94,0.08)"
+                                : "rgba(34,197,94,0.06)",
+                              borderWidth: 1,
+                              borderColor: isDark
+                                ? "rgba(34,197,94,0.25)"
+                                : "rgba(34,197,94,0.2)",
+                              borderRadius: 16,
+                              padding: 16,
+                            }}
+                          >
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                marginBottom: 8,
+                              }}
+                            >
+                              <Feather
+                                name="check-circle"
+                                size={18}
+                                color="#22c55e"
+                              />
+                              <Text
+                                style={{
+                                  marginLeft: 8,
+                                  fontSize: 15,
+                                  fontWeight: "700",
+                                  color: isDark ? "#FFFAF0" : "#1A1710",
+                                }}
+                              >
+                                {t("applications.completeJobTitle")}
+                              </Text>
+                            </View>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                lineHeight: 18,
+                                color: isDark
+                                  ? "rgba(255,250,240,0.6)"
+                                  : "rgba(26,23,16,0.6)",
+                              }}
+                            >
+                              {t("applications.completeJobVerifyFirst")}
+                            </Text>
+                          </View>
+                        )}
+                      {application.status !== "ACCEPTED" &&
+                        application.status !== "REJECTED" &&
+                        application.status !== "REQUESTED" && (
+                          <>
+                            <TouchableButton
+                              style={[
+                                styles.actionButton,
+                                styles.acceptButton,
+                                {
+                                  backgroundColor: paymentRequired
+                                    ? "#8A7B68"
+                                    : "#22c55e",
+                                  borderColor: paymentRequired
+                                    ? "#9A8E7A"
+                                    : "#22c55e",
+                                  opacity: paymentRequired ? 0.6 : 1,
+                                },
+                              ]}
+                              onPress={() => {
+                                if (paymentRequired) {
+                                  // Check if no services are selected
+                                  const hasSelectedRates =
+                                    selectedRates.size > 0;
+                                  const hasAcceptedNegotiations =
+                                    application.negotiationRequests &&
+                                    Array.isArray(
+                                      application.negotiationRequests,
+                                    ) &&
+                                    application.negotiationRequests.some(
+                                      (req: any) => req.status === "ACCEPTED",
+                                    );
+                                  const hasApprovedAdditionalRates =
+                                    application.additionalRateRequests &&
+                                    Array.isArray(
+                                      application.additionalRateRequests,
+                                    ) &&
+                                    application.additionalRateRequests.some(
+                                      (req: any) => req.status === "APPROVED",
+                                    );
+
+                                  if (
+                                    !hasSelectedRates &&
+                                    !hasAcceptedNegotiations &&
+                                    !hasApprovedAdditionalRates
+                                  ) {
+                                    Alert.alert(
+                                      t("applications.servicesRequired"),
+                                      t(
+                                        "applications.selectServiceOrNegotiate",
+                                      ),
+                                      [{ text: t("common.ok") }],
+                                    );
+                                  } else {
+                                    showPaymentRequiredAlert(
+                                      "accept this application",
+                                    );
+                                  }
+                                } else {
+                                  openActionModal("ACCEPT");
+                                }
+                              }}
+                              disabled={paymentRequired}
+                            >
+                              <Feather
+                                name="check-circle"
+                                size={20}
+                                color="#FFFAF0"
+                              />
+                              <Text style={styles.actionButtonText}>
+                                {t("applications.acceptApplication")}
+                              </Text>
+                            </TouchableButton>
+
+                            <TouchableButton
+                              style={[
+                                styles.actionButton,
+                                styles.rejectButton,
+                                {
+                                  backgroundColor: "#ef4444",
+                                  borderColor: "#ef4444",
+                                  opacity: 1,
+                                },
+                              ]}
+                              onPress={() => {
+                                // Allow rejection at any time, even before payment
+                                openActionModal("REJECT");
+                              }}
+                              disabled={false}
+                            >
+                              <Feather
+                                name="x-circle"
+                                size={20}
+                                color="#FFFAF0"
+                              />
+                              <Text style={styles.actionButtonText}>
+                                {t("applications.rejectApplication")}
+                              </Text>
+                            </TouchableButton>
+                          </>
+                        )}
+                    </>
+                  );
+                })()}
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Action Modal */}
+          <Modal
+            visible={showActionModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => {
+              setShowActionModal(false);
+              setSelectedAction(null);
+              setActionMessage("");
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
+            >
+              <View style={styles.modalOverlay}>
+                <View
+                  style={[
+                    styles.modalContent,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "#FFFAF0",
+                      height: undefined,
+                      maxHeight: Dimensions.get("window").height * 0.75,
+                    },
+                  ]}
+                >
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {selectedAction === "ACCEPT"
+                        ? t("applications.acceptApplication")
+                        : t("applications.rejectApplication")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowActionModal(false);
+                        setSelectedAction(null);
+                        setActionMessage("");
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
+
+                  <ScrollView contentContainerStyle={styles.modalBodyContent}>
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        {
+                          color: isDark ? "#9A8E7A" : "#8A7B68",
+                          marginBottom: selectedAction === "ACCEPT" ? 16 : 20,
+                        },
+                      ]}
+                    >
+                      {selectedAction === "ACCEPT"
+                        ? t("applications.acceptApplicationDescription")
+                        : t("applications.rejectApplicationDescription")}
+                    </Text>
+
+                    {/* Warning Box for Accept Action */}
+                    {selectedAction === "ACCEPT" && (
+                      <View
+                        style={[
+                          styles.warningBox,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(251, 191, 36, 0.15)"
+                              : "rgba(251, 191, 36, 0.1)",
+                            borderColor: isDark
+                              ? "rgba(251, 191, 36, 0.3)"
+                              : "rgba(251, 191, 36, 0.4)",
+                            marginBottom: 20,
+                          },
+                        ]}
+                      >
+                        <View style={styles.warningHeader}>
+                          <Feather
+                            name="alert-triangle"
+                            size={20}
+                            color={isDark ? "#fbbf24" : "#ca8a04"}
+                          />
+                          <Text
+                            style={[
+                              styles.warningTitle,
+                              { color: isDark ? "#fbbf24" : "#ca8a04" },
+                            ]}
+                          >
+                            {t("applications.importantNotice")}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.warningText,
+                            { color: isDark ? "#eab308" : "#854d0e" },
+                          ]}
+                        >
+                          {t("applications.markJobCompleteWarning")}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Optional Message */}
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 0 },
+                      ]}
+                    >
+                      {t("applications.optionalMessage")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#f1f5f9",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                        },
+                      ]}
+                      placeholder={
+                        selectedAction === "ACCEPT"
+                          ? t("applications.acceptPlaceholder")
+                          : t("applications.rejectPlaceholder")
+                      }
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      multiline
+                      numberOfLines={5}
+                      value={actionMessage}
+                      onChangeText={setActionMessage}
+                      textAlignVertical="top"
+                    />
+                  </ScrollView>
+
+                  <View
+                    style={[
+                      styles.modalFooter,
+                      {
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <TouchableButton
+                      style={[
+                        styles.modalCancelButton,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(241, 245, 249, 0.9)",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "rgba(184,130,42,0.2)",
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowActionModal(false);
+                        setSelectedAction(null);
+                        setActionMessage("");
+                      }}
+                    >
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor:
+                            selectedAction === "ACCEPT" ? "#22c55e" : "#ef4444",
+                          borderColor:
+                            selectedAction === "ACCEPT" ? "#22c55e" : "#ef4444",
+                        },
+                        processing && styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleAction}
+                      disabled={processing}
+                    >
+                      {processing ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {selectedAction === "ACCEPT"
+                            ? t("common.accept")
+                            : t("applications.reject")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Payment Modal */}
+          <Modal
+            visible={showPaymentModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowPaymentModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.modalContent,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.90)"
+                      : "#FFFAF0",
+                  },
+                ]}
+              >
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    {t("applications.completePayment")}
+                  </Text>
+                  <TouchableButton onPress={() => setShowPaymentModal(false)}>
+                    <Feather name="x" size={24} color={colors.text} />
+                  </TouchableButton>
+                </View>
+
+                <ScrollView
+                  style={styles.modalBody}
+                  contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+                >
+                  <Text
+                    style={[
+                      styles.modalDescription,
+                      {
+                        color: isDark ? "#B8A88A" : "#6B6355",
+                        marginBottom: 24,
+                        fontSize: 15,
+                        lineHeight: 22,
+                      },
+                    ]}
+                  >
+                    {t("applications.reviewSelectedServicesAndCompletePayment")}
+                  </Text>
+
+                  {(() => {
+                    const currentTotal = getSelectedRatesTotal();
+                    const paymentStatus = application.paymentStatus;
+                    const paidAmount = paymentStatus?.paidAmount ?? 0;
+                    const paymentCompleted = paymentStatus?.completed ?? false;
+
+                    // Use unpaidAmount from paymentStatus which includes both unpaid services AND unpaid negotiations
+                    const unpaidAmount = paymentStatus?.unpaidAmount ?? 0;
+                    const unpaidServices = paymentStatus?.unpaidServices || [];
+                    const unpaidNegotiations =
+                      paymentStatus?.unpaidNegotiations || [];
+
+                    // Calculate unpaid amounts breakdown
+                    const unpaidServicesAmount = unpaidServices.reduce(
+                      (sum: number, service: any) => sum + (service.rate || 0),
+                      0,
+                    );
+                    const unpaidNegotiationsAmount = unpaidNegotiations.reduce(
+                      (sum: number, neg: any) => sum + (neg.totalAmount || 0),
+                      0,
+                    );
+
+                    // Use unpaidAmount if available (more accurate), otherwise fall back to calculation
+                    const additionalAmountNeeded =
+                      unpaidAmount > 0.01
+                        ? unpaidAmount
+                        : Math.max(0, currentTotal - paidAmount);
+
+                    const amountToPay =
+                      paymentCompleted && additionalAmountNeeded > 0
+                        ? additionalAmountNeeded
+                        : currentTotal;
+
+                    // Build complete list of rates from all sources
+                    const allRatesData: {
+                      rate: number;
+                      paymentType: string;
+                      otherSpecification?: string;
+                      source: string;
+                    }[] = [];
+
+                    // 1. Selected services from checkboxes
+                    if (candidateData?.rates) {
+                      Array.from(selectedRates).forEach((idx) => {
+                        allRatesData.push({
+                          ...candidateData.rates![idx],
+                          source: "selected",
+                        });
+                      });
+                    }
+
+                    // 2. Approved additional rate requests
+                    if (
+                      application.additionalRateRequests &&
+                      Array.isArray(application.additionalRateRequests)
+                    ) {
+                      const approvedRequests =
+                        application.additionalRateRequests.filter(
+                          (request: any) => request.status === "APPROVED",
+                        );
+                      approvedRequests.forEach((request: any) => {
+                        if (request.rates && Array.isArray(request.rates)) {
+                          request.rates.forEach((rate: any) => {
+                            allRatesData.push({
+                              ...rate,
+                              source: "approved",
+                            });
+                          });
+                        }
+                      });
+                    }
+
+                    // 3. Accepted negotiation rates (including accepted counter offers)
+                    if (
+                      application.negotiationRequests &&
+                      Array.isArray(application.negotiationRequests)
+                    ) {
+                      const acceptedNegotiations =
+                        application.negotiationRequests.filter(
+                          (request: any) => request.status === "ACCEPTED",
+                        );
+                      acceptedNegotiations.forEach((request: any) => {
+                        // If there's an accepted counter offer, use its rates instead
+                        const ratesToAdd =
+                          request.counterOffer &&
+                          request.counterOffer.status === "ACCEPTED"
+                            ? request.counterOffer.rates
+                            : request.rates;
+
+                        if (ratesToAdd && Array.isArray(ratesToAdd)) {
+                          ratesToAdd.forEach((rate: any) => {
+                            allRatesData.push({
+                              ...rate,
+                              source: "negotiation",
+                            });
+                          });
+                        }
+                      });
+                    }
+
+                    // If negotiations are partially paid, the backend may only provide an aggregate
+                    // (paidNegotiationAmount). For the Complete Payment modal, allocate that amount
+                    // across negotiation line-items so an unpaid remainder is clearly visible.
+                    const negotiationAllocation: Array<
+                      "PAID" | "UNPAID" | null
+                    > = new Array(allRatesData.length).fill(null);
+                    const paidNegotiationAmount =
+                      paymentStatus?.paidNegotiationAmount ?? 0;
+                    if (paidNegotiationAmount > 0.01) {
+                      let remaining = paidNegotiationAmount;
+                      allRatesData.forEach((r, i) => {
+                        if (r.source !== "negotiation") return;
+                        if (remaining >= (r.rate || 0) - 0.01) {
+                          negotiationAllocation[i] = "PAID";
+                          remaining -= r.rate || 0;
+                        } else {
+                          negotiationAllocation[i] = "UNPAID";
+                        }
+                      });
+                    }
+
+                    if (currentTotal > 0 && allRatesData.length > 0) {
+                      return (
+                        <View>
+                          {/* Selected Services Section */}
+                          <View
+                            style={[
+                              styles.paymentServicesCard,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(255, 250, 240, 0.06)"
+                                  : "#FFF8F0",
+                                borderColor: isDark
+                                  ? "rgba(201, 150, 63, 0.12)"
+                                  : "#F0E8D5",
+                              },
+                            ]}
+                          >
+                            <View style={styles.paymentSectionHeader}>
+                              <Feather
+                                name="check-circle"
+                                size={18}
+                                color={isDark ? "#9A8E7A" : "#8A7B68"}
+                              />
+                              <Text
+                                style={[
+                                  styles.paymentSectionTitle,
+                                  { color: colors.text },
+                                ]}
+                              >
+                                {t("applications.selectedServices")}
+                              </Text>
+                            </View>
+
+                            <View style={styles.paymentServicesList}>
+                              {allRatesData.map((rate, idx) => {
+                                const paymentTypeLabel =
+                                  rate.paymentType === "OTHER" &&
+                                  rate.otherSpecification
+                                    ? rate.otherSpecification
+                                    : rate.paymentType.charAt(0) +
+                                      rate.paymentType.slice(1).toLowerCase();
+                                const sourceLabel =
+                                  rate.source === "negotiation"
+                                    ? t("applications.negotiationAccepted")
+                                    : rate.source === "approved"
+                                      ? t("applications.approved")
+                                      : "";
+
+                                // Check if this service/negotiation is paid or unpaid
+                                const paymentStatus = application.paymentStatus;
+                                let isPaid: boolean | undefined = false;
+                                let isUnpaid = false;
+
+                                // Helper to match services (line-item level truth)
+                                const matchService = (
+                                  s1: any,
+                                  s2: any,
+                                ): boolean => {
+                                  return (
+                                    Math.abs(s1.rate - s2.rate) < 0.01 &&
+                                    s1.paymentType === s2.paymentType &&
+                                    (s1.otherSpecification || "") ===
+                                      (s2.otherSpecification || "")
+                                  );
+                                };
+
+                                const unpaidServices =
+                                  paymentStatus?.unpaidServices || [];
+                                const paidServices =
+                                  paymentStatus?.paidServices || [];
+
+                                const lineIsUnpaid = unpaidServices.some(
+                                  (u: any) => matchService(rate, u),
+                                );
+                                const lineIsPaid =
+                                  !lineIsUnpaid &&
+                                  paidServices.some((p: any) =>
+                                    matchService(rate, p),
+                                  );
+
+                                if (lineIsUnpaid) {
+                                  isUnpaid = true;
+                                } else if (lineIsPaid) {
+                                  isPaid = true;
+                                }
+
+                                if (rate.source === "negotiation") {
+                                  // Prefer allocation derived from paidNegotiationAmount for partial payments.
+                                  if (!isPaid && !isUnpaid) {
+                                    const alloc = negotiationAllocation[idx];
+                                    if (alloc === "PAID") isPaid = true;
+                                    if (alloc === "UNPAID") isUnpaid = true;
+                                  }
+
+                                  // If line-item lists didn't classify it, fall back to negotiation-level lists.
+                                  if (!isPaid && !isUnpaid) {
+                                    const unpaidNegotiations =
+                                      paymentStatus?.unpaidNegotiations || [];
+                                    const negotiationRequest =
+                                      application.negotiationRequests?.find(
+                                        (req: any) => {
+                                          const ratesToCheck =
+                                            req.counterOffer?.status ===
+                                            "ACCEPTED"
+                                              ? req.counterOffer.rates
+                                              : req.rates;
+                                          return ratesToCheck?.some(
+                                            (r: any) =>
+                                              Math.abs(r.rate - rate.rate) <
+                                                0.01 &&
+                                              r.paymentType ===
+                                                rate.paymentType,
+                                          );
+                                        },
+                                      );
+                                    if (negotiationRequest) {
+                                      isUnpaid = unpaidNegotiations.some(
+                                        (unpaid: any) =>
+                                          unpaid.id === negotiationRequest.id,
+                                      );
+                                      isPaid =
+                                        !isUnpaid &&
+                                        paymentStatus?.paidNegotiations?.some(
+                                          (paid: any) =>
+                                            paid.id === negotiationRequest.id,
+                                        );
+                                    }
+                                  }
+                                }
+
+                                // In this modal, avoid per-line paid/unpaid styling (it can be confusing
+                                // when totals show an unpaid remainder). The summary below is the source of truth.
+                                const textColor = colors.text;
+
+                                return (
+                                  <View
+                                    key={idx}
+                                    style={[
+                                      styles.paymentServiceItem,
+                                      {
+                                        borderBottomColor: isDark
+                                          ? "rgba(255, 250, 240, 0.06)"
+                                          : "#F0E8D5",
+                                      },
+                                      idx === allRatesData.length - 1 && {
+                                        borderBottomWidth: 0,
+                                      },
+                                    ]}
+                                  >
+                                    <View style={{ flex: 1 }}>
+                                      <Text
+                                        style={[
+                                          styles.paymentServiceRate,
+                                          { color: textColor },
+                                        ]}
+                                      >
+                                        €{rate.rate.toFixed(2)}/
+                                        {paymentTypeLabel}
+                                      </Text>
+                                      <View
+                                        style={{
+                                          flexDirection: "row",
+                                          gap: 4,
+                                          marginTop: 2,
+                                        }}
+                                      >
+                                        {sourceLabel && (
+                                          <Text
+                                            style={[
+                                              styles.paymentServiceLabel,
+                                              {
+                                                color: isDark
+                                                  ? "#9A8E7A"
+                                                  : "#8A7B68",
+                                              },
+                                            ]}
+                                          >
+                                            {sourceLabel}
+                                          </Text>
+                                        )}
+                                      </View>
+                                    </View>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          </View>
+
+                          {/* Payment Summary Section - Single Source of Truth */}
+                          <View
+                            style={[
+                              styles.paymentSummaryCard,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(201, 150, 63, 0.15)"
+                                  : "rgba(201, 150, 63, 0.08)",
+                                borderColor: isDark
+                                  ? "rgba(201, 150, 63, 0.3)"
+                                  : "rgba(201, 150, 63, 0.2)",
+                                marginTop: 16,
+                              },
+                            ]}
+                          >
+                            {/* Paid Amount - from paymentStatus (calculated from metadata) */}
+                            {paidAmount > 0 && (
+                              <View style={styles.paymentSummaryRow}>
+                                <Text
+                                  style={[
+                                    styles.paymentSummaryLabel,
+                                    { color: isDark ? "#B8A88A" : "#8A7B68" },
+                                  ]}
+                                >
+                                  {t("applications.paidAmount")}:
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.paymentSummaryValue,
+                                    { color: "#22c55e" },
+                                  ]}
+                                >
+                                  EUR {paidAmount.toFixed(2)}
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Unpaid Amount - from paymentStatus (calculated from metadata) */}
+                            {unpaidAmount > 0 && (
+                              <View style={styles.paymentSummaryRow}>
+                                <Text
+                                  style={[
+                                    styles.paymentSummaryLabel,
+                                    { color: isDark ? "#B8A88A" : "#8A7B68" },
+                                  ]}
+                                >
+                                  {t("applications.unpaidAmount")}:
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.paymentSummaryValue,
+                                    { color: isDark ? "#fbbf24" : "#d97706" },
+                                  ]}
+                                >
+                                  EUR {unpaidAmount.toFixed(2)}
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Total Amount */}
+                            <View
+                              style={[
+                                styles.paymentSummaryDivider,
+                                {
+                                  borderTopColor: isDark
+                                    ? "rgba(201, 150, 63, 0.12)"
+                                    : "rgba(184, 130, 42, 0.2)",
+                                  borderTopWidth: 1,
+                                  marginTop: 12,
+                                  paddingTop: 12,
+                                },
+                              ]}
+                            >
+                              <View style={styles.paymentSummaryRow}>
+                                <Text
+                                  style={[
+                                    styles.paymentSummaryLabel,
+                                    {
+                                      color: colors.text,
+                                      fontSize: 20,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  {t("applications.totalAmount")}:
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.paymentSummaryValue,
+                                    {
+                                      color: colors.tint,
+                                      fontSize: 20,
+                                      fontWeight: "700",
+                                    },
+                                  ]}
+                                >
+                                  EUR {currentTotal.toFixed(2)}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {/* Additional Payment Needed - calculated in this card */}
+                            {additionalAmountNeeded > 0.01 && (
+                              <View
+                                style={[
+                                  styles.paymentSummaryDivider,
+                                  {
+                                    borderTopColor: isDark
+                                      ? "rgba(201, 150, 63, 0.12)"
+                                      : "rgba(184, 130, 42, 0.2)",
                                     borderTopWidth: 1,
-                                    paddingTop: 8,
-                                    marginTop: 8,
+                                    marginTop: 12,
+                                    paddingTop: 12,
+                                    paddingHorizontal: 0,
                                   },
                                 ]}
                               >
@@ -3058,4894 +6350,1815 @@ export default function ApplicantDetailScreen() {
                                       },
                                     ]}
                                   >
-                                    {application.currency?.toUpperCase() ||
-                                      "EUR"}{" "}
-                                    {additionalAmountNeeded.toFixed(2)}
+                                    EUR {additionalAmountNeeded.toFixed(2)}
                                   </Text>
                                 </View>
                               </View>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </>
-                    );
-                  })()}
+                            )}
+                          </View>
 
-                  {/* Payment Action Button - Single Source of Truth for Payment */}
-                  {(() => {
-                    const paymentStatus = application?.paymentStatus;
-                    const paidAmount = paymentStatus?.paidAmount ?? 0;
-                    const unpaidAmount = paymentStatus?.unpaidAmount ?? 0;
-                    const paymentCompleted = paymentStatus?.completed ?? false;
-
-                    // Calculate additional amount needed - this is the source of truth
-                    const additionalAmountNeeded =
-                      unpaidAmount > 0.01
-                        ? unpaidAmount
-                        : Math.max(0, totalAmount - paidAmount);
-
-                    // Show pay button if there's an unpaid amount
-                    if (additionalAmountNeeded > 0.01) {
-                      return (
-                        <View
-                          style={{
-                            marginTop: 16,
-                            paddingTop: 16,
-                            borderTopWidth: 1,
-                            borderTopColor: isDark
-                              ? "rgba(201,150,63,0.12)"
-                              : "rgba(184,130,42,0.2)",
-                          }}
-                        >
-                          <TouchableButton
+                          {/* Payment Info Note */}
+                          <View
                             style={[
+                              styles.paymentInfoNoteBox,
                               {
-                                // In dark theme, `colors.tint` is white; keep CTA readable by using the primary tint.
-                                backgroundColor: Colors.light.tint,
-                                paddingVertical: 14,
-                                paddingHorizontal: 20,
-                                borderRadius: 8,
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 8,
+                                backgroundColor: isDark
+                                  ? "rgba(201, 150, 63, 0.1)"
+                                  : "rgba(201, 150, 63, 0.05)",
+                                marginTop: 16,
                               },
                             ]}
-                            onPress={() => setShowPaymentModal(true)}
                           >
-                            <Feather
-                              name="credit-card"
-                              size={18}
-                              color="#FFFAF0"
-                            />
-                            <Text
+                            <View
                               style={{
-                                color: "#FFFAF0",
-                                fontSize: 16,
-                                fontWeight: "700",
+                                flexDirection: "row",
+                                alignItems: "flex-start",
+                                gap: 8,
                               }}
                             >
-                              {paymentCompleted
-                                ? t("applications.payAdditional")
-                                : t("applications.proceedToPayment")}
-                            </Text>
-                          </TouchableButton>
-                        </View>
-                      );
-                    }
-
-                    // Show success message ONLY if everything is truly paid
-                    // Check: no unpaid amount, no unpaid services, no unpaid negotiations
-                    const unpaidServices = paymentStatus?.unpaidServices || [];
-                    const unpaidNegotiations =
-                      paymentStatus?.unpaidNegotiations || [];
-                    const hasUnpaidItems =
-                      unpaidServices.length > 0 ||
-                      unpaidNegotiations.length > 0;
-
-                    // Only show "All services are paid" if:
-                    // 1. There's a paid amount
-                    // 2. No additional amount needed
-                    // 3. No unpaid services
-                    // 4. No unpaid negotiations
-                    if (
-                      paidAmount > 0 &&
-                      additionalAmountNeeded <= 0.01 &&
-                      !hasUnpaidItems
-                    ) {
-                      return (
-                        <View
-                          style={{
-                            marginTop: 16,
-                            paddingTop: 16,
-                            borderTopWidth: 1,
-                            borderTopColor: isDark
-                              ? "rgba(201,150,63,0.12)"
-                              : "rgba(184,130,42,0.2)",
-                          }}
-                        >
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 8,
-                              padding: 12,
-                              backgroundColor: isDark
-                                ? "rgba(34, 197, 94, 0.1)"
-                                : "rgba(34, 197, 94, 0.05)",
-                              borderRadius: 8,
-                              borderWidth: 1,
-                              borderColor: isDark
-                                ? "rgba(34, 197, 94, 0.3)"
-                                : "rgba(34, 197, 94, 0.2)",
-                            }}
-                          >
-                            <Feather
-                              name="check-circle"
-                              size={18}
-                              color="#22c55e"
-                            />
-                            <Text
-                              style={{
-                                color: "#22c55e",
-                                fontSize: 14,
-                                fontWeight: "500",
-                              }}
-                            >
-                              {t("applications.allServicesPaid")}
-                            </Text>
+                              <Feather
+                                name="info"
+                                size={16}
+                                color={isDark ? "#E8B86D" : "#C9963F"}
+                                style={{ marginTop: 2 }}
+                              />
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={[
+                                    styles.paymentInfoNoteText,
+                                    {
+                                      color: isDark ? "#E8B86D" : "#A67A25",
+                                      fontSize: 13,
+                                      lineHeight: 18,
+                                    },
+                                  ]}
+                                >
+                                  {t("applications.paymentHeldPlatformFeeNote")}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
                         </View>
                       );
                     }
-
-                    return null;
-                  })()}
-                </View>
-              );
-            })()}
-
-            {/* Card Footer */}
-            <View
-              style={[
-                styles.cardFooter,
-                {
-                  borderTopColor: isDark
-                    ? "rgba(201,150,63,0.12)"
-                    : "rgba(184,130,42,0.06)",
-                },
-              ]}
-            >
-              <Text style={[styles.cta, { color: colors.tint }]}>
-                {t("applications.viewFullProfile")} →
-              </Text>
-            </View>
-          </TouchableButton>
-
-          {/* Suggest Negotiation Button */}
-          {application && !application.completedAt && (
-            <TouchableButton
-              style={[
-                styles.card,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.90)"
-                    : "rgba(255,250,240,0.92)",
-                  borderColor: isDark
-                    ? "rgba(255,250,240,0.12)"
-                    : "rgba(184,130,42,0.2)",
-                },
-              ]}
-              onPress={() => setShowNegotiationModal(true)}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
-              >
-                <Text style={{ color: colors.tint, fontSize: 20 }}>€</Text>
-                <Text style={[styles.sectionTitle, { color: colors.tint }]}>
-                  {t("applications.suggestNegotiation")}
-                </Text>
-              </View>
-              <Text
-                style={[
-                  styles.paymentSubtitle,
-                  { color: isDark ? "#9A8E7A" : "#8A7B68", marginTop: 8 },
-                ]}
-              >
-                {t("applications.proposeDifferentRate")}
-              </Text>
-            </TouchableButton>
-          )}
-
-          {/* Application Details */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: isDark
-                  ? "rgba(12, 22, 42, 0.90)"
-                  : "rgba(255,250,240,0.92)",
-                borderColor: isDark
-                  ? "rgba(255,250,240,0.12)"
-                  : "rgba(184,130,42,0.2)",
-              },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              {t("applications.applicationDetails")}
-            </Text>
-            <View style={styles.infoRow}>
-              <Text
-                style={[
-                  styles.label,
-                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                ]}
-              >
-                {t("applications.jobTitle")}:
-              </Text>
-              <Text style={[styles.value, { color: colors.text }]}>
-                {application.job.title}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text
-                style={[
-                  styles.label,
-                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                ]}
-              >
-                {t("applications.applied")}:
-              </Text>
-              <Text style={[styles.value, { color: colors.text }]}>
-                {new Date(application.appliedAt).toLocaleDateString()} at{" "}
-                {new Date(application.appliedAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text
-                style={[
-                  styles.label,
-                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                ]}
-              >
-                {t("applications.status")}:
-              </Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor:
-                      application.status === "ACCEPTED"
-                        ? "#22c55e20"
-                        : application.status === "REJECTED"
-                          ? "#ef444420"
-                          : "#f59e0b20",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusText,
-                    {
-                      color:
-                        application.status === "ACCEPTED"
-                          ? "#22c55e"
-                          : application.status === "REJECTED"
-                            ? "#ef4444"
-                            : "#f59e0b",
-                    },
-                  ]}
-                >
-                  {application.status === "ACCEPTED"
-                    ? t("applications.statusAccepted")
-                    : application.status === "REJECTED"
-                      ? t("applications.statusRejected")
-                      : application.status === "PENDING"
-                        ? t("applications.statusPending")
-                        : application.status}
-                </Text>
-              </View>
-            </View>
-
-            {/* Service Verification Code - Show inside Application Details when ACCEPTED */}
-            {application.status === "ACCEPTED" &&
-              ((application.verificationCodeVisible ??
-                !!application.verificationCode) ||
-                !!application.verificationCodeMessage) && (
-                <View
-                  style={{
-                    marginTop: 24,
-                    paddingTop: 24,
-                    borderTopWidth: 1,
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                      gap: 8,
-                    }}
-                  >
-                    <Feather
-                      name="key"
-                      size={16}
-                      color={isDark ? "#E8B86D" : "#A67A25"}
-                    />
-                    <Text
-                      style={[
-                        styles.label,
-                        {
-                          color: isDark ? "#9A8E7A" : "#8A7B68",
-                          marginBottom: 0,
-                        },
-                      ]}
-                    >
-                      {t("applications.serviceVerificationCode")}:
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.15)"
-                        : "rgba(201, 150, 63, 0.08)",
-                      borderWidth: 1,
-                      borderColor: isDark
-                        ? "rgba(201, 150, 63, 0.3)"
-                        : "rgba(201, 150, 63, 0.2)",
-                      borderRadius: 4,
-                      padding: 20,
-                      marginTop: 12,
-                      alignItems: "center",
-                    }}
-                  >
-                    {application.verificationCodeMessage ? (
+                    return (
                       <View
-                        style={{
-                          width: "100%",
-                          backgroundColor: isDark
-                            ? "rgba(251, 191, 36, 0.1)"
-                            : "rgba(251, 191, 36, 0.08)",
-                          borderColor: isDark
-                            ? "rgba(251, 191, 36, 0.3)"
-                            : "rgba(251, 191, 36, 0.4)",
-                          borderWidth: 1,
-                          borderRadius: 8,
-                          padding: 12,
-                          marginBottom: 12,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: isDark ? "#fbbf24" : "#d97706",
-                            fontSize: 13,
-                            lineHeight: 18,
-                            textAlign: "left",
-                          }}
-                        >
-                          ⚠️ {application.verificationCodeMessage}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={{
-                          color: isDark ? "#c4b5fd" : "#4c1d95",
-                          fontSize: 12,
-                          textAlign: "center",
-                          lineHeight: 18,
-                          marginBottom: 16,
-                        }}
-                      >
-                        {t("applications.shareCodeWithProvider")}
-                      </Text>
-                    )}
-                    {application.verificationCode ? (
-                      <View
-                        style={{
-                          backgroundColor: isDark ? "#1e1b4b" : "#FFFAF0",
-                          paddingVertical: 16,
-                          paddingHorizontal: 32,
-                          borderRadius: 4,
-                          borderWidth: 2,
-                          borderColor: isDark ? "#C9963F" : "#C9963F",
-                          minWidth: 140,
-                          alignItems: "center",
-                          shadowColor: "#C9963F",
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 8,
-                          elevation: 0,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: isDark ? "#F0E8D5" : "#A67A25",
-                            fontSize: 36,
-                            fontWeight: "700",
-                            letterSpacing: 8,
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          {application.verificationCode}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View
-                        style={{
-                          backgroundColor: isDark ? "#1e1b4b" : "#FFFAF0",
-                          paddingVertical: 16,
-                          paddingHorizontal: 32,
-                          borderRadius: 4,
-                          borderWidth: 2,
-                          borderColor: isDark ? "#C9963F" : "#C9963F",
-                          minWidth: 140,
-                          alignItems: "center",
-                        }}
+                        style={[
+                          styles.paymentInfoBox,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(251, 191, 36, 0.1)"
+                              : "#fef3c7",
+                            borderColor: isDark
+                              ? "rgba(251, 191, 36, 0.3)"
+                              : "#fbbf24",
+                          },
+                        ]}
                       >
                         <View
                           style={{
                             flexDirection: "row",
-                            alignItems: "center",
+                            alignItems: "flex-start",
                             gap: 8,
                           }}
                         >
                           <Feather
-                            name="lock"
+                            name="alert-circle"
                             size={18}
-                            color={isDark ? "#F0E8D5" : "#A67A25"}
+                            color={isDark ? "#fbbf24" : "#ca8a04"}
+                            style={{ marginTop: 2 }}
                           />
                           <Text
-                            style={{
-                              color: isDark ? "#F0E8D5" : "#A67A25",
-                              fontSize: 16,
-                              fontWeight: "700",
-                            }}
-                          >
-                            {t("applications.locked")}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                    {application.verificationCodeVerifiedAt && (
-                      <Text
-                        style={{
-                          color: isDark ? "#E8B86D" : "#A67A25",
-                          fontSize: 11,
-                          marginTop: 16,
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {t("applications.verified")}:{" "}
-                        {new Date(
-                          application.verificationCodeVerifiedAt,
-                        ).toLocaleDateString()}{" "}
-                        at{" "}
-                        {new Date(
-                          application.verificationCodeVerifiedAt,
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              )}
-
-            {application.coverLetter && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  {t("applications.coverLetter")}
-                </Text>
-                <Text
-                  style={[
-                    styles.coverLetterText,
-                    { color: isDark ? "#B8A88A" : "#6B6355" },
-                  ]}
-                >
-                  {application.coverLetter}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Tracking Timeline */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: isDark
-                  ? "rgba(12, 22, 42, 0.90)"
-                  : "rgba(255,250,240,0.92)",
-                borderColor: isDark
-                  ? "rgba(255,250,240,0.12)"
-                  : "rgba(184,130,42,0.2)",
-              },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              {t("tracking.title") || "Tracking Timeline"}
-            </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                color: isDark ? "#9A8E7A" : "#8A7B68",
-                marginBottom: 16,
-              }}
-            >
-              {t("tracking.subtitle") ||
-                "Follow the progress of this application"}
-            </Text>
-            <TrackingTimeline
-              steps={buildEmployerTimeline(application, t)}
-              isDark={isDark}
-              colors={colors}
-            />
-          </View>
-
-          {/* Additional Rate Requests */}
-          {application.additionalRateRequests &&
-            Array.isArray(application.additionalRateRequests) &&
-            application.additionalRateRequests.length > 0 && (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: colors.text, marginBottom: 12 },
-                  ]}
-                >
-                  {t("applications.additionalRateRequests")}
-                </Text>
-                {(application.additionalRateRequests as any[]).map(
-                  (request: any, idx: number) => {
-                    const isPending = request.status === "PENDING";
-                    return (
-                      <View
-                        key={request.id || idx}
-                        style={[
-                          styles.requestCard,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(255,250,240,0.06)"
-                              : "rgba(0,0,0,0.02)",
-                            borderColor: isDark
-                              ? "rgba(201,150,63,0.12)"
-                              : "rgba(184,130,42,0.2)",
-                            marginBottom:
-                              idx <
-                              (application.additionalRateRequests as any[])
-                                .length -
-                                1
-                                ? 12
-                                : 0,
-                          },
-                        ]}
-                      >
-                        <View style={styles.requestHeader}>
-                          <View
                             style={[
-                              styles.requestStatusBadge,
+                              styles.paymentInfoNote,
                               {
-                                backgroundColor:
-                                  request.status === "APPROVED"
-                                    ? "#22c55e20"
-                                    : request.status === "REJECTED"
-                                      ? "#ef444420"
-                                      : "#f59e0b20",
+                                color: isDark ? "#fbbf24" : "#92400e",
+                                flex: 1,
                               },
                             ]}
                           >
-                            <Text
-                              style={[
-                                styles.requestStatusText,
-                                {
-                                  color:
-                                    request.status === "APPROVED"
-                                      ? "#22c55e"
-                                      : request.status === "REJECTED"
-                                        ? "#ef4444"
-                                        : "#f59e0b",
-                                },
-                              ]}
-                            >
-                              {request.status === "APPROVED"
-                                ? `✓ ${t("applications.approved")}`
-                                : request.status === "REJECTED"
-                                  ? `✗ ${t("applications.statusRejected")}`
-                                  : `⏳ ${t("applications.statusPending")}`}
-                            </Text>
-                          </View>
-                          <Text
-                            style={[
-                              styles.requestDate,
-                              { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                            ]}
-                          >
-                            {new Date(request.requestedAt).toLocaleDateString()}
+                            Please select at least one service from the
+                            candidate&apos;s rates, approve additional rate
+                            requests, or have an accepted negotiation to proceed
+                            with payment.
                           </Text>
                         </View>
-                        {request.rates &&
-                          Array.isArray(request.rates) &&
-                          request.rates.map((rate: any, rateIdx: number) => {
-                            const paymentTypeLabel =
-                              rate.paymentType === "OTHER" &&
-                              rate.otherSpecification
-                                ? rate.otherSpecification
-                                : rate.paymentType.charAt(0) +
-                                  rate.paymentType.slice(1).toLowerCase();
-                            return (
-                              <Text
-                                key={rateIdx}
-                                style={[
-                                  styles.requestRate,
-                                  { color: colors.text },
-                                ]}
-                              >
-                                €{rate.rate}/{paymentTypeLabel}
-                              </Text>
-                            );
-                          })}
-                        <Text
-                          style={[styles.requestTotal, { color: colors.text }]}
-                        >
-                          {t("applications.total")}: EUR{" "}
-                          {request.totalAmount?.toFixed(2) || "0.00"}
-                        </Text>
-                        {request.message && (
-                          <Text
-                            style={[
-                              styles.requestMessage,
-                              { color: isDark ? "#B8A88A" : "#6B6355" },
-                            ]}
-                          >
-                            {request.message}
-                          </Text>
-                        )}
-                        {request.responseMessage && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(255,250,240,0.06)"
-                                  : "rgba(0,0,0,0.02)",
-                                marginTop: 12,
-                                padding: 10,
-                                borderRadius: 8,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                              ]}
-                            >
-                              {t("applications.yourResponse")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {request.responseMessage}
-                            </Text>
-                          </View>
-                        )}
-                        {isPending && !application?.completedAt && (
-                          <View style={styles.requestActions}>
-                            <TouchableButton
-                              style={[
-                                styles.respondButton,
-                                styles.rejectButton,
-                                {
-                                  backgroundColor: isDark
-                                    ? "rgba(239, 68, 68, 0.2)"
-                                    : "rgba(239, 68, 68, 0.1)",
-                                  borderColor: isDark
-                                    ? "rgba(239, 68, 68, 0.4)"
-                                    : "rgba(239, 68, 68, 0.3)",
-                                },
-                              ]}
-                              onPress={() => {
-                                setSelectedRequestId(request.id);
-                                setSelectedRequestStatus("REJECTED");
-                                setRespondMessage("");
-                                setShowRespondModal(true);
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.respondButtonText,
-                                  { color: "#ef4444" },
-                                ]}
-                              >
-                                {t("applications.reject")}
-                              </Text>
-                            </TouchableButton>
-                            <TouchableButton
-                              style={[
-                                styles.respondButton,
-                                styles.approveButton,
-                                {
-                                  backgroundColor: isDark
-                                    ? "#22c55e"
-                                    : "#22c55e",
-                                  borderColor: isDark ? "#22c55e" : "#22c55e",
-                                },
-                              ]}
-                              onPress={() => {
-                                setSelectedRequestId(request.id);
-                                setSelectedRequestStatus("APPROVED");
-                                setRespondMessage("");
-                                setShowRespondModal(true);
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.respondButtonText,
-                                  { color: "#FFFAF0" },
-                                ]}
-                              >
-                                {t("applications.approve")}
-                              </Text>
-                            </TouchableButton>
-                          </View>
-                        )}
                       </View>
                     );
-                  },
-                )}
-              </View>
-            )}
+                  })()}
+                </ScrollView>
 
-          {/* Negotiation Requests from Service Provider (Employer can respond) */}
-          {application.negotiationRequests &&
-            Array.isArray(application.negotiationRequests) &&
-            application.negotiationRequests.filter(
-              (req: any) => req.suggestedByRole === "JOB_SEEKER",
-            ).length > 0 && (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: colors.text, marginBottom: 12 },
-                  ]}
-                >
-                  {t("applications.negotiationRequests")}
-                </Text>
-                <Text
-                  style={[
-                    styles.paymentSubtitle,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68", marginBottom: 16 },
-                  ]}
-                >
-                  {t("applications.providerRequestedRates")}
-                </Text>
-                {application.negotiationRequests
-                  .filter((req: any) => req.suggestedByRole === "JOB_SEEKER")
-                  .map((request: any, idx: number, arr: any[]) => {
-                    const isAccepted = request.status === "ACCEPTED";
-                    const isRejected = request.status === "REJECTED";
-                    const hasCounterOffer =
-                      request.status === "COUNTER_OFFERED" &&
-                      request.counterOffer;
-                    const isPending = request.status === "PENDING";
-                    return (
-                      <View
-                        key={request.id || idx}
-                        style={[
-                          styles.requestCard,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(255,250,240,0.06)"
-                              : "rgba(0,0,0,0.02)",
-                            borderColor: isAccepted
-                              ? "#22c55e"
-                              : isRejected
-                                ? "#ef4444"
-                                : hasCounterOffer
-                                  ? "#C9963F"
-                                  : isDark
-                                    ? "rgba(201,150,63,0.12)"
-                                    : "rgba(184,130,42,0.2)",
-                            marginBottom: idx < arr.length - 1 ? 12 : 0,
-                          },
-                        ]}
-                      >
-                        <View style={styles.requestHeader}>
-                          <Text
-                            style={[
-                              styles.requestStatusText,
-                              {
-                                color: isAccepted
-                                  ? "#22c55e"
-                                  : isRejected
-                                    ? "#ef4444"
-                                    : hasCounterOffer
-                                      ? "#C9963F"
-                                      : "#f59e0b",
-                              },
-                            ]}
-                          >
-                            {isAccepted
-                              ? `✓ ${t("applications.statusAccepted")}`
-                              : isRejected
-                                ? `✗ ${t("applications.statusRejected")}`
-                                : hasCounterOffer
-                                  ? `💬 ${t("applications.counterOfferSentTitle")}`
-                                  : `⏳ ${t("applications.statusPending")}`}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.requestDate,
-                              { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                            ]}
-                          >
-                            {new Date(request.suggestedAt).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        {request.rates &&
-                          Array.isArray(request.rates) &&
-                          request.rates.map((rate: any, rateIdx: number) => {
-                            const paymentTypeLabel =
-                              rate.paymentType === "OTHER" &&
-                              rate.otherSpecification
-                                ? rate.otherSpecification
-                                : rate.paymentType.charAt(0) +
-                                  rate.paymentType.slice(1).toLowerCase();
-                            return (
-                              <Text
-                                key={rateIdx}
-                                style={[
-                                  styles.requestRate,
-                                  { color: colors.text },
-                                ]}
-                              >
-                                €{rate.rate}/{paymentTypeLabel}
-                              </Text>
-                            );
-                          })}
-                        <Text
-                          style={[styles.requestTotal, { color: colors.text }]}
-                        >
-                          {t("applications.total")}: EUR{" "}
-                          {request.totalAmount?.toFixed(2) || "0.00"}
-                        </Text>
-                        {request.message && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(255,250,240,0.06)"
-                                  : "rgba(0,0,0,0.02)",
-                                marginTop: 12,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                              ]}
-                            >
-                              {t("applications.providerExplanation")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {request.message}
-                            </Text>
-                          </View>
-                        )}
-                        {request.responseMessage && !hasCounterOffer && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(255,250,240,0.06)"
-                                  : "rgba(0,0,0,0.02)",
-                                marginTop: 12,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                              ]}
-                            >
-                              {t("applications.yourResponse")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {request.responseMessage}
-                            </Text>
-                          </View>
-                        )}
-                        {hasCounterOffer && request.counterOffer && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(201, 150, 63, 0.1)"
-                                  : "rgba(201, 150, 63, 0.05)",
-                                marginTop: 12,
-                                borderLeftWidth: 3,
-                                borderLeftColor: "#C9963F",
-                                paddingLeft: 12,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: "#C9963F", fontWeight: "700" },
-                              ]}
-                            >
-                              {t("applications.yourCounterOffer")}:
-                            </Text>
-                            {request.counterOffer.rates &&
-                              Array.isArray(request.counterOffer.rates) &&
-                              request.counterOffer.rates.map(
-                                (rate: any, rateIdx: number) => {
-                                  const paymentTypeLabel =
-                                    rate.paymentType === "OTHER" &&
-                                    rate.otherSpecification
-                                      ? rate.otherSpecification
-                                      : rate.paymentType === "HOURLY"
-                                        ? t("applications.hourly")
-                                        : rate.paymentType === "HOUR"
-                                          ? t("applications.hourly")
-                                          : rate.paymentType === "DAILY"
-                                            ? t("applications.daily")
-                                            : rate.paymentType === "WEEKLY"
-                                              ? t("applications.weekly")
-                                              : rate.paymentType === "MONTHLY"
-                                                ? t("applications.monthly")
-                                                : rate.paymentType === "PROJECT"
-                                                  ? t("applications.project")
-                                                  : rate.paymentType === "OTHER"
-                                                    ? t("onboarding.other")
-                                                    : rate.paymentType.charAt(
-                                                        0,
-                                                      ) +
-                                                      rate.paymentType
-                                                        .slice(1)
-                                                        .toLowerCase();
-                                  return (
-                                    <Text
-                                      key={rateIdx}
-                                      style={[
-                                        styles.requestRate,
-                                        { color: colors.text, marginTop: 4 },
-                                      ]}
-                                    >
-                                      €{rate.rate}/{paymentTypeLabel}
-                                    </Text>
-                                  );
-                                },
-                              )}
-                            <Text
-                              style={[
-                                styles.requestTotal,
-                                { color: colors.text, marginTop: 4 },
-                              ]}
-                            >
-                              {t("applications.total")}:{" "}
-                              {application.currency?.toUpperCase() || "EUR"}{" "}
-                              {request.counterOffer.totalAmount?.toFixed(2) ||
-                                "0.00"}
-                            </Text>
-                            {request.counterOffer.message && (
-                              <Text
-                                style={[
-                                  styles.responseText,
-                                  {
-                                    color: isDark ? "#B8A88A" : "#6B6355",
-                                    marginTop: 8,
-                                  },
-                                ]}
-                              >
-                                {request.counterOffer.message}
-                              </Text>
-                            )}
-                            {request.counterOffer.status === "PENDING" && (
-                              <Text
-                                style={[
-                                  styles.responseLabel,
-                                  {
-                                    color: "#f59e0b",
-                                    marginTop: 8,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                ⏳{" "}
-                                {t("applications.waitingForProviderResponse")}
-                              </Text>
-                            )}
-                            {request.counterOffer.status === "ACCEPTED" && (
-                              <Text
-                                style={[
-                                  styles.responseLabel,
-                                  {
-                                    color: "#22c55e",
-                                    marginTop: 8,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                ✓ {t("applications.counterOfferAcceptedTitle")}
-                              </Text>
-                            )}
-                            {request.counterOffer.status === "REJECTED" && (
-                              <Text
-                                style={[
-                                  styles.responseLabel,
-                                  {
-                                    color: "#ef4444",
-                                    marginTop: 8,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                ✗ {t("applications.counterOfferRejectedTitle")}
-                              </Text>
-                            )}
-                          </View>
-                        )}
-                        {isPending && (
-                          <View style={{ marginTop: 12 }}>
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                gap: 8,
-                                marginBottom: 8,
-                              }}
-                            >
-                              <TouchableButton
-                                style={{
-                                  flex: 1,
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  backgroundColor: "#22c55e",
-                                  alignItems: "center",
-                                }}
-                                onPress={() => {
-                                  setSelectedEmployerNegotiationId(request.id);
-                                  setSelectedEmployerNegotiationStatus(
-                                    "ACCEPTED",
-                                  );
-                                  setEmployerNegotiationResponseMessage("");
-                                  setShowEmployerNegotiationRespondModal(true);
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    color: "#FFFAF0",
-                                    fontWeight: "700",
-                                  }}
-                                >
-                                  {t("applications.accept")}
-                                </Text>
-                              </TouchableButton>
-                              <TouchableButton
-                                style={{
-                                  flex: 1,
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  backgroundColor: "#ef4444",
-                                  alignItems: "center",
-                                }}
-                                onPress={() => {
-                                  setSelectedEmployerNegotiationId(request.id);
-                                  setSelectedEmployerNegotiationStatus(
-                                    "REJECTED",
-                                  );
-                                  setEmployerNegotiationResponseMessage("");
-                                  setShowEmployerNegotiationRespondModal(true);
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    color: "#FFFAF0",
-                                    fontWeight: "700",
-                                  }}
-                                >
-                                  {t("applications.reject")}
-                                </Text>
-                              </TouchableButton>
-                            </View>
-                            <TouchableButton
-                              style={{
-                                padding: 12,
-                                borderRadius: 8,
-                                backgroundColor: isDark ? "#C9963F" : "#C9963F",
-                                alignItems: "center",
-                                borderWidth: 1,
-                                borderColor: "#C9963F",
-                              }}
-                              onPress={() => {
-                                setSelectedEmployerNegotiationId(request.id);
-                                setEmployerCounterOfferRates([
-                                  { rate: "", paymentType: "HOURLY" },
-                                ]);
-                                setEmployerCounterOfferMessage("");
-                                setShowEmployerCounterOfferModal(true);
-                              }}
-                            >
-                              <Text
-                                style={{ color: "#FFFAF0", fontWeight: "700" }}
-                              >
-                                {t("applications.requestDifferentRate")}
-                              </Text>
-                            </TouchableButton>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-              </View>
-            )}
-
-          {/* Negotiation Suggestions from Employer (Read-only, show service provider response) */}
-          {application.negotiationRequests &&
-            Array.isArray(application.negotiationRequests) &&
-            application.negotiationRequests.filter(
-              (req: any) => req.suggestedByRole === "EMPLOYER",
-            ).length > 0 && (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: colors.text, marginBottom: 12 },
-                  ]}
-                >
-                  {t("applications.negotiationSuggestions")}
-                </Text>
-                <Text
-                  style={[
-                    styles.paymentSubtitle,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68", marginBottom: 16 },
-                  ]}
-                >
-                  {t("applications.yourNegotiationSuggestions")}
-                </Text>
-                {application.negotiationRequests
-                  .filter((req: any) => req.suggestedByRole === "EMPLOYER")
-                  .map((request: any, idx: number, arr: any[]) => {
-                    const isAccepted = request.status === "ACCEPTED";
-                    const isRejected = request.status === "REJECTED";
-                    const hasCounterOffer =
-                      request.status === "COUNTER_OFFERED" &&
-                      request.counterOffer;
-                    return (
-                      <View
-                        key={request.id || idx}
-                        style={[
-                          styles.requestCard,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(255,250,240,0.06)"
-                              : "rgba(0,0,0,0.02)",
-                            borderColor: isAccepted
-                              ? "#22c55e"
-                              : isRejected
-                                ? "#ef4444"
-                                : hasCounterOffer
-                                  ? "#C9963F"
-                                  : isDark
-                                    ? "rgba(201,150,63,0.12)"
-                                    : "rgba(184,130,42,0.2)",
-                            marginBottom: idx < arr.length - 1 ? 12 : 0,
-                          },
-                        ]}
-                      >
-                        <View style={styles.requestHeader}>
-                          <Text
-                            style={[
-                              styles.requestStatusText,
-                              {
-                                color: isAccepted
-                                  ? "#22c55e"
-                                  : isRejected
-                                    ? "#ef4444"
-                                    : hasCounterOffer
-                                      ? "#C9963F"
-                                      : "#f59e0b",
-                              },
-                            ]}
-                          >
-                            {isAccepted
-                              ? `✓ ${t("applications.accepted")}`
-                              : isRejected
-                                ? `✗ ${t("applications.rejected")}`
-                                : hasCounterOffer
-                                  ? `💬 ${t("applications.counterOfferReceived")}`
-                                  : `⏳ ${t("applications.pendingResponse")}`}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.requestDate,
-                              { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                            ]}
-                          >
-                            {new Date(request.suggestedAt).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        {request.rates &&
-                          Array.isArray(request.rates) &&
-                          request.rates.map((rate: any, rateIdx: number) => {
-                            const paymentTypeLabel =
-                              rate.paymentType === "OTHER" &&
-                              rate.otherSpecification
-                                ? rate.otherSpecification
-                                : rate.paymentType === "HOURLY"
-                                  ? t("applications.hourly")
-                                  : rate.paymentType === "HOUR"
-                                    ? t("applications.hourly")
-                                    : rate.paymentType === "DAILY"
-                                      ? t("applications.daily")
-                                      : rate.paymentType === "WEEKLY"
-                                        ? t("applications.weekly")
-                                        : rate.paymentType === "MONTHLY"
-                                          ? t("applications.monthly")
-                                          : rate.paymentType === "PROJECT"
-                                            ? t("applications.project")
-                                            : rate.paymentType === "OTHER"
-                                              ? t("onboarding.other")
-                                              : rate.paymentType.charAt(0) +
-                                                rate.paymentType
-                                                  .slice(1)
-                                                  .toLowerCase();
-                            return (
-                              <Text
-                                key={rateIdx}
-                                style={[
-                                  styles.requestRate,
-                                  { color: colors.text },
-                                ]}
-                              >
-                                €{rate.rate}/{paymentTypeLabel}
-                              </Text>
-                            );
-                          })}
-                        <Text
-                          style={[styles.requestTotal, { color: colors.text }]}
-                        >
-                          {t("applications.total")}:{" "}
-                          {application.currency?.toUpperCase() || "EUR"}{" "}
-                          {request.totalAmount?.toFixed(2) || "0.00"}
-                        </Text>
-                        {request.message && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(255,250,240,0.06)"
-                                  : "rgba(0,0,0,0.02)",
-                                marginTop: 12,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                              ]}
-                            >
-                              {t("applications.yourExplanation")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {request.message}
-                            </Text>
-                          </View>
-                        )}
-                        {request.responseMessage && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(255,250,240,0.06)"
-                                  : "rgba(0,0,0,0.02)",
-                                marginTop: 12,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                              ]}
-                            >
-                              Service Provider Response:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {request.responseMessage}
-                            </Text>
-                          </View>
-                        )}
-                        {hasCounterOffer && request.counterOffer && (
-                          <View
-                            style={[
-                              styles.responseMessage,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(201, 150, 63, 0.1)"
-                                  : "rgba(201, 150, 63, 0.05)",
-                                marginTop: 12,
-                                borderLeftWidth: 3,
-                                borderLeftColor: "#C9963F",
-                                paddingLeft: 12,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: "#C9963F", fontWeight: "700" },
-                              ]}
-                            >
-                              {t("applications.counterOffer")}:
-                            </Text>
-                            {request.counterOffer.rates &&
-                              Array.isArray(request.counterOffer.rates) &&
-                              request.counterOffer.rates.map(
-                                (rate: any, rateIdx: number) => {
-                                  const paymentTypeLabel =
-                                    rate.paymentType === "OTHER" &&
-                                    rate.otherSpecification
-                                      ? rate.otherSpecification
-                                      : rate.paymentType.charAt(0) +
-                                        rate.paymentType.slice(1).toLowerCase();
-                                  return (
-                                    <Text
-                                      key={rateIdx}
-                                      style={[
-                                        styles.requestRate,
-                                        { color: colors.text, marginTop: 4 },
-                                      ]}
-                                    >
-                                      €{rate.rate}/{paymentTypeLabel}
-                                    </Text>
-                                  );
-                                },
-                              )}
-                            <Text
-                              style={[
-                                styles.requestTotal,
-                                { color: colors.text, marginTop: 4 },
-                              ]}
-                            >
-                              {t("applications.total")}:{" "}
-                              {application.currency?.toUpperCase() || "EUR"}{" "}
-                              {request.counterOffer.totalAmount?.toFixed(2) ||
-                                "0.00"}
-                            </Text>
-                            {request.counterOffer.message && (
-                              <Text
-                                style={[
-                                  styles.responseText,
-                                  {
-                                    color: isDark ? "#B8A88A" : "#6B6355",
-                                    marginTop: 8,
-                                  },
-                                ]}
-                              >
-                                {request.counterOffer.message}
-                              </Text>
-                            )}
-                            {request.counterOffer.status === "PENDING" && (
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  gap: 8,
-                                  marginTop: 12,
-                                }}
-                              >
-                                <TouchableButton
-                                  style={{
-                                    flex: 1,
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    backgroundColor: "#22c55e",
-                                    alignItems: "center",
-                                  }}
-                                  onPress={() => {
-                                    setSelectedCounterOfferRequestId(
-                                      request.id,
-                                    );
-                                    setSelectedCounterOfferId(
-                                      request.counterOffer.id,
-                                    );
-                                    setCounterOfferResponseStatus("ACCEPTED");
-                                    setCounterOfferResponseMessage("");
-                                    handleRespondToCounterOffer();
-                                  }}
-                                  disabled={respondingToCounterOffer}
-                                >
-                                  {respondingToCounterOffer ? (
-                                    <ActivityIndicator color="#FFFAF0" />
-                                  ) : (
-                                    <Text
-                                      style={{
-                                        color: "#FFFAF0",
-                                        fontWeight: "700",
-                                      }}
-                                    >
-                                      {t("common.accept")}
-                                    </Text>
-                                  )}
-                                </TouchableButton>
-                                <TouchableButton
-                                  style={{
-                                    flex: 1,
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    backgroundColor: "#ef4444",
-                                    alignItems: "center",
-                                  }}
-                                  onPress={() => {
-                                    setSelectedCounterOfferRequestId(
-                                      request.id,
-                                    );
-                                    setSelectedCounterOfferId(
-                                      request.counterOffer.id,
-                                    );
-                                    setCounterOfferResponseStatus("REJECTED");
-                                    setCounterOfferResponseMessage("");
-                                    handleRespondToCounterOffer();
-                                  }}
-                                  disabled={respondingToCounterOffer}
-                                >
-                                  {respondingToCounterOffer ? (
-                                    <ActivityIndicator color="#FFFAF0" />
-                                  ) : (
-                                    <Text
-                                      style={{
-                                        color: "#FFFAF0",
-                                        fontWeight: "700",
-                                      }}
-                                    >
-                                      {t("applications.reject")}
-                                    </Text>
-                                  )}
-                                </TouchableButton>
-                              </View>
-                            )}
-                            {request.counterOffer.status === "ACCEPTED" && (
-                              <Text
-                                style={[
-                                  styles.responseLabel,
-                                  {
-                                    color: "#22c55e",
-                                    marginTop: 8,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                ✓ Counter Offer Accepted
-                              </Text>
-                            )}
-                            {request.counterOffer.status === "REJECTED" && (
-                              <Text
-                                style={[
-                                  styles.responseLabel,
-                                  {
-                                    color: "#ef4444",
-                                    marginTop: 8,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                ✗ Counter Offer Rejected
-                              </Text>
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-              </View>
-            )}
-
-          {/* Additional Time Requests Section */}
-          {application.status === "ACCEPTED" &&
-            !application.completedAt &&
-            (application.additionalTimeRequests &&
-            Array.isArray(application.additionalTimeRequests) &&
-            application.additionalTimeRequests.length > 0 ? (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                    marginBottom: 16,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: colors.text, marginBottom: 12 },
-                  ]}
-                >
-                  {t("applications.additionalTimeRequests")}
-                </Text>
-                <Text
-                  style={[
-                    styles.paymentSubtitle,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68", marginBottom: 16 },
-                  ]}
-                >
-                  {t("applications.additionalTimeRequestsDescription")}
-                </Text>
-                {application.additionalTimeRequests.map(
-                  (request: any, idx: number) => {
-                    const isPending = request.status === "PENDING";
-                    const isPendingApproval =
-                      request.status === "PENDING_EMPLOYER_APPROVAL";
-                    const isAccepted = request.status === "ACCEPTED";
-                    const isRejected = request.status === "REJECTED";
-
-                    return (
-                      <View
-                        key={request.id || idx}
-                        style={[
-                          styles.requestCard,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(255,250,240,0.06)"
-                              : "rgba(0,0,0,0.02)",
-                            borderColor: isAccepted
-                              ? "#22c55e"
-                              : isRejected
-                                ? "#ef4444"
-                                : isPendingApproval
-                                  ? "#f59e0b"
-                                  : isDark
-                                    ? "rgba(201,150,63,0.12)"
-                                    : "rgba(184,130,42,0.2)",
-                            marginBottom:
-                              idx <
-                              application.additionalTimeRequests!.length - 1
-                                ? 12
-                                : 0,
-                          },
-                        ]}
-                      >
-                        <View style={styles.requestHeader}>
-                          <Text
-                            style={[
-                              styles.requestStatusText,
-                              {
-                                color: isAccepted
-                                  ? "#22c55e"
-                                  : isRejected
-                                    ? "#ef4444"
-                                    : isPendingApproval
-                                      ? "#f59e0b"
-                                      : "#C9963F",
-                              },
-                            ]}
-                          >
-                            {isAccepted
-                              ? `✓ ${t("applications.accepted")}`
-                              : isRejected
-                                ? `✗ ${t("applications.rejected")}`
-                                : isPendingApproval
-                                  ? `⏳ ${t("applications.awaitingYourResponse")}`
-                                  : `📤 ${t("applications.pendingServiceProviderResponse")}`}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.requestDate,
-                              { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                            ]}
-                          >
-                            {new Date(request.requestedAt).toLocaleDateString()}
-                          </Text>
-                        </View>
-
-                        {request.requestedBy === "EMPLOYER" && (
-                          <View style={{ marginTop: 8 }}>
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {t("applications.yourRequest")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                {
-                                  color: isDark ? "#B8A88A" : "#6B6355",
-                                  marginTop: 4,
-                                },
-                              ]}
-                            >
-                              {request.message}
-                            </Text>
-                          </View>
-                        )}
-
-                        {isPendingApproval && request.additionalDays && (
-                          <View
-                            style={[
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(245, 158, 11, 0.1)"
-                                  : "rgba(245, 158, 11, 0.05)",
-                                marginTop: 12,
-                                padding: 12,
-                                borderRadius: 8,
-                                borderLeftWidth: 3,
-                                borderLeftColor: "#f59e0b",
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: "#f59e0b", fontWeight: "700" },
-                              ]}
-                            >
-                              {t("applications.serviceProviderResponse")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                {
-                                  color: colors.text,
-                                  marginTop: 4,
-                                  fontWeight: "700",
-                                },
-                              ]}
-                            >
-                              {t("applications.additionalDaysRequested")}:{" "}
-                              {request.additionalDays}
-                            </Text>
-                            {request.explanation && (
-                              <Text
-                                style={[
-                                  styles.responseText,
-                                  {
-                                    color: isDark ? "#B8A88A" : "#6B6355",
-                                    marginTop: 8,
-                                  },
-                                ]}
-                              >
-                                {request.explanation}
-                              </Text>
-                            )}
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                gap: 8,
-                                marginTop: 12,
-                              }}
-                            >
-                              <TouchableButton
-                                style={{
-                                  flex: 1,
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  backgroundColor: "#22c55e",
-                                  alignItems: "center",
-                                }}
-                                onPress={() => {
-                                  setSelectedAdditionalTimeRequestId(
-                                    request.id,
-                                  );
-                                  setAdditionalTimeResponseStatus("ACCEPTED");
-                                  setShowAdditionalTimeResponseModal(true);
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    color: "#FFFAF0",
-                                    fontWeight: "700",
-                                  }}
-                                >
-                                  {t("applications.accept")}
-                                </Text>
-                              </TouchableButton>
-                              <TouchableButton
-                                style={{
-                                  flex: 1,
-                                  padding: 12,
-                                  borderRadius: 8,
-                                  backgroundColor: "#ef4444",
-                                  alignItems: "center",
-                                }}
-                                onPress={() => {
-                                  setSelectedAdditionalTimeRequestId(
-                                    request.id,
-                                  );
-                                  setAdditionalTimeResponseStatus("REJECTED");
-                                  setShowAdditionalTimeResponseModal(true);
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    color: "#FFFAF0",
-                                    fontWeight: "700",
-                                  }}
-                                >
-                                  {t("applications.reject")}
-                                </Text>
-                              </TouchableButton>
-                            </View>
-                          </View>
-                        )}
-
-                        {isAccepted && (
-                          <View style={{ marginTop: 12 }}>
-                            {request.additionalDays && (
-                              <View
-                                style={[
-                                  {
-                                    backgroundColor: isDark
-                                      ? "rgba(34, 197, 94, 0.1)"
-                                      : "rgba(34, 197, 94, 0.05)",
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    borderLeftWidth: 3,
-                                    borderLeftColor: "#22c55e",
-                                    marginBottom:
-                                      request.employerResponseMessage ? 12 : 0,
-                                  },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.responseLabel,
-                                    { color: "#22c55e", fontWeight: "700" },
-                                  ]}
-                                >
-                                  {t(
-                                    "applications.serviceProviderResponseAccepted",
-                                  )}
-                                  :
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.responseText,
-                                    {
-                                      color: colors.text,
-                                      marginTop: 4,
-                                      fontWeight: "700",
-                                    },
-                                  ]}
-                                >
-                                  {t("applications.additionalDays")}:{" "}
-                                  {request.additionalDays}{" "}
-                                  {request.additionalDays !== 1
-                                    ? t("common.days")
-                                    : t("common.day")}
-                                </Text>
-                                {request.explanation && (
-                                  <Text
-                                    style={[
-                                      styles.responseText,
-                                      {
-                                        color: isDark ? "#B8A88A" : "#6B6355",
-                                        marginTop: 8,
-                                      },
-                                    ]}
-                                  >
-                                    {request.explanation}
-                                  </Text>
-                                )}
-                              </View>
-                            )}
-                            {request.employerResponseMessage && (
-                              <View>
-                                <Text
-                                  style={[
-                                    styles.responseLabel,
-                                    { color: isDark ? "#B8A88A" : "#6B6355" },
-                                  ]}
-                                >
-                                  {t("applications.yourResponse")}:
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.responseText,
-                                    {
-                                      color: isDark ? "#B8A88A" : "#6B6355",
-                                      marginTop: 4,
-                                    },
-                                  ]}
-                                >
-                                  {request.employerResponseMessage}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        )}
-
-                        {isRejected && request.employerResponseMessage && (
-                          <View style={{ marginTop: 12 }}>
-                            <Text
-                              style={[
-                                styles.responseLabel,
-                                { color: isDark ? "#B8A88A" : "#6B6355" },
-                              ]}
-                            >
-                              {t("applications.yourResponse")}:
-                            </Text>
-                            <Text
-                              style={[
-                                styles.responseText,
-                                {
-                                  color: isDark ? "#B8A88A" : "#6B6355",
-                                  marginTop: 4,
-                                },
-                              ]}
-                            >
-                              {request.employerResponseMessage}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  },
-                )}
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                    marginBottom: 16,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: colors.text, marginBottom: 12 },
-                  ]}
-                >
-                  {t("applications.additionalTimeRequests")}
-                </Text>
-                <Text
-                  style={[
-                    styles.paymentSubtitle,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {t("applications.noAdditionalTimeRequestsYet")}
-                </Text>
-              </View>
-            ))}
-
-          {/* Service Provider Marked Job as Done Notification */}
-          {application.status === "ACCEPTED" &&
-            !application.completedAt &&
-            application.serviceProviderMarkedDoneAt && (
-              <View
-                style={[
-                  styles.paymentBanner,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(34, 197, 94, 0.15)"
-                      : "rgba(34, 197, 94, 0.1)",
-                    borderColor: isDark ? "rgba(34, 197, 94, 0.5)" : "#22c55e",
-                    marginBottom: 16,
-                  },
-                ]}
-              >
-                <Feather name="check-circle" size={20} color="#22c55e" />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text
-                    style={[styles.paymentBannerTitle, { color: "#22c55e" }]}
-                  >
-                    {t("applications.serviceProviderMarkedJobAsDone")}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.paymentBannerText,
-                      {
-                        color: isDark ? "#86efac" : "#065f46",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("applications.serviceProviderMarkedJobAsDoneMessage")}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.paymentSubtitle,
-                      {
-                        color: isDark ? "#6ee7b7" : "#047857",
-                        fontSize: 12,
-                        marginTop: 4,
-                      },
-                    ]}
-                  >
-                    {t("applications.markedAsDoneOn")}:{" "}
-                    {new Date(
-                      application.serviceProviderMarkedDoneAt,
-                    ).toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-          {/* Auto-Completion Warning Banner with Timer */}
-          {application.status === "ACCEPTED" &&
-            !application.completedAt &&
-            application.verificationCodeVerifiedAt &&
-            (() => {
-              // Use verificationCodeVerifiedAt (when service started) instead of startDate
-              const serviceStartDate = new Date(
-                application.verificationCodeVerifiedAt,
-              );
-
-              // Calculate total additional days from all ACCEPTED requests
-              // Only count requests where employer accepted the service provider's response
-              // The request must have additionalDays (set when service provider responded)
-              const allRequests = application.additionalTimeRequests || [];
-              const acceptedRequests = allRequests.filter((req: any) => {
-                // Request must be accepted AND have additionalDays (meaning service provider responded)
-                const hasAdditionalDays =
-                  req.additionalDays !== undefined &&
-                  req.additionalDays !== null;
-                const daysValue = Number(req.additionalDays) || 0;
-                return (
-                  req.status === "ACCEPTED" &&
-                  hasAdditionalDays &&
-                  daysValue > 0
-                );
-              });
-
-              const totalAdditionalDays = acceptedRequests.reduce(
-                (sum: number, req: any) => {
-                  const days = Number(req.additionalDays) || 0;
-                  return sum + days;
-                },
-                0,
-              );
-
-              // Debug: Log for troubleshooting (can be removed later)
-              if (allRequests.length > 0) {
-                console.log(
-                  "[Timer Debug] All requests:",
-                  JSON.stringify(allRequests, null, 2),
-                );
-                console.log(
-                  "[Timer Debug] Accepted requests with days:",
-                  acceptedRequests,
-                );
-                console.log(
-                  "[Timer Debug] Total additional days:",
-                  totalAdditionalDays,
-                );
-              }
-
-              // Base deadline is 4 days from service start, plus any accepted additional days
-              const autoCompleteDate = new Date(serviceStartDate);
-              autoCompleteDate.setDate(
-                autoCompleteDate.getDate() + 4 + totalAdditionalDays,
-              );
-
-              const now = new Date();
-              const timeDiff = autoCompleteDate.getTime() - now.getTime();
-              const daysUntilAutoComplete = Math.ceil(
-                timeDiff / (1000 * 60 * 60 * 24),
-              );
-              const hoursUntilAutoComplete = Math.ceil(
-                timeDiff / (1000 * 60 * 60),
-              );
-              const minutesUntilAutoComplete = Math.ceil(
-                timeDiff / (1000 * 60),
-              );
-
-              // Determine color based on remaining time
-              // Red: 12 hours or less
-              // Yellow: More than 12 hours but 2 days or less
-              // Green: More than 2 days
-              const hoursRemaining = timeDiff / (1000 * 60 * 60);
-              const isRed = hoursRemaining <= 12;
-              const isYellow = hoursRemaining > 12 && hoursRemaining <= 48; // 2 days = 48 hours
-              const isGreen = hoursRemaining > 48;
-
-              const timerColor = isRed
-                ? "#ef4444" // Red
-                : isYellow
-                  ? "#f59e0b" // Yellow/Orange
-                  : "#22c55e"; // Green
-
-              const timerBgColor = isRed
-                ? isDark
-                  ? "rgba(239, 68, 68, 0.15)"
-                  : "rgba(239, 68, 68, 0.1)"
-                : isYellow
-                  ? isDark
-                    ? "rgba(245, 158, 11, 0.15)"
-                    : "rgba(245, 158, 11, 0.1)"
-                  : isDark
-                    ? "rgba(34, 197, 94, 0.15)"
-                    : "rgba(34, 197, 94, 0.1)";
-
-              const timerBorderColor = isRed
-                ? isDark
-                  ? "rgba(239, 68, 68, 0.5)"
-                  : "#ef4444"
-                : isYellow
-                  ? isDark
-                    ? "rgba(245, 158, 11, 0.5)"
-                    : "#f59e0b"
-                  : isDark
-                    ? "rgba(34, 197, 94, 0.5)"
-                    : "#22c55e";
-
-              const timerTextColor = isRed
-                ? isDark
-                  ? "#fca5a5"
-                  : "#991b1b"
-                : isYellow
-                  ? isDark
-                    ? "#fcd34d"
-                    : "#92400e"
-                  : isDark
-                    ? "#86efac"
-                    : "#065f46";
-
-              // Check if there's a pending additional time request
-              const hasPendingRequest =
-                application.additionalTimeRequests?.some(
-                  (req) =>
-                    req.status === "PENDING" ||
-                    req.status === "PENDING_EMPLOYER_APPROVAL",
-                );
-
-              // Always show timer if service has started
-              return (
                 <View
                   style={[
-                    styles.paymentBanner,
+                    styles.modalFooter,
                     {
-                      backgroundColor: timerBgColor,
-                      borderColor: timerBorderColor,
-                      marginBottom: 16,
+                      borderTopColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "rgba(184,130,42,0.2)",
                     },
                   ]}
                 >
-                  <Feather
-                    name={
-                      isRed
-                        ? "alert-triangle"
-                        : isYellow
-                          ? "alert-circle"
-                          : "clock"
-                    }
-                    size={20}
-                    color={timerColor}
-                  />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
+                  <TouchableButton
+                    style={[
+                      styles.modalButton,
+                      {
+                        backgroundColor: "transparent",
+                        borderColor: isDark
+                          ? "rgba(255,250,240,0.15)"
+                          : "rgba(184,130,42,0.3)",
+                      },
+                    ]}
+                    onPress={() => setShowPaymentModal(false)}
+                  >
                     <Text
-                      style={[styles.paymentBannerTitle, { color: timerColor }]}
+                      style={[styles.modalButtonText, { color: colors.text }]}
                     >
-                      {t("applications.autoCompletionTimer")}
+                      {t("common.cancel")}
                     </Text>
+                  </TouchableButton>
+                  <TouchableButton
+                    style={[
+                      styles.modalButton,
+                      {
+                        backgroundColor: isDark ? "#C9963F" : "#B8822A",
+                        borderColor: isDark ? "#E8B86D" : "#C9963F",
+                      },
+                      paymentProcessing && styles.modalButtonDisabled,
+                    ]}
+                    onPress={handleCreatePayment}
+                    disabled={(() => {
+                      if (paymentProcessing) return true;
+
+                      // Check if there's any valid payment source
+                      const hasSelectedServices = selectedRates.size > 0;
+                      const hasApprovedAdditionalRates =
+                        application?.additionalRateRequests &&
+                        Array.isArray(application.additionalRateRequests) &&
+                        application.additionalRateRequests.some(
+                          (req: any) => req.status === "APPROVED",
+                        );
+                      const hasAcceptedNegotiations =
+                        application?.negotiationRequests &&
+                        Array.isArray(application.negotiationRequests) &&
+                        application.negotiationRequests.some(
+                          (req: any) => req.status === "ACCEPTED",
+                        );
+                      const selectedTotal = getSelectedRatesTotal();
+
+                      // Enable if there's a total amount from any source
+                      const shouldDisable =
+                        selectedTotal === 0 ||
+                        (!hasSelectedServices &&
+                          !hasApprovedAdditionalRates &&
+                          !hasAcceptedNegotiations);
+
+                      console.log(
+                        "[ApplicantDetail] Payment button disabled check:",
+                        {
+                          paymentProcessing,
+                          hasSelectedServices,
+                          hasApprovedAdditionalRates,
+                          hasAcceptedNegotiations,
+                          selectedTotal,
+                          shouldDisable,
+                        },
+                      );
+
+                      return shouldDisable;
+                    })()}
+                  >
+                    {paymentProcessing ? (
+                      <ActivityIndicator color="#FFFAF0" />
+                    ) : (
+                      <Text style={styles.modalButtonTextSubmit}>
+                        {t("applications.createPayment")}
+                      </Text>
+                    )}
+                  </TouchableButton>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Respond to Additional Rates Modal */}
+          <Modal
+            visible={showRespondModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => {
+              setShowRespondModal(false);
+              setSelectedRequestId(null);
+              setSelectedRequestStatus(null);
+              setRespondMessage("");
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
+            >
+              <View style={styles.modalOverlay}>
+                <View
+                  style={[
+                    styles.modalContent,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "#FFFAF0",
+                    },
+                  ]}
+                >
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {selectedRequestStatus === "APPROVED"
+                        ? t("applications.approve")
+                        : t("applications.reject")}{" "}
+                      {t("applications.additionalRateRequests")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowRespondModal(false);
+                        setSelectedRequestId(null);
+                        setSelectedRequestStatus(null);
+                        setRespondMessage("");
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
+
+                  <ScrollView
+                    style={[styles.modalBody, { flexGrow: 0, flexShrink: 1 }]}
+                    contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     <Text
                       style={[
-                        styles.paymentBannerText,
-                        { color: timerTextColor, marginBottom: 8 },
+                        styles.modalDescription,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
                       ]}
                     >
-                      {daysUntilAutoComplete < 0
-                        ? t("applications.autoCompletionDeadlinePassed", {
-                            days: Math.abs(daysUntilAutoComplete),
-                          })
-                        : daysUntilAutoComplete === 0
-                          ? t("applications.autoCompletionToday")
-                          : daysUntilAutoComplete === 1
-                            ? t("applications.timeRemainingHours", {
-                                hours: hoursUntilAutoComplete,
-                              })
-                            : t("applications.timeRemainingDaysHours", {
-                                days: daysUntilAutoComplete,
-                                hours: Math.floor(
-                                  (timeDiff % (1000 * 60 * 60 * 24)) /
-                                    (1000 * 60 * 60),
-                                ),
-                              })}
+                      {selectedRequestStatus === "APPROVED"
+                        ? t("applications.approveAdditionalRateDescription")
+                        : t("applications.rejectAdditionalRateDescription")}
                     </Text>
-                    {!hasPendingRequest && (
-                      <TouchableOpacity
-                        onPress={() => setShowAdditionalTimeModal(true)}
-                        activeOpacity={0.7}
-                        style={{
-                          paddingVertical: 8,
-                          paddingHorizontal: 12,
-                          borderRadius: 6,
-                          backgroundColor: timerColor,
-                          alignSelf: "flex-start",
-                          marginTop: 4,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#FFFAF0",
-                            fontSize: 12,
-                            fontWeight: "700",
-                          }}
-                        >
-                          {t("applications.requestAdditionalTime")}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            })()}
 
-          {/* Job Completed Banner */}
-          {application.completedAt && (
-            <View
-              style={[
-                styles.completedBanner,
-                {
-                  backgroundColor: isDark ? "#065f46" : "#d1fae5",
-                  borderColor: isDark ? "#10b981" : "#34d399",
-                },
-              ]}
-            >
-              <Feather name="check-circle" size={24} color="#10b981" />
-              <View style={styles.completedBannerContent}>
-                <Text
-                  style={[
-                    styles.completedBannerTitle,
-                    { color: isDark ? "#6ee7b7" : "#065f46" },
-                  ]}
-                >
-                  {t("applications.jobCompleted")}
-                </Text>
-                <Text
-                  style={[
-                    styles.completedBannerText,
-                    { color: isDark ? "#a7f3d0" : "#047857" },
-                  ]}
-                >
-                  {t("applications.jobCompletedAllActionsLocked")}
-                </Text>
-              </View>
-            </View>
-          )}
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 20 },
+                      ]}
+                    >
+                      {t("applications.optionalMessage")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#f1f5f9",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                        },
+                      ]}
+                      placeholder={
+                        selectedRequestStatus === "APPROVED"
+                          ? "Great! We approve these additional rates..."
+                          : "Thank you for the request. Unfortunately..."
+                      }
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      multiline
+                      numberOfLines={5}
+                      value={respondMessage}
+                      onChangeText={setRespondMessage}
+                      textAlignVertical="top"
+                    />
+                  </ScrollView>
 
-          {/* Action Buttons */}
-          {!application.completedAt && (
-            <View style={styles.actionsContainer}>
-              {(() => {
-                const paymentRequired = isPaymentRequired();
-                console.log(
-                  "[ApplicantDetail] Rendering buttons, paymentRequired:",
-                  paymentRequired,
-                  "completedAt:",
-                  application?.completedAt,
-                );
-                return (
-                  <>
-                    {application.status === "ACCEPTED" &&
-                      !isPaymentRequired() &&
-                      !application.completedAt &&
-                      application.verificationCodeVerifiedAt && (
-                        <TouchableButton
-                          style={[
-                            styles.actionButton,
-                            {
-                              backgroundColor: "#22c55e",
-                              borderColor: "#22c55e",
-                            },
-                          ]}
-                          onPress={handleMarkJobComplete}
-                          disabled={completingJob}
-                        >
-                          {completingJob ? (
-                            <ActivityIndicator color="#FFFAF0" />
-                          ) : (
-                            <>
-                              <Feather
-                                name="check-circle"
-                                size={20}
-                                color="#FFFAF0"
-                              />
-                              <Text style={styles.actionButtonText}>
-                                {t("applications.markJobAsComplete")}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableButton>
-                      )}
-                    {application.status === "ACCEPTED" &&
-                      !isPaymentRequired() &&
-                      !application.completedAt &&
-                      !application.verificationCodeVerifiedAt && (
-                        <View
-                          style={{
-                            backgroundColor: isDark
-                              ? "rgba(34,197,94,0.08)"
-                              : "rgba(34,197,94,0.06)",
-                            borderWidth: 1,
-                            borderColor: isDark
-                              ? "rgba(34,197,94,0.25)"
-                              : "rgba(34,197,94,0.2)",
-                            borderRadius: 16,
-                            padding: 16,
-                          }}
-                        >
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              marginBottom: 8,
-                            }}
-                          >
-                            <Feather
-                              name="check-circle"
-                              size={18}
-                              color="#22c55e"
-                            />
-                            <Text
-                              style={{
-                                marginLeft: 8,
-                                fontSize: 15,
-                                fontWeight: "700",
-                                color: isDark ? "#FFFAF0" : "#1A1710",
-                              }}
-                            >
-                              {t("applications.completeJobTitle")}
-                            </Text>
-                          </View>
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              lineHeight: 18,
-                              color: isDark
-                                ? "rgba(255,250,240,0.6)"
-                                : "rgba(26,23,16,0.6)",
-                            }}
-                          >
-                            {t("applications.completeJobVerifyFirst")}
-                          </Text>
-                        </View>
-                      )}
-                    {application.status !== "ACCEPTED" &&
-                      application.status !== "REJECTED" && (
-                        <>
-                          <TouchableButton
-                            style={[
-                              styles.actionButton,
-                              styles.acceptButton,
-                              {
-                                backgroundColor: paymentRequired
-                                  ? "#8A7B68"
-                                  : "#22c55e",
-                                borderColor: paymentRequired
-                                  ? "#9A8E7A"
-                                  : "#22c55e",
-                                opacity: paymentRequired ? 0.6 : 1,
-                              },
-                            ]}
-                            onPress={() => {
-                              if (paymentRequired) {
-                                // Check if no services are selected
-                                const hasSelectedRates = selectedRates.size > 0;
-                                const hasAcceptedNegotiations =
-                                  application.negotiationRequests &&
-                                  Array.isArray(
-                                    application.negotiationRequests,
-                                  ) &&
-                                  application.negotiationRequests.some(
-                                    (req: any) => req.status === "ACCEPTED",
-                                  );
-                                const hasApprovedAdditionalRates =
-                                  application.additionalRateRequests &&
-                                  Array.isArray(
-                                    application.additionalRateRequests,
-                                  ) &&
-                                  application.additionalRateRequests.some(
-                                    (req: any) => req.status === "APPROVED",
-                                  );
-
-                                if (
-                                  !hasSelectedRates &&
-                                  !hasAcceptedNegotiations &&
-                                  !hasApprovedAdditionalRates
-                                ) {
-                                  Alert.alert(
-                                    t("applications.servicesRequired"),
-                                    t("applications.selectServiceOrNegotiate"),
-                                    [{ text: t("common.ok") }],
-                                  );
-                                } else {
-                                  showPaymentRequiredAlert(
-                                    "accept this application",
-                                  );
-                                }
-                              } else {
-                                openActionModal("ACCEPT");
-                              }
-                            }}
-                            disabled={paymentRequired}
-                          >
-                            <Feather
-                              name="check-circle"
-                              size={20}
-                              color="#FFFAF0"
-                            />
-                            <Text style={styles.actionButtonText}>
-                              {t("applications.acceptApplication")}
-                            </Text>
-                          </TouchableButton>
-
-                          <TouchableButton
-                            style={[
-                              styles.actionButton,
-                              styles.rejectButton,
-                              {
-                                backgroundColor: "#ef4444",
-                                borderColor: "#ef4444",
-                                opacity: 1,
-                              },
-                            ]}
-                            onPress={() => {
-                              // Allow rejection at any time, even before payment
-                              openActionModal("REJECT");
-                            }}
-                            disabled={false}
-                          >
-                            <Feather
-                              name="x-circle"
-                              size={20}
-                              color="#FFFAF0"
-                            />
-                            <Text style={styles.actionButtonText}>
-                              {t("applications.rejectApplication")}
-                            </Text>
-                          </TouchableButton>
-                        </>
-                      )}
-                  </>
-                );
-              })()}
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Action Modal */}
-        <Modal
-          visible={showActionModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => {
-            setShowActionModal(false);
-            setSelectedAction(null);
-            setActionMessage("");
-          }}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.90)"
-                    : "#FFFAF0",
-                  height: undefined,
-                  maxHeight: Dimensions.get("window").height * 0.75,
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {selectedAction === "ACCEPT"
-                    ? t("applications.acceptApplication")
-                    : t("applications.rejectApplication")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowActionModal(false);
-                    setSelectedAction(null);
-                    setActionMessage("");
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView contentContainerStyle={styles.modalBodyContent}>
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    {
-                      color: isDark ? "#9A8E7A" : "#8A7B68",
-                      marginBottom: selectedAction === "ACCEPT" ? 16 : 20,
-                    },
-                  ]}
-                >
-                  {selectedAction === "ACCEPT"
-                    ? t("applications.acceptApplicationDescription")
-                    : t("applications.rejectApplicationDescription")}
-                </Text>
-
-                {/* Warning Box for Accept Action */}
-                {selectedAction === "ACCEPT" && (
                   <View
                     style={[
-                      styles.warningBox,
+                      styles.modalFooter,
                       {
-                        backgroundColor: isDark
-                          ? "rgba(251, 191, 36, 0.15)"
-                          : "rgba(251, 191, 36, 0.1)",
-                        borderColor: isDark
-                          ? "rgba(251, 191, 36, 0.3)"
-                          : "rgba(251, 191, 36, 0.4)",
-                        marginBottom: 20,
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
                       },
                     ]}
                   >
-                    <View style={styles.warningHeader}>
-                      <Feather
-                        name="alert-triangle"
-                        size={20}
-                        color={isDark ? "#fbbf24" : "#ca8a04"}
-                      />
-                      <Text
-                        style={[
-                          styles.warningTitle,
-                          { color: isDark ? "#fbbf24" : "#ca8a04" },
-                        ]}
-                      >
-                        {t("applications.importantNotice")}
-                      </Text>
-                    </View>
-                    <Text
+                    <TouchableButton
                       style={[
-                        styles.warningText,
-                        { color: isDark ? "#eab308" : "#854d0e" },
-                      ]}
-                    >
-                      {t("applications.markJobCompleteWarning")}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Optional Message */}
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 0 },
-                  ]}
-                >
-                  {t("applications.optionalMessage")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.65)"
-                        : "#f1f5f9",
-                      color: colors.text,
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "#F0E8D5",
-                    },
-                  ]}
-                  placeholder={
-                    selectedAction === "ACCEPT"
-                      ? t("applications.acceptPlaceholder")
-                      : t("applications.rejectPlaceholder")
-                  }
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  multiline
-                  numberOfLines={5}
-                  value={actionMessage}
-                  onChangeText={setActionMessage}
-                  textAlignVertical="top"
-                />
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <TouchableButton
-                  style={[
-                    styles.modalCancelButton,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201,150,63,0.12)"
-                        : "rgba(241, 245, 249, 0.9)",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "rgba(184,130,42,0.2)",
-                    },
-                  ]}
-                  onPress={() => {
-                    setShowActionModal(false);
-                    setSelectedAction(null);
-                    setActionMessage("");
-                  }}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor:
-                        selectedAction === "ACCEPT" ? "#22c55e" : "#ef4444",
-                      borderColor:
-                        selectedAction === "ACCEPT" ? "#22c55e" : "#ef4444",
-                    },
-                    processing && styles.modalButtonDisabled,
-                  ]}
-                  onPress={handleAction}
-                  disabled={processing}
-                >
-                  {processing ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {selectedAction === "ACCEPT"
-                        ? t("common.accept")
-                        : t("applications.reject")}
-                    </Text>
-                  )}
-                </TouchableButton>
-              </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Payment Modal */}
-        <Modal
-          visible={showPaymentModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowPaymentModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.90)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {t("applications.completePayment")}
-                </Text>
-                <TouchableButton onPress={() => setShowPaymentModal(false)}>
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView
-                style={styles.modalBody}
-                contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
-              >
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    {
-                      color: isDark ? "#B8A88A" : "#6B6355",
-                      marginBottom: 24,
-                      fontSize: 15,
-                      lineHeight: 22,
-                    },
-                  ]}
-                >
-                  {t("applications.reviewSelectedServicesAndCompletePayment")}
-                </Text>
-
-                {(() => {
-                  const currentTotal = getSelectedRatesTotal();
-                  const paymentStatus = application.paymentStatus;
-                  const paidAmount = paymentStatus?.paidAmount ?? 0;
-                  const paymentCompleted = paymentStatus?.completed ?? false;
-
-                  // Use unpaidAmount from paymentStatus which includes both unpaid services AND unpaid negotiations
-                  const unpaidAmount = paymentStatus?.unpaidAmount ?? 0;
-                  const unpaidServices = paymentStatus?.unpaidServices || [];
-                  const unpaidNegotiations =
-                    paymentStatus?.unpaidNegotiations || [];
-
-                  // Calculate unpaid amounts breakdown
-                  const unpaidServicesAmount = unpaidServices.reduce(
-                    (sum: number, service: any) => sum + (service.rate || 0),
-                    0,
-                  );
-                  const unpaidNegotiationsAmount = unpaidNegotiations.reduce(
-                    (sum: number, neg: any) => sum + (neg.totalAmount || 0),
-                    0,
-                  );
-
-                  // Use unpaidAmount if available (more accurate), otherwise fall back to calculation
-                  const additionalAmountNeeded =
-                    unpaidAmount > 0.01
-                      ? unpaidAmount
-                      : Math.max(0, currentTotal - paidAmount);
-
-                  const amountToPay =
-                    paymentCompleted && additionalAmountNeeded > 0
-                      ? additionalAmountNeeded
-                      : currentTotal;
-
-                  // Build complete list of rates from all sources
-                  const allRatesData: {
-                    rate: number;
-                    paymentType: string;
-                    otherSpecification?: string;
-                    source: string;
-                  }[] = [];
-
-                  // 1. Selected services from checkboxes
-                  if (candidateData?.rates) {
-                    Array.from(selectedRates).forEach((idx) => {
-                      allRatesData.push({
-                        ...candidateData.rates![idx],
-                        source: "selected",
-                      });
-                    });
-                  }
-
-                  // 2. Approved additional rate requests
-                  if (
-                    application.additionalRateRequests &&
-                    Array.isArray(application.additionalRateRequests)
-                  ) {
-                    const approvedRequests =
-                      application.additionalRateRequests.filter(
-                        (request: any) => request.status === "APPROVED",
-                      );
-                    approvedRequests.forEach((request: any) => {
-                      if (request.rates && Array.isArray(request.rates)) {
-                        request.rates.forEach((rate: any) => {
-                          allRatesData.push({
-                            ...rate,
-                            source: "approved",
-                          });
-                        });
-                      }
-                    });
-                  }
-
-                  // 3. Accepted negotiation rates (including accepted counter offers)
-                  if (
-                    application.negotiationRequests &&
-                    Array.isArray(application.negotiationRequests)
-                  ) {
-                    const acceptedNegotiations =
-                      application.negotiationRequests.filter(
-                        (request: any) => request.status === "ACCEPTED",
-                      );
-                    acceptedNegotiations.forEach((request: any) => {
-                      // If there's an accepted counter offer, use its rates instead
-                      const ratesToAdd =
-                        request.counterOffer &&
-                        request.counterOffer.status === "ACCEPTED"
-                          ? request.counterOffer.rates
-                          : request.rates;
-
-                      if (ratesToAdd && Array.isArray(ratesToAdd)) {
-                        ratesToAdd.forEach((rate: any) => {
-                          allRatesData.push({
-                            ...rate,
-                            source: "negotiation",
-                          });
-                        });
-                      }
-                    });
-                  }
-
-                  // If negotiations are partially paid, the backend may only provide an aggregate
-                  // (paidNegotiationAmount). For the Complete Payment modal, allocate that amount
-                  // across negotiation line-items so an unpaid remainder is clearly visible.
-                  const negotiationAllocation: Array<"PAID" | "UNPAID" | null> =
-                    new Array(allRatesData.length).fill(null);
-                  const paidNegotiationAmount =
-                    paymentStatus?.paidNegotiationAmount ?? 0;
-                  if (paidNegotiationAmount > 0.01) {
-                    let remaining = paidNegotiationAmount;
-                    allRatesData.forEach((r, i) => {
-                      if (r.source !== "negotiation") return;
-                      if (remaining >= (r.rate || 0) - 0.01) {
-                        negotiationAllocation[i] = "PAID";
-                        remaining -= r.rate || 0;
-                      } else {
-                        negotiationAllocation[i] = "UNPAID";
-                      }
-                    });
-                  }
-
-                  if (currentTotal > 0 && allRatesData.length > 0) {
-                    return (
-                      <View>
-                        {/* Selected Services Section */}
-                        <View
-                          style={[
-                            styles.paymentServicesCard,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(255, 250, 240, 0.06)"
-                                : "#FFF8F0",
-                              borderColor: isDark
-                                ? "rgba(201, 150, 63, 0.12)"
-                                : "#F0E8D5",
-                            },
-                          ]}
-                        >
-                          <View style={styles.paymentSectionHeader}>
-                            <Feather
-                              name="check-circle"
-                              size={18}
-                              color={isDark ? "#9A8E7A" : "#8A7B68"}
-                            />
-                            <Text
-                              style={[
-                                styles.paymentSectionTitle,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {t("applications.selectedServices")}
-                            </Text>
-                          </View>
-
-                          <View style={styles.paymentServicesList}>
-                            {allRatesData.map((rate, idx) => {
-                              const paymentTypeLabel =
-                                rate.paymentType === "OTHER" &&
-                                rate.otherSpecification
-                                  ? rate.otherSpecification
-                                  : rate.paymentType.charAt(0) +
-                                    rate.paymentType.slice(1).toLowerCase();
-                              const sourceLabel =
-                                rate.source === "negotiation"
-                                  ? t("applications.negotiationAccepted")
-                                  : rate.source === "approved"
-                                    ? t("applications.approved")
-                                    : "";
-
-                              // Check if this service/negotiation is paid or unpaid
-                              const paymentStatus = application.paymentStatus;
-                              let isPaid: boolean | undefined = false;
-                              let isUnpaid = false;
-
-                              // Helper to match services (line-item level truth)
-                              const matchService = (
-                                s1: any,
-                                s2: any,
-                              ): boolean => {
-                                return (
-                                  Math.abs(s1.rate - s2.rate) < 0.01 &&
-                                  s1.paymentType === s2.paymentType &&
-                                  (s1.otherSpecification || "") ===
-                                    (s2.otherSpecification || "")
-                                );
-                              };
-
-                              const unpaidServices =
-                                paymentStatus?.unpaidServices || [];
-                              const paidServices =
-                                paymentStatus?.paidServices || [];
-
-                              const lineIsUnpaid = unpaidServices.some(
-                                (u: any) => matchService(rate, u),
-                              );
-                              const lineIsPaid =
-                                !lineIsUnpaid &&
-                                paidServices.some((p: any) =>
-                                  matchService(rate, p),
-                                );
-
-                              if (lineIsUnpaid) {
-                                isUnpaid = true;
-                              } else if (lineIsPaid) {
-                                isPaid = true;
-                              }
-
-                              if (rate.source === "negotiation") {
-                                // Prefer allocation derived from paidNegotiationAmount for partial payments.
-                                if (!isPaid && !isUnpaid) {
-                                  const alloc = negotiationAllocation[idx];
-                                  if (alloc === "PAID") isPaid = true;
-                                  if (alloc === "UNPAID") isUnpaid = true;
-                                }
-
-                                // If line-item lists didn't classify it, fall back to negotiation-level lists.
-                                if (!isPaid && !isUnpaid) {
-                                  const unpaidNegotiations =
-                                    paymentStatus?.unpaidNegotiations || [];
-                                  const negotiationRequest =
-                                    application.negotiationRequests?.find(
-                                      (req: any) => {
-                                        const ratesToCheck =
-                                          req.counterOffer?.status ===
-                                          "ACCEPTED"
-                                            ? req.counterOffer.rates
-                                            : req.rates;
-                                        return ratesToCheck?.some(
-                                          (r: any) =>
-                                            Math.abs(r.rate - rate.rate) <
-                                              0.01 &&
-                                            r.paymentType === rate.paymentType,
-                                        );
-                                      },
-                                    );
-                                  if (negotiationRequest) {
-                                    isUnpaid = unpaidNegotiations.some(
-                                      (unpaid: any) =>
-                                        unpaid.id === negotiationRequest.id,
-                                    );
-                                    isPaid =
-                                      !isUnpaid &&
-                                      paymentStatus?.paidNegotiations?.some(
-                                        (paid: any) =>
-                                          paid.id === negotiationRequest.id,
-                                      );
-                                  }
-                                }
-                              }
-
-                              // In this modal, avoid per-line paid/unpaid styling (it can be confusing
-                              // when totals show an unpaid remainder). The summary below is the source of truth.
-                              const textColor = colors.text;
-
-                              return (
-                                <View
-                                  key={idx}
-                                  style={[
-                                    styles.paymentServiceItem,
-                                    {
-                                      borderBottomColor: isDark
-                                        ? "rgba(255, 250, 240, 0.06)"
-                                        : "#F0E8D5",
-                                    },
-                                    idx === allRatesData.length - 1 && {
-                                      borderBottomWidth: 0,
-                                    },
-                                  ]}
-                                >
-                                  <View style={{ flex: 1 }}>
-                                    <Text
-                                      style={[
-                                        styles.paymentServiceRate,
-                                        { color: textColor },
-                                      ]}
-                                    >
-                                      €{rate.rate.toFixed(2)}/{paymentTypeLabel}
-                                    </Text>
-                                    <View
-                                      style={{
-                                        flexDirection: "row",
-                                        gap: 4,
-                                        marginTop: 2,
-                                      }}
-                                    >
-                                      {sourceLabel && (
-                                        <Text
-                                          style={[
-                                            styles.paymentServiceLabel,
-                                            {
-                                              color: isDark
-                                                ? "#9A8E7A"
-                                                : "#8A7B68",
-                                            },
-                                          ]}
-                                        >
-                                          {sourceLabel}
-                                        </Text>
-                                      )}
-                                    </View>
-                                  </View>
-                                </View>
-                              );
-                            })}
-                          </View>
-                        </View>
-
-                        {/* Payment Summary Section - Single Source of Truth */}
-                        <View
-                          style={[
-                            styles.paymentSummaryCard,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(201, 150, 63, 0.15)"
-                                : "rgba(201, 150, 63, 0.08)",
-                              borderColor: isDark
-                                ? "rgba(201, 150, 63, 0.3)"
-                                : "rgba(201, 150, 63, 0.2)",
-                              marginTop: 16,
-                            },
-                          ]}
-                        >
-                          {/* Paid Amount - from paymentStatus (calculated from metadata) */}
-                          {paidAmount > 0 && (
-                            <View style={styles.paymentSummaryRow}>
-                              <Text
-                                style={[
-                                  styles.paymentSummaryLabel,
-                                  { color: isDark ? "#B8A88A" : "#8A7B68" },
-                                ]}
-                              >
-                                {t("applications.paidAmount")}:
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.paymentSummaryValue,
-                                  { color: "#22c55e" },
-                                ]}
-                              >
-                                EUR {paidAmount.toFixed(2)}
-                              </Text>
-                            </View>
-                          )}
-
-                          {/* Unpaid Amount - from paymentStatus (calculated from metadata) */}
-                          {unpaidAmount > 0 && (
-                            <View style={styles.paymentSummaryRow}>
-                              <Text
-                                style={[
-                                  styles.paymentSummaryLabel,
-                                  { color: isDark ? "#B8A88A" : "#8A7B68" },
-                                ]}
-                              >
-                                {t("applications.unpaidAmount")}:
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.paymentSummaryValue,
-                                  { color: isDark ? "#fbbf24" : "#d97706" },
-                                ]}
-                              >
-                                EUR {unpaidAmount.toFixed(2)}
-                              </Text>
-                            </View>
-                          )}
-
-                          {/* Total Amount */}
-                          <View
-                            style={[
-                              styles.paymentSummaryDivider,
-                              {
-                                borderTopColor: isDark
-                                  ? "rgba(201, 150, 63, 0.12)"
-                                  : "rgba(184, 130, 42, 0.2)",
-                                borderTopWidth: 1,
-                                marginTop: 12,
-                                paddingTop: 12,
-                              },
-                            ]}
-                          >
-                            <View style={styles.paymentSummaryRow}>
-                              <Text
-                                style={[
-                                  styles.paymentSummaryLabel,
-                                  {
-                                    color: colors.text,
-                                    fontSize: 20,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                {t("applications.totalAmount")}:
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.paymentSummaryValue,
-                                  {
-                                    color: colors.tint,
-                                    fontSize: 20,
-                                    fontWeight: "700",
-                                  },
-                                ]}
-                              >
-                                EUR {currentTotal.toFixed(2)}
-                              </Text>
-                            </View>
-                          </View>
-
-                          {/* Additional Payment Needed - calculated in this card */}
-                          {additionalAmountNeeded > 0.01 && (
-                            <View
-                              style={[
-                                styles.paymentSummaryDivider,
-                                {
-                                  borderTopColor: isDark
-                                    ? "rgba(201, 150, 63, 0.12)"
-                                    : "rgba(184, 130, 42, 0.2)",
-                                  borderTopWidth: 1,
-                                  marginTop: 12,
-                                  paddingTop: 12,
-                                  paddingHorizontal: 0,
-                                },
-                              ]}
-                            >
-                              <View style={{ flexDirection: "column" }}>
-                                <Text
-                                  style={[
-                                    styles.paymentSummaryLabel,
-                                    {
-                                      color: isDark ? "#fbbf24" : "#d97706",
-                                      fontSize: 16,
-                                      fontWeight: "700",
-                                    },
-                                  ]}
-                                >
-                                  {t("applications.paymentRequired")}:
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.paymentSummaryValue,
-                                    {
-                                      color: isDark ? "#fbbf24" : "#d97706",
-                                      fontSize: 20,
-                                      fontWeight: "700",
-                                      marginTop: 6,
-                                      width: "100%",
-                                      textAlign: "right",
-                                    },
-                                  ]}
-                                >
-                                  EUR {additionalAmountNeeded.toFixed(2)}
-                                </Text>
-                              </View>
-                            </View>
-                          )}
-                        </View>
-
-                        {/* Payment Info Note */}
-                        <View
-                          style={[
-                            styles.paymentInfoNoteBox,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(201, 150, 63, 0.1)"
-                                : "rgba(201, 150, 63, 0.05)",
-                              marginTop: 16,
-                            },
-                          ]}
-                        >
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "flex-start",
-                              gap: 8,
-                            }}
-                          >
-                            <Feather
-                              name="info"
-                              size={16}
-                              color={isDark ? "#E8B86D" : "#C9963F"}
-                              style={{ marginTop: 2 }}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text
-                                style={[
-                                  styles.paymentInfoNoteText,
-                                  {
-                                    color: isDark ? "#E8B86D" : "#A67A25",
-                                    fontSize: 13,
-                                    lineHeight: 18,
-                                  },
-                                ]}
-                              >
-                                {t("applications.paymentHeldPlatformFeeNote")}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  }
-                  return (
-                    <View
-                      style={[
-                        styles.paymentInfoBox,
+                        styles.modalCancelButton,
                         {
                           backgroundColor: isDark
-                            ? "rgba(251, 191, 36, 0.1)"
-                            : "#fef3c7",
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(241, 245, 249, 0.9)",
                           borderColor: isDark
-                            ? "rgba(251, 191, 36, 0.3)"
-                            : "#fbbf24",
+                            ? "rgba(255,250,240,0.15)"
+                            : "rgba(184,130,42,0.2)",
                         },
                       ]}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          gap: 8,
-                        }}
-                      >
-                        <Feather
-                          name="alert-circle"
-                          size={18}
-                          color={isDark ? "#fbbf24" : "#ca8a04"}
-                          style={{ marginTop: 2 }}
-                        />
-                        <Text
-                          style={[
-                            styles.paymentInfoNote,
-                            {
-                              color: isDark ? "#fbbf24" : "#92400e",
-                              flex: 1,
-                            },
-                          ]}
-                        >
-                          Please select at least one service from the
-                          candidate&apos;s rates, approve additional rate
-                          requests, or have an accepted negotiation to proceed
-                          with payment.
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })()}
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "rgba(184,130,42,0.2)",
-                  },
-                ]}
-              >
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: "transparent",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "rgba(184,130,42,0.3)",
-                    },
-                  ]}
-                  onPress={() => setShowPaymentModal(false)}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: isDark ? "#C9963F" : "#B8822A",
-                      borderColor: isDark ? "#E8B86D" : "#C9963F",
-                    },
-                    paymentProcessing && styles.modalButtonDisabled,
-                  ]}
-                  onPress={handleCreatePayment}
-                  disabled={(() => {
-                    if (paymentProcessing) return true;
-
-                    // Check if there's any valid payment source
-                    const hasSelectedServices = selectedRates.size > 0;
-                    const hasApprovedAdditionalRates =
-                      application?.additionalRateRequests &&
-                      Array.isArray(application.additionalRateRequests) &&
-                      application.additionalRateRequests.some(
-                        (req: any) => req.status === "APPROVED",
-                      );
-                    const hasAcceptedNegotiations =
-                      application?.negotiationRequests &&
-                      Array.isArray(application.negotiationRequests) &&
-                      application.negotiationRequests.some(
-                        (req: any) => req.status === "ACCEPTED",
-                      );
-                    const selectedTotal = getSelectedRatesTotal();
-
-                    // Enable if there's a total amount from any source
-                    const shouldDisable =
-                      selectedTotal === 0 ||
-                      (!hasSelectedServices &&
-                        !hasApprovedAdditionalRates &&
-                        !hasAcceptedNegotiations);
-
-                    console.log(
-                      "[ApplicantDetail] Payment button disabled check:",
-                      {
-                        paymentProcessing,
-                        hasSelectedServices,
-                        hasApprovedAdditionalRates,
-                        hasAcceptedNegotiations,
-                        selectedTotal,
-                        shouldDisable,
-                      },
-                    );
-
-                    return shouldDisable;
-                  })()}
-                >
-                  {paymentProcessing ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {t("applications.createPayment")}
-                    </Text>
-                  )}
-                </TouchableButton>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Respond to Additional Rates Modal */}
-        <Modal
-          visible={showRespondModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => {
-            setShowRespondModal(false);
-            setSelectedRequestId(null);
-            setSelectedRequestStatus(null);
-            setRespondMessage("");
-          }}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.90)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {selectedRequestStatus === "APPROVED"
-                    ? t("applications.approve")
-                    : t("applications.reject")}{" "}
-                  {t("applications.additionalRateRequests")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowRespondModal(false);
-                    setSelectedRequestId(null);
-                    setSelectedRequestStatus(null);
-                    setRespondMessage("");
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView
-                style={[styles.modalBody, { flexGrow: 0, flexShrink: 1 }]}
-                contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {selectedRequestStatus === "APPROVED"
-                    ? t("applications.approveAdditionalRateDescription")
-                    : t("applications.rejectAdditionalRateDescription")}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 20 },
-                  ]}
-                >
-                  {t("applications.optionalMessage")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.65)"
-                        : "#f1f5f9",
-                      color: colors.text,
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "#F0E8D5",
-                    },
-                  ]}
-                  placeholder={
-                    selectedRequestStatus === "APPROVED"
-                      ? "Great! We approve these additional rates..."
-                      : "Thank you for the request. Unfortunately..."
-                  }
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  multiline
-                  numberOfLines={5}
-                  value={respondMessage}
-                  onChangeText={setRespondMessage}
-                  textAlignVertical="top"
-                />
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <TouchableButton
-                  style={[
-                    styles.modalCancelButton,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201,150,63,0.12)"
-                        : "rgba(241, 245, 249, 0.9)",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "rgba(184,130,42,0.2)",
-                    },
-                  ]}
-                  onPress={() => {
-                    setShowRespondModal(false);
-                    setSelectedRequestId(null);
-                    setSelectedRequestStatus(null);
-                    setRespondMessage("");
-                  }}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor:
-                        selectedRequestStatus === "APPROVED"
-                          ? "#22c55e"
-                          : "#ef4444",
-                      borderColor:
-                        selectedRequestStatus === "APPROVED"
-                          ? "#22c55e"
-                          : "#ef4444",
-                    },
-                    responding && styles.modalButtonDisabled,
-                  ]}
-                  onPress={handleRespondToAdditionalRates}
-                  disabled={responding}
-                >
-                  {responding ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {selectedRequestStatus === "APPROVED"
-                        ? t("applications.approve")
-                        : t("applications.reject")}
-                    </Text>
-                  )}
-                </TouchableButton>
-              </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Suggest Negotiation Modal */}
-        <Modal
-          visible={showNegotiationModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowNegotiationModal(false)}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View
-            style={[
-              styles.modalOverlay,
-              {
-                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.6)",
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 16,
-                  elevation: 0,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.modalHeader,
-                  {
-                    borderBottomColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {t("applications.suggestNegotiation")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowNegotiationModal(false);
-                    setNegotiationRates([{ rate: "", paymentType: "HOURLY" }]);
-                    setNegotiationMessage("");
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView
-                style={styles.modalBody}
-                contentContainerStyle={styles.modalBodyContent}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {t("applications.proposeDifferentRateAndExplain")}
-                </Text>
-
-                {/* Negotiation Rates */}
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 8 },
-                  ]}
-                >
-                  {t("applications.suggestedRates")} *
-                </Text>
-                {negotiationRates.map((rate, idx) => (
-                  <View key={idx} style={{ marginBottom: 12 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        gap: 8,
-                        marginBottom: 8,
+                      onPress={() => {
+                        setShowRespondModal(false);
+                        setSelectedRequestId(null);
+                        setSelectedRequestStatus(null);
+                        setRespondMessage("");
                       }}
                     >
-                      <TextInput
-                        style={[
-                          styles.modalTextArea,
-                          {
-                            flex: 1,
-                            minHeight: 56,
-                            backgroundColor: isDark
-                              ? "rgba(255,250,240,0.10)"
-                              : "#f1f5f9",
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#B8A88A",
-                            color: colors.text,
-                            fontSize: 16,
-                            fontWeight: "500",
-                            paddingHorizontal: 16,
-                            paddingVertical: 14,
-                            borderRadius: 4,
-                            borderWidth: 1.5,
-                          },
-                        ]}
-                        placeholder={t("applications.amount")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        value={rate.rate}
-                        onChangeText={(text) => {
-                          const updated = [...negotiationRates];
-                          updated[idx].rate = text;
-                          setNegotiationRates(updated);
-                        }}
-                        keyboardType="numeric"
-                      />
-                      <TouchableButton
-                        onPress={() => {
-                          const updated = negotiationRates.filter(
-                            (_, i) => i !== idx,
-                          );
-                          if (updated.length === 0) {
-                            updated.push({ rate: "", paymentType: "HOURLY" });
-                          }
-                          setNegotiationRates(updated);
-                        }}
-                        style={{
-                          padding: 14,
-                          backgroundColor: isDark
-                            ? "rgba(239, 68, 68, 0.25)"
-                            : "#fee2e2",
-                          borderRadius: 4,
-                          borderWidth: 1,
-                          borderColor: isDark
-                            ? "rgba(239, 68, 68, 0.4)"
-                            : "#fecaca",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Feather name="trash-2" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    </View>
-                    <View style={{ marginBottom: 8 }}>
                       <Text
-                        style={[
-                          styles.modalLabel,
-                          {
-                            color: colors.text,
-                            fontSize: 14,
-                            marginBottom: 8,
-                          },
-                        ]}
+                        style={[styles.modalButtonText, { color: colors.text }]}
                       >
-                        {t("applications.paymentType")}
+                        {t("common.cancel")}
                       </Text>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          flexWrap: "wrap",
-                          gap: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        {[
-                          "HOURLY",
-                          "DAILY",
-                          "WEEKLY",
-                          "MONTHLY",
-                          "PROJECT",
-                          "OTHER",
-                        ].map((type) => (
-                          <TouchableButton
-                            key={type}
-                            onPress={() => {
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor:
+                            selectedRequestStatus === "APPROVED"
+                              ? "#22c55e"
+                              : "#ef4444",
+                          borderColor:
+                            selectedRequestStatus === "APPROVED"
+                              ? "#22c55e"
+                              : "#ef4444",
+                        },
+                        responding && styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleRespondToAdditionalRates}
+                      disabled={responding}
+                    >
+                      {responding ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {selectedRequestStatus === "APPROVED"
+                            ? t("applications.approve")
+                            : t("applications.reject")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Suggest Negotiation Modal */}
+          <Modal
+            visible={showNegotiationModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowNegotiationModal(false)}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
+            >
+              <View
+                style={[
+                  styles.modalOverlay,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(0,0,0,0.8)"
+                      : "rgba(0,0,0,0.6)",
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.modalContent,
+                    {
+                      backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 16,
+                      elevation: 0,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.modalHeader,
+                      {
+                        borderBottomColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {t("applications.suggestNegotiation")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowNegotiationModal(false);
+                        setNegotiationRates([
+                          { rate: "", paymentType: "HOURLY" },
+                        ]);
+                        setNegotiationMessage("");
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
+
+                  <ScrollView
+                    style={styles.modalBody}
+                    contentContainerStyle={styles.modalBodyContent}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                      ]}
+                    >
+                      {t("applications.proposeDifferentRateAndExplain")}
+                    </Text>
+
+                    {/* Negotiation Rates */}
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 8 },
+                      ]}
+                    >
+                      {t("applications.suggestedRates")} *
+                    </Text>
+                    {negotiationRates.map((rate, idx) => (
+                      <View key={idx} style={{ marginBottom: 12 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <TextInput
+                            style={[
+                              styles.modalTextArea,
+                              {
+                                flex: 1,
+                                minHeight: 56,
+                                backgroundColor: isDark
+                                  ? "rgba(255,250,240,0.10)"
+                                  : "#f1f5f9",
+                                borderColor: isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "#B8A88A",
+                                color: colors.text,
+                                fontSize: 16,
+                                fontWeight: "500",
+                                paddingHorizontal: 16,
+                                paddingVertical: 14,
+                                borderRadius: 4,
+                                borderWidth: 1.5,
+                              },
+                            ]}
+                            placeholder={t("applications.amount")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            value={rate.rate}
+                            onChangeText={(text) => {
                               const updated = [...negotiationRates];
-                              updated[idx].paymentType = type;
+                              updated[idx].rate = text;
+                              setNegotiationRates(updated);
+                            }}
+                            keyboardType="numeric"
+                          />
+                          <TouchableButton
+                            onPress={() => {
+                              const updated = negotiationRates.filter(
+                                (_, i) => i !== idx,
+                              );
+                              if (updated.length === 0) {
+                                updated.push({
+                                  rate: "",
+                                  paymentType: "HOURLY",
+                                });
+                              }
                               setNegotiationRates(updated);
                             }}
                             style={{
-                              paddingHorizontal: 14,
-                              paddingVertical: 10,
-                              borderRadius: 10,
-                              borderWidth: 1.5,
-                              backgroundColor:
-                                rate.paymentType === type
-                                  ? isDark
-                                    ? colors.tint + "30"
-                                    : colors.tint + "15"
-                                  : isDark
-                                    ? "rgba(255,250,240,0.10)"
-                                    : "#f1f5f9",
-                              borderColor:
-                                rate.paymentType === type
-                                  ? colors.tint
-                                  : isDark
-                                    ? "rgba(255,250,240,0.12)"
-                                    : "#B8A88A",
+                              padding: 14,
+                              backgroundColor: isDark
+                                ? "rgba(239, 68, 68, 0.25)"
+                                : "#fee2e2",
+                              borderRadius: 4,
+                              borderWidth: 1,
+                              borderColor: isDark
+                                ? "rgba(239, 68, 68, 0.4)"
+                                : "#fecaca",
+                              justifyContent: "center",
+                              alignItems: "center",
                             }}
                           >
-                            <Text
-                              style={{
-                                color:
-                                  rate.paymentType === type
-                                    ? colors.tint
-                                    : colors.text,
-                                fontSize: 14,
-                                fontWeight:
-                                  rate.paymentType === type ? "700" : "500",
-                              }}
-                            >
-                              {type === "HOURLY"
-                                ? t("applications.hourly")
-                                : type === "DAILY"
-                                  ? t("applications.daily")
-                                  : type === "WEEKLY"
-                                    ? t("applications.weekly")
-                                    : type === "MONTHLY"
-                                      ? t("applications.monthly")
-                                      : type === "PROJECT"
-                                        ? t("applications.project")
-                                        : type === "OTHER"
-                                          ? t("onboarding.other")
-                                          : type.charAt(0) +
-                                            type
-                                              .slice(1)
-                                              .toLowerCase()
-                                              .replace("_", " ")}
-                            </Text>
+                            <Feather name="trash-2" size={18} color="#ef4444" />
                           </TouchableButton>
-                        ))}
-                      </View>
-                      {rate.paymentType === "OTHER" && (
-                        <TextInput
-                          style={[
-                            styles.modalTextArea,
-                            {
-                              minHeight: 56,
-                              backgroundColor: isDark
-                                ? "rgba(255,250,240,0.10)"
-                                : "#f1f5f9",
-                              borderColor: isDark
-                                ? "rgba(255,250,240,0.12)"
-                                : "#B8A88A",
-                              color: colors.text,
-                              fontSize: 16,
-                              fontWeight: "500",
-                              paddingHorizontal: 16,
-                              paddingVertical: 14,
-                              borderRadius: 4,
-                              borderWidth: 1.5,
-                            },
-                          ]}
-                          placeholder={t(
-                            "applications.specifyPaymentTypePlaceholder",
+                        </View>
+                        <View style={{ marginBottom: 8 }}>
+                          <Text
+                            style={[
+                              styles.modalLabel,
+                              {
+                                color: colors.text,
+                                fontSize: 14,
+                                marginBottom: 8,
+                              },
+                            ]}
+                          >
+                            {t("applications.paymentType")}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              marginBottom: 8,
+                            }}
+                          >
+                            {[
+                              "HOURLY",
+                              "DAILY",
+                              "WEEKLY",
+                              "MONTHLY",
+                              "PROJECT",
+                              "OTHER",
+                            ].map((type) => (
+                              <TouchableButton
+                                key={type}
+                                onPress={() => {
+                                  const updated = [...negotiationRates];
+                                  updated[idx].paymentType = type;
+                                  setNegotiationRates(updated);
+                                }}
+                                style={{
+                                  paddingHorizontal: 14,
+                                  paddingVertical: 10,
+                                  borderRadius: 10,
+                                  borderWidth: 1.5,
+                                  backgroundColor:
+                                    rate.paymentType === type
+                                      ? isDark
+                                        ? colors.tint + "30"
+                                        : colors.tint + "15"
+                                      : isDark
+                                        ? "rgba(255,250,240,0.10)"
+                                        : "#f1f5f9",
+                                  borderColor:
+                                    rate.paymentType === type
+                                      ? colors.tint
+                                      : isDark
+                                        ? "rgba(255,250,240,0.12)"
+                                        : "#B8A88A",
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color:
+                                      rate.paymentType === type
+                                        ? colors.tint
+                                        : colors.text,
+                                    fontSize: 14,
+                                    fontWeight:
+                                      rate.paymentType === type ? "700" : "500",
+                                  }}
+                                >
+                                  {type === "HOURLY"
+                                    ? t("applications.hourly")
+                                    : type === "DAILY"
+                                      ? t("applications.daily")
+                                      : type === "WEEKLY"
+                                        ? t("applications.weekly")
+                                        : type === "MONTHLY"
+                                          ? t("applications.monthly")
+                                          : type === "PROJECT"
+                                            ? t("applications.project")
+                                            : type === "OTHER"
+                                              ? t("onboarding.other")
+                                              : type.charAt(0) +
+                                                type
+                                                  .slice(1)
+                                                  .toLowerCase()
+                                                  .replace("_", " ")}
+                                </Text>
+                              </TouchableButton>
+                            ))}
+                          </View>
+                          {rate.paymentType === "OTHER" && (
+                            <TextInput
+                              style={[
+                                styles.modalTextArea,
+                                {
+                                  minHeight: 56,
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.10)"
+                                    : "#f1f5f9",
+                                  borderColor: isDark
+                                    ? "rgba(255,250,240,0.12)"
+                                    : "#B8A88A",
+                                  color: colors.text,
+                                  fontSize: 16,
+                                  fontWeight: "500",
+                                  paddingHorizontal: 16,
+                                  paddingVertical: 14,
+                                  borderRadius: 4,
+                                  borderWidth: 1.5,
+                                },
+                              ]}
+                              placeholder={t(
+                                "applications.specifyPaymentTypePlaceholder",
+                              )}
+                              placeholderTextColor={
+                                isDark ? "#8A7B68" : "#9A8E7A"
+                              }
+                              value={rate.otherSpecification}
+                              onChangeText={(text) => {
+                                const updated = [...negotiationRates];
+                                updated[idx].otherSpecification = text;
+                                setNegotiationRates(updated);
+                              }}
+                            />
                           )}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          value={rate.otherSpecification}
-                          onChangeText={(text) => {
-                            const updated = [...negotiationRates];
-                            updated[idx].otherSpecification = text;
-                            setNegotiationRates(updated);
-                          }}
-                        />
-                      )}
-                    </View>
-                  </View>
-                ))}
-                <TouchableButton
-                  onPress={() => {
-                    setNegotiationRates([
-                      ...negotiationRates,
-                      { rate: "", paymentType: "HOURLY" },
-                    ]);
-                  }}
-                  style={{
-                    padding: 16,
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                    borderColor: colors.tint,
-                    borderRadius: 4,
-                    alignItems: "center",
-                    marginBottom: 20,
-                    backgroundColor: isDark
-                      ? colors.tint + "08"
-                      : colors.tint + "05",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: colors.tint,
-                      fontWeight: "700",
-                      fontSize: 15,
-                    }}
-                  >
-                    {t("applications.addAnotherRate")}
-                  </Text>
-                </TouchableButton>
+                        </View>
+                      </View>
+                    ))}
+                    <TouchableButton
+                      onPress={() => {
+                        setNegotiationRates([
+                          ...negotiationRates,
+                          { rate: "", paymentType: "HOURLY" },
+                        ]);
+                      }}
+                      style={{
+                        padding: 16,
+                        borderWidth: 1.5,
+                        borderStyle: "dashed",
+                        borderColor: colors.tint,
+                        borderRadius: 4,
+                        alignItems: "center",
+                        marginBottom: 20,
+                        backgroundColor: isDark
+                          ? colors.tint + "08"
+                          : colors.tint + "05",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: colors.tint,
+                          fontWeight: "700",
+                          fontSize: 15,
+                        }}
+                      >
+                        {t("applications.addAnotherRate")}
+                      </Text>
+                    </TouchableButton>
 
-                {/* Total Display */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    paddingVertical: 12,
-                    paddingHorizontal: 4,
-                    marginTop: 8,
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.modalLabel,
-                      {
-                        color: colors.text,
-                        fontSize: 16,
-                        fontWeight: "700",
-                      },
-                    ]}
-                  >
-                    {t("applications.total")}:
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.tint,
-                      fontSize: 18,
-                      fontWeight: "700",
-                    }}
-                  >
-                    EUR{" "}
-                    {negotiationRates
-                      .reduce((sum, r) => sum + (parseFloat(r.rate) || 0), 0)
-                      .toFixed(2)}
-                  </Text>
-                </View>
-
-                {/* Message (Mandatory) */}
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 8 },
-                  ]}
-                >
-                  {t("applications.explanationRequired")}
-                </Text>
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    {
-                      color: isDark ? "#9A8E7A" : "#8A7B68",
-                      fontSize: 13,
-                      marginBottom: 8,
-                    },
-                  ]}
-                >
-                  {t("applications.explainRateRequest")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.10)"
-                        : "#f1f5f9",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "#B8A88A",
-                      color: colors.text,
-                      fontSize: 16,
-                      lineHeight: 24,
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      borderRadius: 4,
-                      borderWidth: 1.5,
-                      minHeight: 140,
-                    },
-                  ]}
-                  placeholder={t("applications.explainRateRequest")}
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  value={negotiationMessage}
-                  onChangeText={setNegotiationMessage}
-                  textAlignVertical="top"
-                  multiline
-                  scrollEnabled={true}
-                />
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: "transparent",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "#B8A88A",
-                    },
-                  ]}
-                  onPress={() => {
-                    setShowNegotiationModal(false);
-                    setNegotiationRates([{ rate: "", paymentType: "HOURLY" }]);
-                    setNegotiationMessage("");
-                  }}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: isDark ? "#C9963F" : colors.tint,
-                      borderColor: isDark ? "#C9963F" : colors.tint,
-                      shadowColor: isDark ? "#C9963F" : colors.tint,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 0,
-                    },
-                    suggestingNegotiation && styles.modalButtonDisabled,
-                  ]}
-                  onPress={handleSuggestNegotiation}
-                  disabled={suggestingNegotiation}
-                >
-                  {suggestingNegotiation ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {t("applications.sendSuggestion")}
-                    </Text>
-                  )}
-                </TouchableButton>
-              </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Employer Respond to Service Provider Negotiation Modal */}
-        <Modal
-          visible={showEmployerNegotiationRespondModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => {
-            setShowEmployerNegotiationRespondModal(false);
-            setSelectedEmployerNegotiationId(null);
-            setSelectedEmployerNegotiationStatus(null);
-            setEmployerNegotiationResponseMessage("");
-          }}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View
-            style={[
-              styles.modalOverlay,
-              {
-                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.6)",
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.modalHeader,
-                  {
-                    borderBottomColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {t("applications.respondToNegotiationRequest")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowEmployerNegotiationRespondModal(false);
-                    setSelectedEmployerNegotiationId(null);
-                    setSelectedEmployerNegotiationStatus(null);
-                    setEmployerNegotiationResponseMessage("");
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView style={styles.modalBody}>
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {selectedEmployerNegotiationStatus === "ACCEPTED"
-                    ? t(
-                        "applications.acceptingServiceProviderNegotiationRequestDescription",
-                      )
-                    : t(
-                        "applications.rejectingServiceProviderNegotiationRequestDescription",
-                      )}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 8 },
-                  ]}
-                >
-                  {t("applications.responseMessageOptional")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.06)"
-                        : "#FFF8F0",
-                      borderColor: isDark ? "rgba(201,150,63,0.12)" : "#B8A88A",
-                      color: colors.text,
-                    },
-                  ]}
-                  placeholder={t("applications.addMessageOptional")}
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  value={employerNegotiationResponseMessage}
-                  onChangeText={setEmployerNegotiationResponseMessage}
-                  textAlignVertical="top"
-                  multiline
-                  scrollEnabled={true}
-                />
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: "transparent",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "#B8A88A",
-                    },
-                  ]}
-                  onPress={() => {
-                    setShowEmployerNegotiationRespondModal(false);
-                    setSelectedEmployerNegotiationId(null);
-                    setSelectedEmployerNegotiationStatus(null);
-                    setEmployerNegotiationResponseMessage("");
-                  }}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor:
-                        selectedEmployerNegotiationStatus === "ACCEPTED"
-                          ? "#22c55e"
-                          : "#ef4444",
-                      borderColor:
-                        selectedEmployerNegotiationStatus === "ACCEPTED"
-                          ? "#22c55e"
-                          : "#ef4444",
-                    },
-                    respondingToEmployerNegotiation &&
-                      styles.modalButtonDisabled,
-                  ]}
-                  onPress={handleRespondToServiceProviderNegotiation}
-                  disabled={respondingToEmployerNegotiation}
-                >
-                  {respondingToEmployerNegotiation ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {selectedEmployerNegotiationStatus === "ACCEPTED"
-                        ? t("common.accept")
-                        : t("applications.reject")}
-                    </Text>
-                  )}
-                </TouchableButton>
-              </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Employer Counter Offer Modal */}
-        <Modal
-          visible={showEmployerCounterOfferModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => {
-            setShowEmployerCounterOfferModal(false);
-            setEmployerCounterOfferRates([{ rate: "", paymentType: "HOURLY" }]);
-            setEmployerCounterOfferMessage("");
-            setSelectedEmployerNegotiationId(null);
-          }}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View
-            style={[
-              styles.modalOverlay,
-              {
-                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.6)",
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 16,
-                  elevation: 0,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.modalHeader,
-                  {
-                    borderBottomColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {t("applications.proposeCounterOffer")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowEmployerCounterOfferModal(false);
-                    setEmployerCounterOfferRates([
-                      { rate: "", paymentType: "HOURLY" },
-                    ]);
-                    setEmployerCounterOfferMessage("");
-                    setSelectedEmployerNegotiationId(null);
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView
-                style={styles.modalBody}
-                contentContainerStyle={styles.modalBodyContent}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {t("applications.proposeCounterOfferDescription")}
-                </Text>
-
-                {/* Counter Offer Rates */}
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 8 },
-                  ]}
-                >
-                  {t("applications.counterOfferRates")} *
-                </Text>
-                {employerCounterOfferRates.map((rate, idx) => (
-                  <View key={idx} style={{ marginBottom: 12 }}>
+                    {/* Total Display */}
                     <View
                       style={{
                         flexDirection: "row",
-                        gap: 8,
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        paddingVertical: 12,
+                        paddingHorizontal: 4,
+                        marginTop: 8,
                         marginBottom: 8,
                       }}
                     >
-                      <TextInput
-                        style={[
-                          styles.modalTextArea,
-                          {
-                            flex: 1,
-                            minHeight: 56,
-                            backgroundColor: isDark
-                              ? "rgba(255,250,240,0.10)"
-                              : "#f1f5f9",
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#B8A88A",
-                            color: colors.text,
-                            fontSize: 16,
-                            fontWeight: "500",
-                            paddingHorizontal: 16,
-                            paddingVertical: 14,
-                            borderRadius: 4,
-                            borderWidth: 1.5,
-                          },
-                        ]}
-                        placeholder={t("applications.amount")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        value={rate.rate}
-                        onChangeText={(text) => {
-                          const updated = [...employerCounterOfferRates];
-                          updated[idx].rate = text;
-                          setEmployerCounterOfferRates(updated);
-                        }}
-                        keyboardType="numeric"
-                      />
-                      <TouchableButton
-                        onPress={() => {
-                          const updated = employerCounterOfferRates.filter(
-                            (_, i) => i !== idx,
-                          );
-                          if (updated.length === 0) {
-                            updated.push({ rate: "", paymentType: "HOURLY" });
-                          }
-                          setEmployerCounterOfferRates(updated);
-                        }}
-                        style={{
-                          padding: 14,
-                          backgroundColor: isDark
-                            ? "rgba(239, 68, 68, 0.25)"
-                            : "#fee2e2",
-                          borderRadius: 4,
-                          borderWidth: 1,
-                          borderColor: isDark
-                            ? "rgba(239, 68, 68, 0.4)"
-                            : "#fecaca",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Feather name="trash-2" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    </View>
-                    <View style={{ marginBottom: 8 }}>
                       <Text
                         style={[
                           styles.modalLabel,
                           {
                             color: colors.text,
-                            fontSize: 14,
-                            marginBottom: 8,
+                            fontSize: 16,
+                            fontWeight: "700",
                           },
                         ]}
                       >
-                        {t("applications.paymentType")}
+                        {t("applications.total")}:
                       </Text>
-                      <View
+                      <Text
                         style={{
-                          flexDirection: "row",
-                          flexWrap: "wrap",
-                          gap: 8,
-                          marginBottom: 8,
+                          color: colors.tint,
+                          fontSize: 18,
+                          fontWeight: "700",
                         }}
                       >
-                        {[
-                          "HOURLY",
-                          "DAILY",
-                          "WEEKLY",
-                          "MONTHLY",
-                          "PROJECT",
-                          "OTHER",
-                        ].map((type) => (
-                          <TouchableButton
-                            key={type}
-                            onPress={() => {
-                              const updated = [...employerCounterOfferRates];
-                              updated[idx].paymentType = type;
-                              setEmployerCounterOfferRates(updated);
-                            }}
-                            style={{
-                              paddingHorizontal: 14,
-                              paddingVertical: 10,
-                              borderRadius: 10,
-                              borderWidth: 1.5,
-                              backgroundColor:
-                                rate.paymentType === type
-                                  ? isDark
-                                    ? colors.tint + "30"
-                                    : colors.tint + "15"
-                                  : isDark
-                                    ? "rgba(255,250,240,0.10)"
-                                    : "#f1f5f9",
-                              borderColor:
-                                rate.paymentType === type
-                                  ? colors.tint
-                                  : isDark
-                                    ? "rgba(255,250,240,0.12)"
-                                    : "#B8A88A",
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color:
-                                  rate.paymentType === type
-                                    ? colors.tint
-                                    : colors.text,
-                                fontSize: 14,
-                                fontWeight:
-                                  rate.paymentType === type ? "700" : "500",
-                              }}
-                            >
-                              {type === "HOURLY"
-                                ? t("applications.hourly")
-                                : type === "DAILY"
-                                  ? t("applications.daily")
-                                  : type === "WEEKLY"
-                                    ? t("applications.weekly")
-                                    : type === "MONTHLY"
-                                      ? t("applications.monthly")
-                                      : type === "PROJECT"
-                                        ? t("applications.project")
-                                        : type === "OTHER"
-                                          ? t("onboarding.other")
-                                          : type.charAt(0) +
-                                            type
-                                              .slice(1)
-                                              .toLowerCase()
-                                              .replace("_", " ")}
-                            </Text>
-                          </TouchableButton>
-                        ))}
-                      </View>
-                      {rate.paymentType === "OTHER" && (
-                        <TextInput
-                          style={[
-                            styles.modalTextArea,
-                            {
-                              minHeight: 56,
-                              backgroundColor: isDark
-                                ? "rgba(255,250,240,0.10)"
-                                : "#f1f5f9",
-                              borderColor: isDark
-                                ? "rgba(255,250,240,0.12)"
-                                : "#B8A88A",
-                              color: colors.text,
-                              fontSize: 16,
-                              fontWeight: "500",
-                              paddingHorizontal: 16,
-                              paddingVertical: 14,
-                              borderRadius: 4,
-                              borderWidth: 1.5,
-                            },
-                          ]}
-                          placeholder={t(
-                            "applications.specifyPaymentTypePlaceholder",
-                          )}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          value={rate.otherSpecification}
-                          onChangeText={(text) => {
-                            const updated = [...employerCounterOfferRates];
-                            updated[idx].otherSpecification = text;
-                            setEmployerCounterOfferRates(updated);
-                          }}
-                        />
-                      )}
+                        EUR{" "}
+                        {negotiationRates
+                          .reduce(
+                            (sum, r) => sum + (parseFloat(r.rate) || 0),
+                            0,
+                          )
+                          .toFixed(2)}
+                      </Text>
                     </View>
-                  </View>
-                ))}
-                <TouchableButton
-                  onPress={() => {
-                    setEmployerCounterOfferRates([
-                      ...employerCounterOfferRates,
-                      { rate: "", paymentType: "HOURLY" },
-                    ]);
-                  }}
-                  style={{
-                    padding: 16,
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                    borderColor: colors.tint,
-                    borderRadius: 4,
-                    alignItems: "center",
-                    marginBottom: 20,
-                    backgroundColor: isDark
-                      ? colors.tint + "08"
-                      : colors.tint + "05",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: colors.tint,
-                      fontWeight: "700",
-                      fontSize: 15,
-                    }}
-                  >
-                    {t("applications.addAnotherRate")}
-                  </Text>
-                </TouchableButton>
 
-                {/* Total Display */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    paddingVertical: 12,
-                    paddingHorizontal: 4,
-                    marginTop: 8,
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text
+                    {/* Message (Mandatory) */}
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 8 },
+                      ]}
+                    >
+                      {t("applications.explanationRequired")}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        {
+                          color: isDark ? "#9A8E7A" : "#8A7B68",
+                          fontSize: 13,
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("applications.explainRateRequest")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(255,250,240,0.10)"
+                            : "#f1f5f9",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#B8A88A",
+                          color: colors.text,
+                          fontSize: 16,
+                          lineHeight: 24,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
+                          borderRadius: 4,
+                          borderWidth: 1.5,
+                          minHeight: 140,
+                        },
+                      ]}
+                      placeholder={t("applications.explainRateRequest")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={negotiationMessage}
+                      onChangeText={setNegotiationMessage}
+                      textAlignVertical="top"
+                      multiline
+                      scrollEnabled={true}
+                    />
+                  </ScrollView>
+
+                  <View
                     style={[
-                      styles.modalLabel,
+                      styles.modalFooter,
                       {
-                        color: colors.text,
-                        fontSize: 16,
-                        fontWeight: "700",
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
                       },
                     ]}
                   >
-                    {t("applications.total")}:
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.tint,
-                      fontSize: 18,
-                      fontWeight: "700",
-                    }}
-                  >
-                    EUR{" "}
-                    {employerCounterOfferRates
-                      .reduce((sum, r) => sum + (parseFloat(r.rate) || 0), 0)
-                      .toFixed(2)}
-                  </Text>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: "transparent",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "#B8A88A",
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowNegotiationModal(false);
+                        setNegotiationRates([
+                          { rate: "", paymentType: "HOURLY" },
+                        ]);
+                        setNegotiationMessage("");
+                      }}
+                    >
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: isDark ? "#C9963F" : colors.tint,
+                          borderColor: isDark ? "#C9963F" : colors.tint,
+                          shadowColor: isDark ? "#C9963F" : colors.tint,
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 8,
+                          elevation: 0,
+                        },
+                        suggestingNegotiation && styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleSuggestNegotiation}
+                      disabled={suggestingNegotiation}
+                    >
+                      {suggestingNegotiation ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {t("applications.sendSuggestion")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
                 </View>
-
-                {/* Message (Optional) */}
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 8 },
-                  ]}
-                >
-                  {t("applications.messageOptional")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.10)"
-                        : "#f1f5f9",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "#B8A88A",
-                      color: colors.text,
-                      fontSize: 16,
-                      lineHeight: 24,
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      borderRadius: 4,
-                      borderWidth: 1.5,
-                      minHeight: 140,
-                    },
-                  ]}
-                  placeholder={t("applications.explainCounterOffer")}
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  value={employerCounterOfferMessage}
-                  onChangeText={setEmployerCounterOfferMessage}
-                  textAlignVertical="top"
-                  multiline
-                  scrollEnabled={true}
-                />
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: "transparent",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "#B8A88A",
-                    },
-                  ]}
-                  onPress={() => {
-                    setShowEmployerCounterOfferModal(false);
-                    setEmployerCounterOfferRates([
-                      { rate: "", paymentType: "HOURLY" },
-                    ]);
-                    setEmployerCounterOfferMessage("");
-                    setSelectedEmployerNegotiationId(null);
-                  }}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: isDark ? "#C9963F" : colors.tint,
-                      borderColor: isDark ? "#C9963F" : colors.tint,
-                      shadowColor: isDark ? "#C9963F" : colors.tint,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 0,
-                    },
-                    sendingEmployerCounterOffer && styles.modalButtonDisabled,
-                  ]}
-                  onPress={handleSendEmployerCounterOffer}
-                  disabled={sendingEmployerCounterOffer}
-                >
-                  {sendingEmployerCounterOffer ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {t("applications.sendCounterOffer")}
-                    </Text>
-                  )}
-                </TouchableButton>
               </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
+            </KeyboardAvoidingView>
+          </Modal>
 
-        {/* Request Additional Time Modal */}
-        <Modal
-          visible={showAdditionalTimeModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => {
-            setShowAdditionalTimeModal(false);
-            setAdditionalTimeMessage("");
-          }}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View
-            style={[
-              styles.modalOverlay,
-              {
-                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.6)",
-              },
-            ]}
+          {/* Employer Respond to Service Provider Negotiation Modal */}
+          <Modal
+            visible={showEmployerNegotiationRespondModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => {
+              setShowEmployerNegotiationRespondModal(false);
+              setSelectedEmployerNegotiationId(null);
+              setSelectedEmployerNegotiationStatus(null);
+              setEmployerNegotiationResponseMessage("");
+            }}
           >
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 16,
-                  elevation: 0,
-                },
-              ]}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
             >
               <View
                 style={[
-                  styles.modalHeader,
+                  styles.modalOverlay,
                   {
-                    borderBottomColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
+                    backgroundColor: isDark
+                      ? "rgba(0,0,0,0.8)"
+                      : "rgba(0,0,0,0.6)",
                   },
                 ]}
               >
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {t("applications.requestAdditionalTime")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowAdditionalTimeModal(false);
-                    setAdditionalTimeMessage("");
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView style={styles.modalBody}>
-                <Text
+                <View
                   style={[
-                    styles.modalDescription,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {t("applications.requestAdditionalTimeModalDescription")}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 20 },
-                  ]}
-                >
-                  {t("applications.explanationRequired")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
+                    styles.modalContent,
                     {
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.10)"
-                        : "#f1f5f9",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "#B8A88A",
-                      color: colors.text,
-                      fontSize: 16,
-                      lineHeight: 24,
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      borderRadius: 4,
-                      borderWidth: 1.5,
-                      minHeight: 140,
+                      backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
                     },
                   ]}
-                  placeholder={t("applications.explainAdditionalTime")}
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  value={additionalTimeMessage}
-                  onChangeText={setAdditionalTimeMessage}
-                  textAlignVertical="top"
-                  multiline
-                />
-              </ScrollView>
+                >
+                  <View
+                    style={[
+                      styles.modalHeader,
+                      {
+                        borderBottomColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {t("applications.respondToNegotiationRequest")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowEmployerNegotiationRespondModal(false);
+                        setSelectedEmployerNegotiationId(null);
+                        setSelectedEmployerNegotiationStatus(null);
+                        setEmployerNegotiationResponseMessage("");
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
 
+                  <ScrollView style={styles.modalBody}>
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                      ]}
+                    >
+                      {selectedEmployerNegotiationStatus === "ACCEPTED"
+                        ? t(
+                            "applications.acceptingServiceProviderNegotiationRequestDescription",
+                          )
+                        : t(
+                            "applications.rejectingServiceProviderNegotiationRequestDescription",
+                          )}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 8 },
+                      ]}
+                    >
+                      {t("applications.responseMessageOptional")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(255,250,240,0.06)"
+                            : "#FFF8F0",
+                          borderColor: isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "#B8A88A",
+                          color: colors.text,
+                        },
+                      ]}
+                      placeholder={t("applications.addMessageOptional")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={employerNegotiationResponseMessage}
+                      onChangeText={setEmployerNegotiationResponseMessage}
+                      textAlignVertical="top"
+                      multiline
+                      scrollEnabled={true}
+                    />
+                  </ScrollView>
+
+                  <View
+                    style={[
+                      styles.modalFooter,
+                      {
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: "transparent",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "#B8A88A",
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowEmployerNegotiationRespondModal(false);
+                        setSelectedEmployerNegotiationId(null);
+                        setSelectedEmployerNegotiationStatus(null);
+                        setEmployerNegotiationResponseMessage("");
+                      }}
+                    >
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor:
+                            selectedEmployerNegotiationStatus === "ACCEPTED"
+                              ? "#22c55e"
+                              : "#ef4444",
+                          borderColor:
+                            selectedEmployerNegotiationStatus === "ACCEPTED"
+                              ? "#22c55e"
+                              : "#ef4444",
+                        },
+                        respondingToEmployerNegotiation &&
+                          styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleRespondToServiceProviderNegotiation}
+                      disabled={respondingToEmployerNegotiation}
+                    >
+                      {respondingToEmployerNegotiation ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {selectedEmployerNegotiationStatus === "ACCEPTED"
+                            ? t("common.accept")
+                            : t("applications.reject")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Employer Counter Offer Modal */}
+          <Modal
+            visible={showEmployerCounterOfferModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => {
+              setShowEmployerCounterOfferModal(false);
+              setEmployerCounterOfferRates([
+                { rate: "", paymentType: "HOURLY" },
+              ]);
+              setEmployerCounterOfferMessage("");
+              setSelectedEmployerNegotiationId(null);
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
+            >
               <View
                 style={[
-                  styles.modalFooter,
+                  styles.modalOverlay,
                   {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
+                    backgroundColor: isDark
+                      ? "rgba(0,0,0,0.8)"
+                      : "rgba(0,0,0,0.6)",
                   },
                 ]}
               >
-                <TouchableButton
+                <View
                   style={[
-                    styles.modalButton,
+                    styles.modalContent,
                     {
-                      backgroundColor: "transparent",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "#B8A88A",
-                    },
-                  ]}
-                  onPress={() => {
-                    setShowAdditionalTimeModal(false);
-                    setAdditionalTimeMessage("");
-                  }}
-                >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
-                  >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
-                  style={[
-                    styles.modalButton,
-                    {
-                      backgroundColor: isDark ? "#C9963F" : colors.tint,
-                      borderColor: isDark ? "#C9963F" : colors.tint,
-                      shadowColor: isDark ? "#C9963F" : colors.tint,
-                      shadowOffset: { width: 0, height: 4 },
+                      backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 8 },
                       shadowOpacity: 0.3,
-                      shadowRadius: 8,
+                      shadowRadius: 16,
                       elevation: 0,
                     },
-                    requestingAdditionalTime && styles.modalButtonDisabled,
                   ]}
-                  onPress={handleRequestAdditionalTime}
-                  disabled={requestingAdditionalTime}
                 >
-                  {requestingAdditionalTime ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
-                      {t("applications.sendRequest")}
+                  <View
+                    style={[
+                      styles.modalHeader,
+                      {
+                        borderBottomColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {t("applications.proposeCounterOffer")}
                     </Text>
-                  )}
-                </TouchableButton>
-              </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowEmployerCounterOfferModal(false);
+                        setEmployerCounterOfferRates([
+                          { rate: "", paymentType: "HOURLY" },
+                        ]);
+                        setEmployerCounterOfferMessage("");
+                        setSelectedEmployerNegotiationId(null);
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
 
-        {/* Respond to Additional Time Response Modal */}
-        <Modal
-          visible={showAdditionalTimeResponseModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => {
-            setShowAdditionalTimeResponseModal(false);
-            setSelectedAdditionalTimeRequestId(null);
-            setAdditionalTimeResponseStatus(null);
-            setAdditionalTimeResponseMessage("");
-          }}
-        >
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.90)"
-                    : "#FFFAF0",
-                },
-              ]}
+                  <ScrollView
+                    style={styles.modalBody}
+                    contentContainerStyle={styles.modalBodyContent}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                      ]}
+                    >
+                      {t("applications.proposeCounterOfferDescription")}
+                    </Text>
+
+                    {/* Counter Offer Rates */}
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 8 },
+                      ]}
+                    >
+                      {t("applications.counterOfferRates")} *
+                    </Text>
+                    {employerCounterOfferRates.map((rate, idx) => (
+                      <View key={idx} style={{ marginBottom: 12 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <TextInput
+                            style={[
+                              styles.modalTextArea,
+                              {
+                                flex: 1,
+                                minHeight: 56,
+                                backgroundColor: isDark
+                                  ? "rgba(255,250,240,0.10)"
+                                  : "#f1f5f9",
+                                borderColor: isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "#B8A88A",
+                                color: colors.text,
+                                fontSize: 16,
+                                fontWeight: "500",
+                                paddingHorizontal: 16,
+                                paddingVertical: 14,
+                                borderRadius: 4,
+                                borderWidth: 1.5,
+                              },
+                            ]}
+                            placeholder={t("applications.amount")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            value={rate.rate}
+                            onChangeText={(text) => {
+                              const updated = [...employerCounterOfferRates];
+                              updated[idx].rate = text;
+                              setEmployerCounterOfferRates(updated);
+                            }}
+                            keyboardType="numeric"
+                          />
+                          <TouchableButton
+                            onPress={() => {
+                              const updated = employerCounterOfferRates.filter(
+                                (_, i) => i !== idx,
+                              );
+                              if (updated.length === 0) {
+                                updated.push({
+                                  rate: "",
+                                  paymentType: "HOURLY",
+                                });
+                              }
+                              setEmployerCounterOfferRates(updated);
+                            }}
+                            style={{
+                              padding: 14,
+                              backgroundColor: isDark
+                                ? "rgba(239, 68, 68, 0.25)"
+                                : "#fee2e2",
+                              borderRadius: 4,
+                              borderWidth: 1,
+                              borderColor: isDark
+                                ? "rgba(239, 68, 68, 0.4)"
+                                : "#fecaca",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Feather name="trash-2" size={18} color="#ef4444" />
+                          </TouchableButton>
+                        </View>
+                        <View style={{ marginBottom: 8 }}>
+                          <Text
+                            style={[
+                              styles.modalLabel,
+                              {
+                                color: colors.text,
+                                fontSize: 14,
+                                marginBottom: 8,
+                              },
+                            ]}
+                          >
+                            {t("applications.paymentType")}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              marginBottom: 8,
+                            }}
+                          >
+                            {[
+                              "HOURLY",
+                              "DAILY",
+                              "WEEKLY",
+                              "MONTHLY",
+                              "PROJECT",
+                              "OTHER",
+                            ].map((type) => (
+                              <TouchableButton
+                                key={type}
+                                onPress={() => {
+                                  const updated = [
+                                    ...employerCounterOfferRates,
+                                  ];
+                                  updated[idx].paymentType = type;
+                                  setEmployerCounterOfferRates(updated);
+                                }}
+                                style={{
+                                  paddingHorizontal: 14,
+                                  paddingVertical: 10,
+                                  borderRadius: 10,
+                                  borderWidth: 1.5,
+                                  backgroundColor:
+                                    rate.paymentType === type
+                                      ? isDark
+                                        ? colors.tint + "30"
+                                        : colors.tint + "15"
+                                      : isDark
+                                        ? "rgba(255,250,240,0.10)"
+                                        : "#f1f5f9",
+                                  borderColor:
+                                    rate.paymentType === type
+                                      ? colors.tint
+                                      : isDark
+                                        ? "rgba(255,250,240,0.12)"
+                                        : "#B8A88A",
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color:
+                                      rate.paymentType === type
+                                        ? colors.tint
+                                        : colors.text,
+                                    fontSize: 14,
+                                    fontWeight:
+                                      rate.paymentType === type ? "700" : "500",
+                                  }}
+                                >
+                                  {type === "HOURLY"
+                                    ? t("applications.hourly")
+                                    : type === "DAILY"
+                                      ? t("applications.daily")
+                                      : type === "WEEKLY"
+                                        ? t("applications.weekly")
+                                        : type === "MONTHLY"
+                                          ? t("applications.monthly")
+                                          : type === "PROJECT"
+                                            ? t("applications.project")
+                                            : type === "OTHER"
+                                              ? t("onboarding.other")
+                                              : type.charAt(0) +
+                                                type
+                                                  .slice(1)
+                                                  .toLowerCase()
+                                                  .replace("_", " ")}
+                                </Text>
+                              </TouchableButton>
+                            ))}
+                          </View>
+                          {rate.paymentType === "OTHER" && (
+                            <TextInput
+                              style={[
+                                styles.modalTextArea,
+                                {
+                                  minHeight: 56,
+                                  backgroundColor: isDark
+                                    ? "rgba(255,250,240,0.10)"
+                                    : "#f1f5f9",
+                                  borderColor: isDark
+                                    ? "rgba(255,250,240,0.12)"
+                                    : "#B8A88A",
+                                  color: colors.text,
+                                  fontSize: 16,
+                                  fontWeight: "500",
+                                  paddingHorizontal: 16,
+                                  paddingVertical: 14,
+                                  borderRadius: 4,
+                                  borderWidth: 1.5,
+                                },
+                              ]}
+                              placeholder={t(
+                                "applications.specifyPaymentTypePlaceholder",
+                              )}
+                              placeholderTextColor={
+                                isDark ? "#8A7B68" : "#9A8E7A"
+                              }
+                              value={rate.otherSpecification}
+                              onChangeText={(text) => {
+                                const updated = [...employerCounterOfferRates];
+                                updated[idx].otherSpecification = text;
+                                setEmployerCounterOfferRates(updated);
+                              }}
+                            />
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                    <TouchableButton
+                      onPress={() => {
+                        setEmployerCounterOfferRates([
+                          ...employerCounterOfferRates,
+                          { rate: "", paymentType: "HOURLY" },
+                        ]);
+                      }}
+                      style={{
+                        padding: 16,
+                        borderWidth: 1.5,
+                        borderStyle: "dashed",
+                        borderColor: colors.tint,
+                        borderRadius: 4,
+                        alignItems: "center",
+                        marginBottom: 20,
+                        backgroundColor: isDark
+                          ? colors.tint + "08"
+                          : colors.tint + "05",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: colors.tint,
+                          fontWeight: "700",
+                          fontSize: 15,
+                        }}
+                      >
+                        {t("applications.addAnotherRate")}
+                      </Text>
+                    </TouchableButton>
+
+                    {/* Total Display */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        paddingVertical: 12,
+                        paddingHorizontal: 4,
+                        marginTop: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.modalLabel,
+                          {
+                            color: colors.text,
+                            fontSize: 16,
+                            fontWeight: "700",
+                          },
+                        ]}
+                      >
+                        {t("applications.total")}:
+                      </Text>
+                      <Text
+                        style={{
+                          color: colors.tint,
+                          fontSize: 18,
+                          fontWeight: "700",
+                        }}
+                      >
+                        EUR{" "}
+                        {employerCounterOfferRates
+                          .reduce(
+                            (sum, r) => sum + (parseFloat(r.rate) || 0),
+                            0,
+                          )
+                          .toFixed(2)}
+                      </Text>
+                    </View>
+
+                    {/* Message (Optional) */}
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 8 },
+                      ]}
+                    >
+                      {t("applications.messageOptional")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(255,250,240,0.10)"
+                            : "#f1f5f9",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#B8A88A",
+                          color: colors.text,
+                          fontSize: 16,
+                          lineHeight: 24,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
+                          borderRadius: 4,
+                          borderWidth: 1.5,
+                          minHeight: 140,
+                        },
+                      ]}
+                      placeholder={t("applications.explainCounterOffer")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={employerCounterOfferMessage}
+                      onChangeText={setEmployerCounterOfferMessage}
+                      textAlignVertical="top"
+                      multiline
+                      scrollEnabled={true}
+                    />
+                  </ScrollView>
+
+                  <View
+                    style={[
+                      styles.modalFooter,
+                      {
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: "transparent",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "#B8A88A",
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowEmployerCounterOfferModal(false);
+                        setEmployerCounterOfferRates([
+                          { rate: "", paymentType: "HOURLY" },
+                        ]);
+                        setEmployerCounterOfferMessage("");
+                        setSelectedEmployerNegotiationId(null);
+                      }}
+                    >
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: isDark ? "#C9963F" : colors.tint,
+                          borderColor: isDark ? "#C9963F" : colors.tint,
+                          shadowColor: isDark ? "#C9963F" : colors.tint,
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 8,
+                          elevation: 0,
+                        },
+                        sendingEmployerCounterOffer &&
+                          styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleSendEmployerCounterOffer}
+                      disabled={sendingEmployerCounterOffer}
+                    >
+                      {sendingEmployerCounterOffer ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {t("applications.sendCounterOffer")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Request Additional Time Modal */}
+          <Modal
+            visible={showAdditionalTimeModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => {
+              setShowAdditionalTimeModal(false);
+              setAdditionalTimeMessage("");
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
             >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {additionalTimeResponseStatus === "ACCEPTED"
-                    ? t("common.accept")
-                    : t("applications.reject")}{" "}
-                  {t("applications.additionalTimeRequests")}
-                </Text>
-                <TouchableButton
-                  onPress={() => {
-                    setShowAdditionalTimeResponseModal(false);
-                    setSelectedAdditionalTimeRequestId(null);
-                    setAdditionalTimeResponseStatus(null);
-                    setAdditionalTimeResponseMessage("");
-                  }}
-                >
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableButton>
-              </View>
-
-              <ScrollView style={styles.modalBody}>
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                  ]}
-                >
-                  {additionalTimeResponseStatus === "ACCEPTED"
-                    ? t("applications.acceptAdditionalTimeDescription")
-                    : t("applications.rejectAdditionalTimeDescription")}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.modalLabel,
-                    { color: colors.text, marginTop: 20 },
-                  ]}
-                >
-                  {t("applications.optionalMessage")}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.modalTextArea,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.65)"
-                        : "#f1f5f9",
-                      color: colors.text,
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "#F0E8D5",
-                      minHeight: 110,
-                    },
-                  ]}
-                  placeholder={
-                    additionalTimeResponseStatus === "ACCEPTED"
-                      ? t("applications.additionalTimeAcceptPlaceholder")
-                      : t("applications.additionalTimeRejectPlaceholder")
-                  }
-                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                  multiline
-                  numberOfLines={4}
-                  value={additionalTimeResponseMessage}
-                  onChangeText={setAdditionalTimeResponseMessage}
-                  textAlignVertical="top"
-                />
-              </ScrollView>
-
               <View
                 style={[
-                  styles.modalFooter,
+                  styles.modalOverlay,
                   {
-                    borderTopColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
+                    backgroundColor: isDark
+                      ? "rgba(0,0,0,0.8)"
+                      : "rgba(0,0,0,0.6)",
                   },
                 ]}
               >
-                <TouchableButton
+                <View
                   style={[
-                    styles.modalButton,
+                    styles.modalContent,
                     {
-                      backgroundColor: "transparent",
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "#B8A88A",
+                      backgroundColor: isDark ? "#0A1628" : "#FFFAF0",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 16,
+                      elevation: 0,
                     },
                   ]}
-                  onPress={() => {
-                    setShowAdditionalTimeResponseModal(false);
-                    setSelectedAdditionalTimeRequestId(null);
-                    setAdditionalTimeResponseStatus(null);
-                    setAdditionalTimeResponseMessage("");
-                  }}
                 >
-                  <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
+                  <View
+                    style={[
+                      styles.modalHeader,
+                      {
+                        borderBottomColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
                   >
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableButton>
-                <TouchableButton
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {t("applications.requestAdditionalTime")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowAdditionalTimeModal(false);
+                        setAdditionalTimeMessage("");
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
+
+                  <ScrollView style={styles.modalBody}>
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                      ]}
+                    >
+                      {t("applications.requestAdditionalTimeModalDescription")}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 20 },
+                      ]}
+                    >
+                      {t("applications.explanationRequired")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(255,250,240,0.10)"
+                            : "#f1f5f9",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#B8A88A",
+                          color: colors.text,
+                          fontSize: 16,
+                          lineHeight: 24,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
+                          borderRadius: 4,
+                          borderWidth: 1.5,
+                          minHeight: 140,
+                        },
+                      ]}
+                      placeholder={t("applications.explainAdditionalTime")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={additionalTimeMessage}
+                      onChangeText={setAdditionalTimeMessage}
+                      textAlignVertical="top"
+                      multiline
+                    />
+                  </ScrollView>
+
+                  <View
+                    style={[
+                      styles.modalFooter,
+                      {
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: "transparent",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "#B8A88A",
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowAdditionalTimeModal(false);
+                        setAdditionalTimeMessage("");
+                      }}
+                    >
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: isDark ? "#C9963F" : colors.tint,
+                          borderColor: isDark ? "#C9963F" : colors.tint,
+                          shadowColor: isDark ? "#C9963F" : colors.tint,
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 8,
+                          elevation: 0,
+                        },
+                        requestingAdditionalTime && styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleRequestAdditionalTime}
+                      disabled={requestingAdditionalTime}
+                    >
+                      {requestingAdditionalTime ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {t("applications.sendRequest")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {/* Respond to Additional Time Response Modal */}
+          <Modal
+            visible={showAdditionalTimeResponseModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => {
+              setShowAdditionalTimeResponseModal(false);
+              setSelectedAdditionalTimeRequestId(null);
+              setAdditionalTimeResponseStatus(null);
+              setAdditionalTimeResponseMessage("");
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ flex: 1 }}
+            >
+              <View style={styles.modalOverlay}>
+                <View
                   style={[
-                    styles.modalButton,
+                    styles.modalContent,
                     {
-                      backgroundColor:
-                        additionalTimeResponseStatus === "ACCEPTED"
-                          ? "#22c55e"
-                          : "#ef4444",
-                      borderColor:
-                        additionalTimeResponseStatus === "ACCEPTED"
-                          ? "#22c55e"
-                          : "#ef4444",
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "#FFFAF0",
                     },
-                    respondingToAdditionalTime && styles.modalButtonDisabled,
                   ]}
-                  onPress={handleRespondToAdditionalTimeResponse}
-                  disabled={respondingToAdditionalTime}
                 >
-                  {respondingToAdditionalTime ? (
-                    <ActivityIndicator color="#FFFAF0" />
-                  ) : (
-                    <Text style={styles.modalButtonTextSubmit}>
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
                       {additionalTimeResponseStatus === "ACCEPTED"
                         ? t("common.accept")
-                        : t("applications.reject")}
+                        : t("applications.reject")}{" "}
+                      {t("applications.additionalTimeRequests")}
                     </Text>
-                  )}
-                </TouchableButton>
+                    <TouchableButton
+                      onPress={() => {
+                        setShowAdditionalTimeResponseModal(false);
+                        setSelectedAdditionalTimeRequestId(null);
+                        setAdditionalTimeResponseStatus(null);
+                        setAdditionalTimeResponseMessage("");
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
+
+                  <ScrollView style={styles.modalBody}>
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                      ]}
+                    >
+                      {additionalTimeResponseStatus === "ACCEPTED"
+                        ? t("applications.acceptAdditionalTimeDescription")
+                        : t("applications.rejectAdditionalTimeDescription")}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.modalLabel,
+                        { color: colors.text, marginTop: 20 },
+                      ]}
+                    >
+                      {t("applications.optionalMessage")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.modalTextArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#f1f5f9",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          minHeight: 110,
+                        },
+                      ]}
+                      placeholder={
+                        additionalTimeResponseStatus === "ACCEPTED"
+                          ? t("applications.additionalTimeAcceptPlaceholder")
+                          : t("applications.additionalTimeRejectPlaceholder")
+                      }
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      multiline
+                      numberOfLines={4}
+                      value={additionalTimeResponseMessage}
+                      onChangeText={setAdditionalTimeResponseMessage}
+                      textAlignVertical="top"
+                    />
+                  </ScrollView>
+
+                  <View
+                    style={[
+                      styles.modalFooter,
+                      {
+                        borderTopColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#F0E8D5",
+                      },
+                    ]}
+                  >
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor: "transparent",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "#B8A88A",
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowAdditionalTimeResponseModal(false);
+                        setSelectedAdditionalTimeRequestId(null);
+                        setAdditionalTimeResponseStatus(null);
+                        setAdditionalTimeResponseMessage("");
+                      }}
+                    >
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
+                    </TouchableButton>
+                    <TouchableButton
+                      style={[
+                        styles.modalButton,
+                        {
+                          backgroundColor:
+                            additionalTimeResponseStatus === "ACCEPTED"
+                              ? "#22c55e"
+                              : "#ef4444",
+                          borderColor:
+                            additionalTimeResponseStatus === "ACCEPTED"
+                              ? "#22c55e"
+                              : "#ef4444",
+                        },
+                        respondingToAdditionalTime &&
+                          styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleRespondToAdditionalTimeResponse}
+                      disabled={respondingToAdditionalTime}
+                    >
+                      {respondingToAdditionalTime ? (
+                        <ActivityIndicator color="#FFFAF0" />
+                      ) : (
+                        <Text style={styles.modalButtonTextSubmit}>
+                          {additionalTimeResponseStatus === "ACCEPTED"
+                            ? t("common.accept")
+                            : t("applications.reject")}
+                        </Text>
+                      )}
+                    </TouchableButton>
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
+            </KeyboardAvoidingView>
+          </Modal>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>

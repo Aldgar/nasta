@@ -39,12 +39,19 @@ export class EmailTranslationsService {
   private loadTranslations() {
     try {
       // Load translations from the server's locales directory.
-      // NOTE: In production, __dirname points to dist/, and JSON assets may not be copied.
-      // We search common locations to keep email correctness stable.
+      // __dirname at runtime is dist/src/notifications/ (tsc preserves src/ prefix).
+      // NestJS assets copy to dist/notifications/locales/ by default.
+      // We search multiple locations to handle any CWD or build layout.
+      const serverRoot = join(__dirname, '..', '..', '..');
       const localeDirs = [
         join(__dirname, 'locales'),
+        join(__dirname, '..', '..', 'notifications', 'locales'),
+        join(serverRoot, 'src', 'notifications', 'locales'),
+        join(serverRoot, 'dist', 'notifications', 'locales'),
+        join(serverRoot, 'dist', 'src', 'notifications', 'locales'),
         join(process.cwd(), 'src', 'notifications', 'locales'),
         join(process.cwd(), 'dist', 'notifications', 'locales'),
+        join(process.cwd(), 'dist', 'src', 'notifications', 'locales'),
       ];
 
       const findLocalePath = (fileName: string) => {

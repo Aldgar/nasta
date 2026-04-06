@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class JobsSchedulerService {
@@ -10,6 +11,7 @@ export class JobsSchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly payments: PaymentsService,
+    private readonly chatService: ChatService,
   ) {}
 
   /**
@@ -109,6 +111,9 @@ export class JobsSchedulerService {
                   where: { id: job.id },
                   data: { status: 'COMPLETED' },
                 });
+
+                // Lock chat conversations for this job
+                await this.chatService.lockConversationsByJobId(job.id);
 
                 // Send employer receipt email for the amount that was paid
                 try {

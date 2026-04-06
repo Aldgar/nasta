@@ -1087,14 +1087,14 @@ export default function JobDetailScreen() {
 
       Alert.alert(
         t("home.verificationRequired"),
-        t("jobs.completeVerificationsBeforeApplying", {
+        t("applications.completeVerificationsBeforeApplying", {
           missing: missingVerifications.join(", "),
         }),
         [
           { text: t("common.ok") },
           {
             text: t("applications.goToSettings"),
-            onPress: () => router.push("/(tabs)/settings" as any),
+            onPress: () => router.push("/(tabs)/menu" as any),
           },
         ],
       );

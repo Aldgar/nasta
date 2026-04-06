@@ -26,7 +26,15 @@ import { memoryStorage } from 'multer';
 import { supportUploadConfig } from './config/file-upload.config';
 import { SupportFileUploadService } from './support-file-upload.service';
 
-type SupportStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+type SupportStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'WAITING_USER_RESPONSE'
+  | 'ESCALATED_KYC'
+  | 'ESCALATED_ADMIN'
+  | 'ESCALATED_BUG_TEAM'
+  | 'RESOLVED'
+  | 'CLOSED';
 
 @ApiTags('support')
 @Controller('support')
@@ -229,7 +237,7 @@ export class SupportController {
   })
   async respondToTicket(
     @Param('id') id: string,
-    @Body() body: { response: string },
+    @Body() body: { response: string; channel?: 'EMAIL' | 'CHAT' | 'BOTH' },
     @Req() req: Request,
   ) {
     if (!body.response || !body.response.trim()) {
@@ -237,6 +245,11 @@ export class SupportController {
     }
 
     const admin = req.user as { id: string };
-    return this.supportService.respondToTicket(id, admin.id, body.response);
+    return this.supportService.respondToTicket(
+      id,
+      admin.id,
+      body.response,
+      body.channel || 'EMAIL',
+    );
   }
 }

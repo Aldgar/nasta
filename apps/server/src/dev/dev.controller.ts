@@ -74,6 +74,34 @@ export class DevController {
       select: { token: true, expiresAt: true },
     });
     if (!rec) throw new BadRequestException('No active OTP found');
-    return { code: rec.token, expiresAt: rec.expiresAt };
+    // For local fallback tokens, extract the actual code
+    const code = rec.token.startsWith('local:')
+      ? rec.token.slice(6)
+      : rec.token;
+    return { code, expiresAt: rec.expiresAt };
+  }
+
+  @Get('push-tokens')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all users with push tokens (dev only)' })
+  async listPushTokens() {
+    const users = await this.prisma.user.findMany({
+      where: { pushToken: { not: null } },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        pushToken: true,
+        pushTokenPlatform: true,
+      },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: `${u.firstName} ${u.lastName}`,
+      pushToken: u.pushToken ? `${u.pushToken!.slice(0, 25)}...` : null,
+      platform: u.pushTokenPlatform,
+    }));
   }
 }

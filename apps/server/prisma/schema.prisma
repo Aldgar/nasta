@@ -264,11 +264,19 @@ model SupportTicket {
   assignedCapability AdminCapability?
   assignedAt         DateTime?
 
+  // Escalation
+  escalatedTo String? // e.g. KYC, ADMIN, BUG_TEAM
+  escalatedAt DateTime?
+  escalatedBy String? @db.ObjectId
+
   // Resolution
   resolvedBy String?   @db.ObjectId
   resolvedAt DateTime?
   resolution String?
   adminNotes String?
+
+  // Linked conversation for chat-based responses
+  conversationId String? @db.ObjectId
 
   // Metadata
   email     String? // For anonymous submissions
@@ -279,7 +287,30 @@ model SupportTicket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  responses TicketResponse[]
+
   @@map("support_tickets")
+}
+
+// Support ticket response log (chat + email)
+model TicketResponse {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId String @db.ObjectId
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  adminId   String @db.ObjectId
+  channel   ResponseChannel // EMAIL or CHAT
+  message   String
+  emailSent Boolean @default(false) // Whether email was also sent for this response
+
+  createdAt DateTime @default(now())
+
+  @@map("ticket_responses")
+}
+
+enum ResponseChannel {
+  EMAIL
+  CHAT
 }
 
 // Company/Organization model
@@ -455,6 +486,7 @@ model Application {
   currency         String?
   status           ApplicationStatus @default(PENDING)
   withdrawalReason String? // Reason for withdrawing application
+  rejectionReason  String? // Reason for rejecting instant job request
 
   // Interview details (stored as JSON for flexibility)
   interviewDetails Json? // { dateTime: string, meetingProvider?: string, meetingLink?: string, message?: string }
@@ -720,6 +752,20 @@ model IdVerification {
   // Individual document statuses (JSON: { documentFront: 'APPROVED'|'REJECTED'|'PENDING', documentBack: ..., selfie: ..., certifications: [...], cvDocuments: [...] })
   documentStatuses Json?
 
+  // Admin-extracted document data (manual scanning)
+  // JSON: { legalFirstName, legalLastName, dateOfBirth, gender, nationality,
+  //         placeOfBirth, documentNumber, documentType, issueDate, expiryDate,
+  //         issuingCountry, issuingAuthority, bsnNumber, address, mrzLine1, mrzLine2,
+  //         photoMatchConfirmed, workAuthorization, adminNotes,
+  //         isEuCitizen, citizenshipCountry }
+  extractedData Json?
+  extractedBy   String?   @db.ObjectId
+  extractedAt   DateTime?
+
+  // Document expiry monitoring (for non-EU citizens)
+  documentExpiryNotifiedAt DateTime? // When 15-day warning was sent
+  documentExpiryRestricted Boolean   @default(false) // Access restricted due to expired doc
+
   // Metadata
   ipAddress         String?
   userAgent         String?
@@ -853,6 +899,7 @@ enum SkillLevel {
 }
 
 enum ApplicationStatus {
+  REQUESTED
   PENDING
   REVIEWING
   SHORTLISTED
@@ -967,6 +1014,10 @@ enum SupportPriority {
 enum SupportStatus {
   OPEN
   IN_PROGRESS
+  WAITING_USER_RESPONSE
+  ESCALATED_KYC
+  ESCALATED_ADMIN
+  ESCALATED_BUG_TEAM
   RESOLVED
   CLOSED
 }
@@ -1108,6 +1159,7 @@ model Conversation {
   jobId       String?          @db.ObjectId
   createdById String           @db.ObjectId
   locked      Boolean          @default(false)
+  paused      Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 

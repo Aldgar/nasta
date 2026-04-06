@@ -105,7 +105,9 @@ export default function PostJobPage() {
   const [paymentType, setPaymentType] = useState("HOURLY");
   const [requirements, setRequirements] = useState<string[]>([""]);
   const [responsibilities, setResponsibilities] = useState<string[]>([""]);
-
+  const [isRestrictedSector, setIsRestrictedSector] = useState(false);
+  const [requiresVehicle, setRequiresVehicle] = useState(false);
+  const [requiresDriverLicense, setRequiresDriverLicense] = useState(false);
   const fetchCategories = useCallback(async () => {
     const res = await api<Category[]>("/jobs/categories");
     if (res.data && Array.isArray(res.data)) setCategories(res.data);
@@ -185,6 +187,9 @@ export default function PostJobPage() {
 
     const filteredResps = responsibilities.filter((r) => r.trim());
     if (filteredResps.length > 0) payload.responsibilities = filteredResps;
+
+    if (requiresVehicle) payload.requiresVehicle = true;
+    if (requiresDriverLicense) payload.requiresDriverLicense = true;
 
     const res = await api("/jobs", { method: "POST", body: payload });
     setLoading(false);
@@ -734,6 +739,124 @@ export default function PostJobPage() {
           </div>
         </section>
 
+        {/* ── Job Requirements (Vehicle / License) ──── */}
+        <section className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface)] p-6">
+          <h2 className="mb-5 text-lg font-semibold text-[var(--foreground)]">
+            {t(
+              "employerDashboard.postJob.jobRequirementsTitle",
+              "Job Requirements",
+            )}
+          </h2>
+
+          <div className="space-y-5">
+            {/* Restricted sector */}
+            <div>
+              <p className="mb-2 text-sm text-[var(--secondary-text)]">
+                {t(
+                  "employerDashboard.postJob.restrictedSectorQuestion",
+                  "Is this job related to Healthcare, Government, Finance, or Military?",
+                )}
+              </p>
+              <label className="relative inline-flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={isRestrictedSector}
+                  onChange={(e) => setIsRestrictedSector(e.target.checked)}
+                />
+                <div className="peer h-6 w-11 rounded-full bg-[var(--border-color)] after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--alert-red)] peer-checked:after:translate-x-full" />
+                <span
+                  className={`text-sm ${
+                    isRestrictedSector
+                      ? "font-medium text-[var(--alert-red)]"
+                      : "text-[var(--foreground)]"
+                  }`}
+                >
+                  {isRestrictedSector
+                    ? t(
+                        "employerDashboard.postJob.restrictedSectorYes",
+                        "Yes — Restricted Sector",
+                      )
+                    : t("employerDashboard.postJob.no", "No")}
+                </span>
+              </label>
+            </div>
+
+            {/* Warning banner when restricted sector is selected */}
+            {isRestrictedSector && (
+              <div className="flex items-start gap-3 rounded-xl border border-[var(--alert-red)]/30 bg-[var(--alert-red)]/5 p-4">
+                <svg
+                  className="mt-0.5 h-5 w-5 shrink-0 text-[var(--alert-red)]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                  />
+                </svg>
+                <p className="text-sm text-[var(--alert-red)]">
+                  {t(
+                    "employerDashboard.postJob.restrictedSectorWarning",
+                    "Jobs in Healthcare, Government, Finance, and Military sectors are not currently supported on Nasta. Please use a specialized platform for these sectors.",
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Vehicle & driver requirements (only if not restricted sector) */}
+            {!isRestrictedSector && (
+              <>
+                <div>
+                  <p className="mb-2 text-sm text-[var(--secondary-text)]">
+                    {t(
+                      "employerDashboard.postJob.vehicleQuestion",
+                      "Does this job have any of these requirements?",
+                    )}
+                  </p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+                    <label className="relative inline-flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="peer sr-only"
+                        checked={requiresVehicle}
+                        onChange={(e) => setRequiresVehicle(e.target.checked)}
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-[var(--border-color)] after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--primary)] peer-checked:after:translate-x-full" />
+                      <span className="text-sm text-[var(--foreground)]">
+                        {t(
+                          "employerDashboard.postJob.requiresVehicle",
+                          "Requires a vehicle / truck",
+                        )}
+                      </span>
+                    </label>
+                    <label className="relative inline-flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="peer sr-only"
+                        checked={requiresDriverLicense}
+                        onChange={(e) =>
+                          setRequiresDriverLicense(e.target.checked)
+                        }
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-[var(--border-color)] after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--primary)] peer-checked:after:translate-x-full" />
+                      <span className="text-sm text-[var(--foreground)]">
+                        {t(
+                          "employerDashboard.postJob.requiresDriverLicense",
+                          "Requires a driving license",
+                        )}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
         {/* ── Submit ─────────────────────────────────── */}
         <div className="flex items-center justify-between rounded-2xl border border-[var(--border-color)] bg-[var(--surface)] p-6">
           <Link
@@ -744,7 +867,7 @@ export default function PostJobPage() {
           </Link>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isRestrictedSector}
             className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-8 py-3 text-sm font-semibold text-white transition-all hover:bg-[var(--soft-blue)] disabled:opacity-50"
           >
             {loading ? (

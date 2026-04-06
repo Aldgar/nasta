@@ -1,5 +1,13 @@
 import { useEffect, useState, useRef } from "react";
-import { Platform, Text as RNText, TextInput as RNTextInput } from "react-native";
+import {
+  Platform,
+  Text as RNText,
+  TextInput as RNTextInput,
+} from "react-native";
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+
+SplashScreen.preventAutoHideAsync();
 
 if ((RNText as any).defaultProps == null) (RNText as any).defaultProps = {};
 (RNText as any).defaultProps.maxFontSizeMultiplier = 1.3;
@@ -15,6 +23,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getApiBase } from "../lib/api";
 import * as Notifications from "expo-notifications";
 import * as Linking from "expo-linking";
+import { registerPushToken } from "../lib/pushNotifications";
 
 // Note: react-native-reanimated is imported by individual components that use it
 // The Babel plugin handles worklet transformation automatically
@@ -159,63 +168,9 @@ function RootLayoutNav() {
 
   // Initialize push notifications
   useEffect(() => {
-    const registerForPushNotifications = async () => {
+    const setupPushNotifications = async () => {
       try {
-        const token = await SecureStore.getItemAsync("auth_token");
-        if (!token) return; // Only register if logged in
-
-        // Request permissions
-        const { status: existingStatus } =
-          await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== "granted") {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-
-        if (finalStatus !== "granted") {
-          console.log("Push notification permission denied");
-          return;
-        }
-
-        // Get push token (handle Firebase errors gracefully)
-        let pushToken;
-        try {
-          pushToken = await Notifications.getExpoPushTokenAsync({
-            projectId: undefined, // Expo will auto-detect
-          });
-        } catch (error: any) {
-          // Firebase not initialized is expected on iOS/Android without proper setup
-          if (
-            error?.message?.includes("Firebase") ||
-            error?.message?.includes("FirebaseApp")
-          ) {
-            console.log(
-              "Push notifications require Firebase setup for native builds. Skipping token registration.",
-            );
-            return;
-          }
-          throw error; // Re-throw other errors
-        }
-
-        // Register token with backend
-        const base = getApiBase();
-        try {
-          await fetch(`${base}/notifications/register-token`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              pushToken: pushToken.data,
-              platform: Platform.OS,
-            }),
-          });
-        } catch (err) {
-          console.warn("Failed to register push token:", err);
-        }
+        await registerPushToken();
 
         // Set up notification listeners
         notificationListener.current =
@@ -224,24 +179,60 @@ function RootLayoutNav() {
           });
 
         responseListener.current =
-          Notifications.addNotificationResponseReceivedListener((response) => {
-            console.log("Notification response:", response);
-            // Handle notification tap - navigate to relevant screen
-            const data = response.notification.request.content.data;
-            if (data?.conversationId) {
-              router.push(
-                `/chat/room?conversationId=${data.conversationId}` as any,
-              );
-            } else if (data?.jobId) {
-              router.push(`/jobs/${data.jobId}` as any);
-            }
-          });
+          Notifications.addNotificationResponseReceivedListener(
+            async (response) => {
+              console.log("Notification response:", response);
+              // Handle notification tap - navigate to relevant screen
+              const data = response.notification.request.content.data;
+              try {
+                if (data?.conversationId) {
+                  router.push(
+                    `/chat/room?conversationId=${data.conversationId}` as any,
+                  );
+                } else if (data?.applicationId) {
+                  router.push(`/my-application/${data.applicationId}` as any);
+                } else if (
+                  data?.type === "KYC_ADDITIONAL_DOCUMENTS" ||
+                  data?.type === "KYC_DOCUMENT_REQUEST"
+                ) {
+                  router.push("/kyc-start" as any);
+                } else if (data?.type === "VEHICLE_REVIEW") {
+                  router.push("/settings" as any);
+                } else if (data?.postId) {
+                  // Route to the correct home based on role
+                  try {
+                    const token = await SecureStore.getItemAsync("auth_token");
+                    const payload = token ? decodeJwtPayload(token) : null;
+                    const role = String(payload?.role || "").toUpperCase();
+                    if (role === "EMPLOYER") {
+                      router.push("/employer-tabs" as any);
+                    } else {
+                      router.push("/(tabs)" as any);
+                    }
+                  } catch {
+                    router.push("/(tabs)" as any);
+                  }
+                } else if (data?.bookingId) {
+                  router.push("/tracking" as any);
+                } else if (data?.jobId) {
+                  router.push(`/jobs/${data.jobId}` as any);
+                } else if (data?.ticketId || data?.ticketNumber) {
+                  router.push("/support" as any);
+                }
+              } catch (navError) {
+                console.warn(
+                  "Error navigating from push notification:",
+                  navError,
+                );
+              }
+            },
+          );
       } catch (error) {
         console.warn("Error setting up push notifications:", error);
       }
     };
 
-    registerForPushNotifications();
+    setupPushNotifications();
 
     return () => {
       notificationListener.current?.remove();
@@ -542,6 +533,18 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    NotoSansMeroitic: require("../assets/fonts/NotoSansMeroitic-Regular.ttf"),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
+
   return (
     <LanguageProvider>
       <ThemeProvider>

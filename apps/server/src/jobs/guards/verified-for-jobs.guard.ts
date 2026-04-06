@@ -113,14 +113,22 @@ export class VerifiedForJobsGuard implements CanActivate {
               documentExpiry: true,
             },
           });
-          const hasFrontBack =
-            !!dl?.documentFrontUrl && !!dl?.documentBackUrl;
+          const hasFrontBack = !!dl?.documentFrontUrl && !!dl?.documentBackUrl;
           const notExpired =
             !dl?.documentExpiry || dl.documentExpiry > new Date();
-          if (!(dl && hasFrontBack && notExpired)) {
-            throw new ForbiddenException(
-              'A valid driver license (front and back, verified) is required to apply for this job. Complete driver license verification in your KYC settings.',
-            );
+          const hasVerifiedDL = dl && hasFrontBack && notExpired;
+
+          // A verified vehicle also implies driving capability
+          if (!hasVerifiedDL) {
+            const hasVerifiedVehicle = await this.prisma.vehicle.findFirst({
+              where: { userId: user.id, status: 'VERIFIED' },
+              select: { id: true },
+            });
+            if (!hasVerifiedVehicle) {
+              throw new ForbiddenException(
+                'A valid driver license (front and back, verified) or a verified vehicle is required to apply for this job. Complete driver license or vehicle verification in your KYC settings.',
+              );
+            }
           }
         }
 

@@ -1,9 +1,8 @@
-import { View, Text, StyleSheet, Platform, BackHandler } from "react-native";
+import { View, Text, StyleSheet, BackHandler } from "react-native";
 import GradientBackground from "../components/GradientBackground";
 import { router, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState, useCallback } from "react";
-import Constants from "expo-constants";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -18,10 +17,7 @@ export default function UserHome() {
 
   useFocusEffect(
     useCallback(() => {
-      const sub = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => true,
-      );
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
       return () => sub.remove();
     }, []),
   );
@@ -36,6 +32,12 @@ export default function UserHome() {
     | "FAILED"
     | "UNKNOWN"
   >("UNKNOWN");
+  const [verification, setVerification] = useState({
+    emailVerified: false,
+    phoneVerified: false,
+    idVerified: false,
+    backgroundVerified: false,
+  });
   // Keep for future conditional UI (apply restrictions)
   // const isVerified = kycStatus === "VERIFIED";
 
@@ -58,25 +60,32 @@ export default function UserHome() {
           "UNKNOWN";
         setKycStatus(status);
 
-        // Load user profile for greeting
+        // Load user profile for greeting + verification status
         try {
-          const meRes = await fetch(`${base}/users/me`, {
+          const profileRes = await fetch(`${base}/profiles/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          if (meRes.ok) {
-            const me = await meRes.json();
+          if (profileRes.ok) {
+            const data = await profileRes.json();
+            const u = data.user;
             const name =
-              me?.name ||
-              me?.fullName ||
-              [me?.firstName, me?.lastName].filter(Boolean).join(" ");
+              u?.name ||
+              u?.fullName ||
+              [u?.firstName, u?.lastName].filter(Boolean).join(" ");
             if (name) setDisplayName(name);
+            setVerification({
+              emailVerified: !!u?.emailVerifiedAt,
+              phoneVerified: !!u?.phoneVerifiedAt,
+              idVerified: !!u?.isIdVerified,
+              backgroundVerified: !!u?.isBackgroundVerified,
+            });
           } else {
-            // Fallback endpoint
-            const altRes = await fetch(`${base}/auth/me`, {
+            // Fallback to /users/me
+            const meRes = await fetch(`${base}/users/me`, {
               headers: { Authorization: `Bearer ${token}` },
             });
-            if (altRes.ok) {
-              const me = await altRes.json();
+            if (meRes.ok) {
+              const me = await meRes.json();
               const name =
                 me?.name ||
                 me?.fullName ||
@@ -97,90 +106,139 @@ export default function UserHome() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safeArea}>
-        {/* ─── TOP BAR ─── */}
-        <View style={styles.topBar}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {/* LED status dot */}
-            <View
-              style={[
-                styles.ledDot,
-                {
-                  backgroundColor:
-                    kycStatus === "VERIFIED" || kycStatus === "APPROVED"
-                      ? "#22c55e"
-                      : "#f59e0b",
-                  shadowColor:
-                    kycStatus === "VERIFIED" || kycStatus === "APPROVED"
-                      ? "#22c55e"
-                      : "#f59e0b",
-                },
-              ]}
-            />
+        {/* ─── HEADER ─── */}
+        <View style={styles.header}>
+          <View>
             <Text
               style={[
-                styles.statusLabel,
+                styles.sectionLabel,
+                {
+                  color: isDark
+                    ? "rgba(201,150,63,0.6)"
+                    : "rgba(184,130,42,0.5)",
+                },
+              ]}
+            >
+              MISSION CONTROL
+            </Text>
+            <Text
+              style={[
+                styles.welcomeText,
                 { color: isDark ? "rgba(240,232,213,0.5)" : "#6B6355" },
               ]}
             >
-              {kycStatus !== "UNKNOWN" ? kycStatus : "STANDBY"}
+              {t("home.welcome")},
             </Text>
-          </View>
-          <TouchableButton
-            style={[
-              styles.topButton,
-              {
-                backgroundColor: isDark
-                  ? "rgba(12,22,42,0.85)"
-                  : "rgba(255,250,240,0.92)",
-                borderColor: isDark ? "rgba(201,150,63,0.3)" : "#D4A24E",
-              },
-            ]}
-            onPress={() => {
-              SecureStore.deleteItemAsync("auth_token");
-              router.replace("/");
-            }}
-          >
-            <Feather
-              name="log-out"
-              size={14}
-              color={isDark ? "#C9963F" : "#B8822A"}
-            />
+            <Text style={[styles.nameText, { color: colors.tint }]}>
+              {displayName || t("home.serviceProvider")}
+            </Text>
             <Text
               style={[
-                styles.topButtonText,
-                { color: isDark ? "#C9963F" : "#B8822A" },
+                styles.subtitle,
+                { color: isDark ? "rgba(240,232,213,0.5)" : "#6B6355" },
               ]}
             >
-              {t("settings.signOut")}
+              {t("home.hereQuickStart")}
+              {kycStatus !== "UNKNOWN"
+                ? ` · ${t("home.kyc")}: ${kycStatus}`
+                : ""}
             </Text>
-          </TouchableButton>
-        </View>
-
-        {/* ─── HEADER ─── */}
-        <View style={styles.headerSection}>
-          <Text
-            style={[
-              styles.sectionLabel,
-              {
-                color: isDark ? "rgba(201,150,63,0.6)" : "rgba(184,130,42,0.5)",
-              },
-            ]}
-          >
-            MISSION CONTROL
-          </Text>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {t("home.welcome")}
-            {displayName ? `, ${displayName}` : ""}
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              { color: isDark ? "rgba(240,232,213,0.5)" : "#6B6355" },
-            ]}
-          >
-            {t("home.hereQuickStart")}
-            {kycStatus !== "UNKNOWN" ? ` · ${t("home.kyc")}: ${kycStatus}` : ""}
-          </Text>
+          </View>
+          {/* Status LED cluster */}
+          <View style={styles.ledCluster}>
+            <View style={styles.ledRow}>
+              <View
+                style={[
+                  styles.ledDot,
+                  {
+                    backgroundColor: verification.emailVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                    shadowColor: verification.emailVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.ledLabel,
+                  { color: isDark ? "rgba(240,232,213,0.4)" : "#8A8278" },
+                ]}
+              >
+                EMAIL
+              </Text>
+            </View>
+            <View style={styles.ledRow}>
+              <View
+                style={[
+                  styles.ledDot,
+                  {
+                    backgroundColor: verification.phoneVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                    shadowColor: verification.phoneVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.ledLabel,
+                  { color: isDark ? "rgba(240,232,213,0.4)" : "#8A8278" },
+                ]}
+              >
+                PHONE
+              </Text>
+            </View>
+            <View style={styles.ledRow}>
+              <View
+                style={[
+                  styles.ledDot,
+                  {
+                    backgroundColor: verification.idVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                    shadowColor: verification.idVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.ledLabel,
+                  { color: isDark ? "rgba(240,232,213,0.4)" : "#8A8278" },
+                ]}
+              >
+                ID
+              </Text>
+            </View>
+            <View style={styles.ledRow}>
+              <View
+                style={[
+                  styles.ledDot,
+                  {
+                    backgroundColor: verification.backgroundVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                    shadowColor: verification.backgroundVerified
+                      ? "#22c55e"
+                      : "#f59e0b",
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.ledLabel,
+                  { color: isDark ? "rgba(240,232,213,0.4)" : "#8A8278" },
+                ]}
+              >
+                BG CHECK
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.bentoGrid}>
@@ -357,7 +415,7 @@ export default function UserHome() {
                   backgroundColor: isDark ? "#C9963F" : "#B8822A",
                 },
               ]}
-              onPress={() => router.push("/(tabs)/feed" as never)}
+              onPress={() => router.push("/(tabs)" as never)}
             >
               <Feather
                 name="search"
@@ -387,47 +445,49 @@ export default function UserHome() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, paddingHorizontal: 20 },
 
-  /* ── Top Bar ── */
-  topBar: {
+  /* ── Header ── */
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
+    alignItems: "flex-start",
+    marginBottom: 24,
     marginTop: 8,
   },
-  topButton: {
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 3,
+    marginBottom: 6,
+  },
+  welcomeText: {
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  nameText: {
+    fontSize: 28,
+    fontWeight: "800",
+    marginTop: 2,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 13,
+    letterSpacing: 0.3,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+
+  /* ── LED Status ── */
+  ledCluster: {
+    gap: 6,
+    alignItems: "flex-end",
+    paddingTop: 18,
+  },
+  ledRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
   },
-  topButtonText: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  statusLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-  },
-
-  /* ── LED Dots ── */
   ledDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 0,
-  },
-  ledDotSmall: {
     width: 6,
     height: 6,
     borderRadius: 3,
@@ -436,28 +496,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 0,
   },
-
-  /* ── Header ── */
-  headerSection: {
-    marginTop: 24,
-    marginBottom: 28,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 13,
-    letterSpacing: 0.3,
-    lineHeight: 18,
+  ledLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1.5,
   },
 
   /* ── Bento Grid ── */

@@ -150,6 +150,7 @@ export class ChatService {
           lastName: true,
           email: true,
           role: true,
+          avatar: true,
         },
       }),
       (this.prisma as any).admin.findMany({
@@ -161,7 +162,7 @@ export class ChatService {
     // Create a map of userId -> user details
     const userMap = new Map<
       string,
-      { firstName: string; lastName: string; email: string; role?: string }
+      { firstName: string; lastName: string; email: string; role?: string; avatar?: string | null }
     >();
     users.forEach((u) => {
       userMap.set(u.id, {
@@ -169,6 +170,7 @@ export class ChatService {
         lastName: u.lastName,
         email: u.email,
         role: u.role,
+        avatar: u.avatar || null,
       });
     });
     admins.forEach((a: any) => {
@@ -177,6 +179,7 @@ export class ChatService {
         lastName: a.lastName,
         email: a.email,
         role: 'ADMIN',
+        avatar: null,
       });
     });
 
@@ -199,6 +202,7 @@ export class ChatService {
           firstName: userInfo?.firstName || null,
           lastName: userInfo?.lastName || null,
           email: userInfo?.email || null,
+          avatar: userInfo?.avatar || null,
         };
       }),
     }));
@@ -244,13 +248,16 @@ export class ChatService {
     );
     const conv = await this.prisma.conversation.findUnique({
       where: { id: dto.conversationId },
-      select: { id: true, locked: true },
+      select: { id: true, locked: true, paused: true },
     });
     if (!conv) throw new NotFoundException('Conversation not found');
     if (conv.locked) {
       throw new ForbiddenException(
         'This conversation is locked. Messages cannot be sent after the job is completed.',
       );
+    }
+    if (conv.paused) {
+      throw new ForbiddenException('This conversation is paused by an admin.');
     }
     const msg = await this.prisma.message.create({
       data: {
@@ -285,14 +292,26 @@ export class ChatService {
       select: { userId: true },
     });
 
+    // Resolve sender display name
+    const senderUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true },
+    });
+    const senderName = senderUser
+      ? [senderUser.firstName, senderUser.lastName].filter(Boolean).join(' ')
+      : null;
+
     // Send notifications to all other participants
     await Promise.all(
       participants.map(async (p) => {
         const t = await this.emailTranslations.getTranslatorForUser(p.userId);
+        const title = senderName
+          ? t('notifications.templates.newMessageTitle') + ` - ${senderName}`
+          : t('notifications.templates.newMessageTitle');
         return this.notifications.createNotification({
           userId: p.userId,
           type: 'JOB_MESSAGE',
-          title: t('notifications.templates.newMessageTitle'),
+          title,
           body:
             dto.body.length > 100
               ? dto.body.substring(0, 100) + '...'
@@ -334,11 +353,462 @@ export class ChatService {
         title: true,
         jobId: true,
         locked: true,
+        paused: true,
         createdAt: true,
         updatedAt: true,
       },
     });
     if (!conv) throw new NotFoundException('Conversation not found');
+    return conv;
+  }
+
+  /* ── Admin methods ────────────────────────────────────────────── */
+
+  /**
+   * List all conversations (admin view — no participant check).
+   * Optionally filter by type (SUPPORT, JOB).
+   */
+  async adminListConversations(opts?: {
+    page?: number;
+    pageSize?: number;
+    type?: ConversationType;
+  }) {
+    const page = Math.max(1, opts?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, opts?.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.ConversationWhereInput = {};
+    if (opts?.type) where.type = opts.type;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.conversation.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          jobId: true,
+          locked: true,
+          paused: true,
+          createdAt: true,
+          updatedAt: true,
+          participants: {
+            select: { userId: true, role: true },
+            take: 10,
+          },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              body: true,
+              createdAt: true,
+              senderUserId: true,
+            },
+          },
+        },
+      }),
+      this.prisma.conversation.count({ where }),
+    ]);
+
+    // Fetch participant details
+    const allUserIds = new Set<string>();
+    rows.forEach((c) =>
+      c.participants.forEach((p) => allUserIds.add(p.userId)),
+    );
+
+    const [users, admins] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: Array.from(allUserIds) } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      }),
+      (this.prisma as any).admin.findMany({
+        where: { id: { in: Array.from(allUserIds) } },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      }),
+    ]);
+
+    const userMap = new Map<
+      string,
+      { firstName: string; lastName: string; email: string; role?: string }
+    >();
+    users.forEach((u) =>
+      userMap.set(u.id, {
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        role: u.role,
+      }),
+    );
+    admins.forEach((a: any) =>
+      userMap.set(a.id, {
+        firstName: a.firstName,
+        lastName: a.lastName,
+        email: a.email,
+        role: 'ADMIN',
+      }),
+    );
+
+    return {
+      conversations: rows.map((c) => ({
+        id: c.id,
+        type: c.type,
+        title: c.title,
+        jobId: c.jobId,
+        locked: c.locked,
+        paused: c.paused,
+        updatedAt: c.updatedAt,
+        lastMessage: c.messages[0] ?? null,
+        participants: c.participants.map((p) => {
+          const info = userMap.get(p.userId);
+          return {
+            userId: p.userId,
+            role: info?.role || p.role,
+            firstName: info?.firstName || null,
+            lastName: info?.lastName || null,
+            email: info?.email || null,
+          };
+        }),
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /**
+   * Get messages for a conversation without participant check (admin).
+   */
+  async adminListMessages(
+    conversationId: string,
+    opts?: { page?: number; pageSize?: number },
+  ) {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true },
+    });
+    if (!conv) throw new NotFoundException('Conversation not found');
+
+    const page = Math.max(1, opts?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, opts?.pageSize ?? 50));
+    const skip = (page - 1) * pageSize;
+
+    return this.prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        body: true,
+        payload: true,
+        createdAt: true,
+        senderUserId: true,
+        senderRole: true,
+      },
+    });
+  }
+
+  /**
+   * Admin sends a message in any conversation (auto-joins as participant if needed).
+   */
+  async adminSendMessage(
+    adminId: string,
+    conversationId: string,
+    body: string,
+  ) {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, locked: true },
+    });
+    if (!conv) throw new NotFoundException('Conversation not found');
+
+    // Auto-join as participant if not already
+    const existing = await this.prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId: adminId },
+    });
+    if (!existing) {
+      await this.prisma.conversationParticipant.create({
+        data: {
+          conversationId,
+          userId: adminId,
+          role: ParticipantRole.ADMIN,
+        },
+      });
+    }
+
+    const msg = await this.prisma.message.create({
+      data: {
+        conversationId,
+        senderUserId: adminId,
+        senderRole: ParticipantRole.ADMIN,
+        body,
+      },
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        senderUserId: true,
+        senderRole: true,
+      },
+    });
+
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+
+    // Notify all other participants
+    const participants = await this.prisma.conversationParticipant.findMany({
+      where: { conversationId, userId: { not: adminId } },
+      select: { userId: true },
+    });
+
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+      select: { firstName: true },
+    });
+    const adminLabel = admin?.firstName
+      ? `${admin.firstName} - Admin`
+      : 'Admin';
+
+    await Promise.all(
+      participants.map(async (p) => {
+        const t = await this.emailTranslations.getTranslatorForUser(p.userId);
+        return this.notifications.createNotification({
+          userId: p.userId,
+          type: 'JOB_MESSAGE',
+          title:
+            t('notifications.templates.newMessageTitle') + ' - ' + adminLabel,
+          body: body.length > 100 ? body.substring(0, 100) + '...' : body,
+          payload: { conversationId, messageId: msg.id, senderUserId: adminId },
+        });
+      }),
+    );
+
+    return msg;
+  }
+
+  /* ── Admin: Start support chat helpers ────────────────────────── */
+
+  /**
+   * Start or resume a SUPPORT chat with a user found by ticket number.
+   * Links the conversation to the support ticket.
+   */
+  async adminStartChatByTicket(adminId: string, ticketNumber: string) {
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { ticketNumber },
+      select: { id: true, userId: true, subject: true, conversationId: true },
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (!ticket.userId)
+      throw new NotFoundException(
+        'This ticket has no associated user (anonymous ticket)',
+      );
+
+    // If ticket already has a conversation, return it
+    if (ticket.conversationId) {
+      return { id: ticket.conversationId, existing: true };
+    }
+
+    // Check for existing open SUPPORT conversation with this user
+    const existingConvo = await this.findExistingSupportConvo(ticket.userId);
+    if (existingConvo) {
+      // Link ticket to existing conversation
+      await this.prisma.supportTicket.update({
+        where: { id: ticket.id },
+        data: { conversationId: existingConvo.id },
+      });
+      return { id: existingConvo.id, existing: true };
+    }
+
+    // Create new support conversation
+    const conv = await this.createSupportConversation(
+      adminId,
+      ticket.userId,
+      `Support: ${ticket.subject}`,
+    );
+
+    // Link ticket to conversation
+    await this.prisma.supportTicket.update({
+      where: { id: ticket.id },
+      data: { conversationId: conv.id },
+    });
+
+    return { id: conv.id, existing: false };
+  }
+
+  /**
+   * Start or resume a SUPPORT chat with a user found by email.
+   */
+  async adminStartChatByEmail(adminId: string, email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    if (!user) throw new NotFoundException('No user found with that email');
+
+    // Check for existing open SUPPORT conversation with this user
+    const existingConvo = await this.findExistingSupportConvo(user.id);
+    if (existingConvo) {
+      return { id: existingConvo.id, existing: true };
+    }
+
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    const conv = await this.createSupportConversation(
+      adminId,
+      user.id,
+      `Support: ${name || email}`,
+    );
+
+    return { id: conv.id, existing: false };
+  }
+
+  /**
+   * Start or resume a SUPPORT chat with a user by userId (from users page).
+   */
+  async adminStartChatByUserId(adminId: string, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Check for existing open SUPPORT conversation with this user
+    const existingConvo = await this.findExistingSupportConvo(user.id);
+    if (existingConvo) {
+      return { id: existingConvo.id, existing: true };
+    }
+
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    const conv = await this.createSupportConversation(
+      adminId,
+      user.id,
+      `Support: ${name || user.email}`,
+    );
+
+    return { id: conv.id, existing: false };
+  }
+
+  /**
+   * Close a conversation (lock it permanently).
+   */
+  async adminCloseConversation(conversationId: string) {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, locked: true },
+    });
+    if (!conv) throw new NotFoundException('Conversation not found');
+    if (conv.locked) return { success: true, alreadyLocked: true };
+
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { locked: true, paused: false },
+    });
+    return { success: true, alreadyLocked: false };
+  }
+
+  /**
+   * Pause a conversation (temporarily block messages from users).
+   */
+  async adminPauseConversation(conversationId: string) {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, locked: true, paused: true },
+    });
+    if (!conv) throw new NotFoundException('Conversation not found');
+    if (conv.locked)
+      throw new ForbiddenException('Cannot pause a closed conversation');
+    if (conv.paused) return { success: true, alreadyPaused: true };
+
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { paused: true },
+    });
+    return { success: true, alreadyPaused: false };
+  }
+
+  /**
+   * Reopen a conversation (unlock and unpause).
+   */
+  async adminReopenConversation(conversationId: string) {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, locked: true, paused: true },
+    });
+    if (!conv) throw new NotFoundException('Conversation not found');
+
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { locked: false, paused: false },
+    });
+    return { success: true };
+  }
+
+  /* ── Private helpers ──────────────────────────────────────────── */
+
+  private async findExistingSupportConvo(userId: string) {
+    return this.prisma.conversation.findFirst({
+      where: {
+        type: ConversationType.SUPPORT,
+        locked: false,
+        participants: { some: { userId } },
+      },
+      select: { id: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  private async createSupportConversation(
+    adminId: string,
+    userId: string,
+    title: string,
+  ) {
+    const conv = await this.prisma.conversation.create({
+      data: {
+        type: ConversationType.SUPPORT,
+        title,
+        createdById: adminId,
+      },
+    });
+
+    // Add admin and user as participants
+    await this.prisma.conversationParticipant.createMany({
+      data: [
+        {
+          conversationId: conv.id,
+          userId: adminId,
+          role: ParticipantRole.ADMIN,
+        },
+        {
+          conversationId: conv.id,
+          userId,
+          role: ParticipantRole.JOB_SEEKER, // Will be resolved by role lookup
+        },
+      ],
+    });
+
+    // Resolve the user's actual role
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (user?.role === 'EMPLOYER') {
+      await this.prisma.conversationParticipant.updateMany({
+        where: { conversationId: conv.id, userId },
+        data: { role: ParticipantRole.EMPLOYER },
+      });
+    }
+
     return conv;
   }
 }

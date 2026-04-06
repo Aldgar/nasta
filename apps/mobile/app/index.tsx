@@ -234,17 +234,21 @@ export default function LandingPage() {
                   },
                 ]}
               >
-                {Platform.OS !== "android" && (
-                  <Animated.Text
-                    style={[
-                      styles.emblemMeroitic,
-                      { color: isDark ? "#C9963F" : "#1A1207" },
-                      logoTextGlowStyle,
-                    ]}
-                  >
-                    {"\u200A𐦠𐦴𐦯𐦡\u200A"}
-                  </Animated.Text>
-                )}
+                <Animated.Text
+                  style={[
+                    styles.emblemMeroitic,
+                    {
+                      color: isDark ? "#C9963F" : "#1A1207",
+                      fontFamily:
+                        Platform.OS === "android"
+                          ? "NotoSansMeroitic"
+                          : undefined,
+                    },
+                    logoTextGlowStyle,
+                  ]}
+                >
+                  {"\u200A𐦠𐦴𐦯𐦡\u200A"}
+                </Animated.Text>
                 <View
                   style={[
                     styles.emblemDivider,

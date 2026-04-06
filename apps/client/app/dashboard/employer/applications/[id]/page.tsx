@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, resolveAvatarUrl } from "../../../../../lib/api";
 import BrandedSelect from "../../../../../components/ui/BrandedSelect";
 import { useLanguage } from "../../../../../context/LanguageContext";
+import Avatar from "../../../../../components/Avatar";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -1449,17 +1450,15 @@ export default function EmployerApplicationDetailPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--primary)]/15">
-              {applicantAvatar ? (
-                <img
-                  src={applicantAvatar}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="text-lg font-bold text-[var(--primary)]">
-                  {applicantInitials}
-                </span>
-              )}
+              <Avatar
+                src={applicantAvatar}
+                imgClassName="h-full w-full object-cover"
+                fallback={
+                  <span className="text-lg font-bold text-[var(--primary)]">
+                    {applicantInitials}
+                  </span>
+                }
+              />
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-[var(--primary)]">

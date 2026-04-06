@@ -3,5 +3,10 @@
     {
       "mode": "auto"
     }
-  ]
+  ],
+  "css.lint.unknownAtRules": "ignore",
+  "css.lint.validProperties": [],
+  "tailwindCSS.lint.cssConflict": "ignore",
+  "tailwindCSS.lint.recommendedVariantOrder": "ignore",
+  "css.customData": []
 }

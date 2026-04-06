@@ -42,4 +42,3 @@ export const chatUploadConfig = {
     return `${prefix}_${stamp}_${rand}.${ext}`;
   },
 };
-

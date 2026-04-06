@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "../../lib/auth";
 import { api, resolveAvatarUrl } from "../../lib/api";
 import { useLanguage } from "../../context/LanguageContext";
+import Avatar from "../../components/Avatar";
 
 interface JobListing {
   id: string;
@@ -495,19 +496,18 @@ export default function ServiceProviderFeed() {
                     <div className="flex items-start gap-4 min-w-0 flex-1">
                       {/* Employer avatar or icon */}
                       <div className="relative shrink-0">
-                        {upcoming.employer?.avatar ? (
-                          <img
-                            src={resolveAvatarUrl(upcoming.employer.avatar)}
-                            alt={employerName}
-                            className="h-14 w-14 rounded-2xl object-cover ring-2 ring-[var(--primary)]/20"
-                          />
-                        ) : (
-                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)]/15 text-lg font-bold text-[var(--primary)]">
-                            {(
-                              upcoming.employer?.firstName?.[0] || "E"
-                            ).toUpperCase()}
-                          </div>
-                        )}
+                        <Avatar
+                          src={resolveAvatarUrl(upcoming.employer?.avatar)}
+                          alt={employerName}
+                          imgClassName="h-14 w-14 rounded-2xl object-cover ring-2 ring-[var(--primary)]/20"
+                          fallback={
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)]/15 text-lg font-bold text-[var(--primary)]">
+                              {(
+                                upcoming.employer?.firstName?.[0] || "E"
+                              ).toUpperCase()}
+                            </div>
+                          }
+                        />
                         {(isFuture || isInProgress) && !isCompleted && (
                           <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[var(--surface)] bg-[var(--achievement-green)]">
                             <span className="absolute inset-0 animate-ping rounded-full bg-[var(--achievement-green)]/60" />

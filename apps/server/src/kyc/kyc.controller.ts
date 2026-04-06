@@ -12,7 +12,10 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
-import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
@@ -80,6 +83,7 @@ export class KycController {
       version?: string;
       textHash?: string;
     },
+    @Body('documentType') documentType?: string,
   ) {
     if (!verificationType) {
       throw new BadRequestException('verificationType is required');
@@ -89,7 +93,12 @@ export class KycController {
         'Consent is required to proceed with ID verification',
       );
     }
-    return this.kycService.initiate(req.user.id, verificationType, consent);
+    return this.kycService.initiate(
+      req.user.id,
+      verificationType,
+      consent,
+      documentType,
+    );
   }
 
   // User: upload KYC documents (front/back/selfie)
@@ -155,11 +164,7 @@ export class KycController {
     @Request() req: { user: { id: string } },
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.kycService.uploadCv(
-      verificationId,
-      req.user.id,
-      file,
-    );
+    return this.kycService.uploadCv(verificationId, req.user.id, file);
   }
 
   // User: set KYC document details (number/country/expiry)
@@ -186,6 +191,7 @@ export class KycController {
       documentNumber?: string;
       documentCountry?: string;
       documentExpiry?: string;
+      documentType?: string;
     },
   ) {
     return this.kycService.setDocumentDetails(
@@ -231,6 +237,54 @@ export class KycController {
     return this.kycService.adminList(parsed);
   }
 
+  // Admin: list vehicles pending review
+  @Get('admin/vehicles')
+  @Public()
+  @UseGuards(AdminJwtGuard)
+  async adminListVehicles(@Query('statuses') statuses?: string | string[]) {
+    const defaults: Array<'PENDING' | 'VERIFIED' | 'REJECTED'> = ['PENDING'];
+    const parsed = (() => {
+      if (!statuses) return defaults;
+      const arr = Array.isArray(statuses)
+        ? statuses
+        : String(statuses).split(',');
+      const allowed = ['PENDING', 'VERIFIED', 'REJECTED'] as const;
+      type AllowedStatus = (typeof allowed)[number];
+      const safe = arr
+        .map((s) => s.trim().toUpperCase())
+        .filter((s): s is AllowedStatus =>
+          (allowed as readonly string[]).includes(s),
+        );
+      return safe.length ? safe : defaults;
+    })();
+    return this.kycService.adminListVehicles(parsed);
+  }
+
+  // Admin: get vehicle details
+  @Get('admin/vehicles/:vehicleId')
+  @Public()
+  @UseGuards(AdminJwtGuard)
+  async adminGetVehicle(@Param('vehicleId') vehicleId: string) {
+    return this.kycService.adminGetVehicle(vehicleId);
+  }
+
+  // Admin: review a vehicle
+  @Post('admin/vehicles/:vehicleId/review')
+  @Public()
+  @UseGuards(AdminJwtGuard)
+  async adminReviewVehicle(
+    @Param('vehicleId') vehicleId: string,
+    @Request() req: { user: { id: string } },
+    @Body() body: { decision: 'VERIFIED' | 'REJECTED'; notes?: string },
+  ) {
+    return this.kycService.adminReviewVehicle(
+      vehicleId,
+      req.user.id,
+      body.decision,
+      body.notes,
+    );
+  }
+
   // Admin: get verification details
   @Get('admin/:verificationId')
   @Public()
@@ -260,6 +314,21 @@ export class KycController {
     },
   ) {
     return this.kycService.adminReview(verificationId, req.user.id, body);
+  }
+
+  // Admin: save extracted document data (manual scanning)
+  @Post('admin/:verificationId/extracted-data')
+  @Public()
+  @UseGuards(AdminJwtGuard, AdminCapabilityGuard)
+  @RequireCapability('BACKGROUND_CHECK_REVIEWER')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin save extracted document data' })
+  async saveExtractedData(
+    @Param('verificationId') verificationId: string,
+    @Request() req: { user: { id: string } },
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.kycService.saveExtractedData(verificationId, req.user.id, body);
   }
 
   // Admin: request additional documents

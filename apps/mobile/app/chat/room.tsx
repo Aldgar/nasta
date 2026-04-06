@@ -717,6 +717,7 @@ export default function ChatRoom() {
 
   // File upload functions
   const pickImage = async () => {
+    if (uploadingFile) return;
     try {
       setShowAttachmentMenu(false);
       setUploadingFile(true);
@@ -757,6 +758,7 @@ export default function ChatRoom() {
   };
 
   const takePhoto = async () => {
+    if (uploadingFile) return;
     try {
       setShowAttachmentMenu(false);
       setUploadingFile(true);
@@ -764,6 +766,14 @@ export default function ChatRoom() {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(t("kyc.permissionRequired"), t("kyc.pleaseAllowAccess"));
+        setUploadingFile(false);
+        return;
+      }
+
+      // Check if camera is available (not available on simulators)
+      const cameraAvailable = await ImagePicker.getCameraPermissionsAsync();
+      if (!cameraAvailable.granted) {
+        Alert.alert(t("common.error"), t("chat.cameraNotAvailable"));
         setUploadingFile(false);
         return;
       }
@@ -776,18 +786,27 @@ export default function ChatRoom() {
       if (!result.canceled && result.assets[0]) {
         await uploadFile(result.assets[0].uri, "image", "photo.jpg");
       }
-    } catch (error) {
-      console.error("Error taking photo:", error);
-      Alert.alert(t("common.error"), t("chat.failedToTakePhoto"));
+    } catch (error: any) {
+      const msg = error?.message || "";
+      if (msg.includes("simulator") || msg.includes("not available")) {
+        Alert.alert(t("common.error"), t("chat.cameraNotAvailable"));
+      } else {
+        console.error("Error taking photo:", error);
+        Alert.alert(t("common.error"), t("chat.failedToTakePhoto"));
+      }
     } finally {
       setUploadingFile(false);
     }
   };
 
   const pickDocument = async () => {
+    if (uploadingFile) return;
     try {
       setShowAttachmentMenu(false);
       setUploadingFile(true);
+
+      // Small delay to ensure any previous picker is fully dismissed
+      await new Promise((r) => setTimeout(r, 300));
 
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
@@ -801,9 +820,14 @@ export default function ChatRoom() {
           result.assets[0].name,
         );
       }
-    } catch (error) {
-      console.error("Error picking document:", error);
-      Alert.alert(t("common.error"), t("chat.failedToPickDocument"));
+    } catch (error: any) {
+      const msg = error?.message || "";
+      if (msg.includes("picking in progress") || msg.includes("Await other")) {
+        // Silently ignore concurrent picker errors
+      } else {
+        console.error("Error picking document:", error);
+        Alert.alert(t("common.error"), t("chat.failedToPickDocument"));
+      }
     } finally {
       setUploadingFile(false);
     }
@@ -1692,34 +1716,6 @@ export default function ChatRoom() {
                     style={[styles.attachmentLabel, { color: colors.text }]}
                   >
                     {t("chat.camera")}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.attachmentOption}
-                  onPress={() => {
-                    setShowAttachmentMenu(false);
-                    Alert.alert(
-                      t("chat.comingSoon"),
-                      t("chat.contactSharingComingSoon"),
-                    );
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.attachmentIcon,
-                      { backgroundColor: isDark ? "#ef4444" : "#fee2e2" },
-                    ]}
-                  >
-                    <Feather
-                      name="user"
-                      size={24}
-                      color={isDark ? "#FFFAF0" : "#ef4444"}
-                    />
-                  </View>
-                  <Text
-                    style={[styles.attachmentLabel, { color: colors.text }]}
-                  >
-                    {t("chat.contact")}
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -23,7 +23,10 @@ import * as SecureStore from "expo-secure-store";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { getApiBase } from "../lib/api";
+import { unregisterPushToken } from "../lib/pushNotifications";
+import AvatarImage from "../components/AvatarImage";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { TouchableButton } from "../components/TouchableButton";
 import GradientBackground from "../components/GradientBackground";
 
@@ -576,18 +579,40 @@ export default function Settings() {
         return;
       }
 
+      // On Android, allowsEditing uses the system crop activity which is
+      // broken on many devices (crop square shows but confirm doesn't work).
+      // Instead, pick the image without editing and crop programmatically.
+      const isAndroid = Platform.OS === "android";
+
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: !isAndroid,
         aspect: [1, 1],
         quality: 0.8,
         ...(Platform.OS === "ios"
           ? ({ preferredAssetRepresentationMode: "compatible" } as any)
-          : null),
+          : {}),
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedImg = result.assets[0];
+        let selectedImg = result.assets[0];
+
+        // On Android, crop to square programmatically
+        if (isAndroid && selectedImg.width && selectedImg.height) {
+          const size = Math.min(selectedImg.width, selectedImg.height);
+          const originX = (selectedImg.width - size) / 2;
+          const originY = (selectedImg.height - size) / 2;
+          const manipulated = await ImageManipulator.manipulateAsync(
+            selectedImg.uri,
+            [
+              { crop: { originX, originY, width: size, height: size } },
+              { resize: { width: 800, height: 800 } },
+            ],
+            { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+          );
+          selectedImg = { ...selectedImg, uri: manipulated.uri };
+        }
+
         const token = await SecureStore.getItemAsync("auth_token");
         if (!token) {
           Alert.alert(
@@ -601,16 +626,26 @@ export default function Settings() {
         const base = getApiBase();
         const formData = new FormData();
 
-        // Get file extension from URI
-        const uriParts = selectedImg.uri.split(".");
-        const fileExtension = uriParts[uriParts.length - 1];
+        // Get file extension from URI, default to jpeg if not found
+        const uriPath = selectedImg.uri.split("?")[0]; // strip query params
+        const uriParts = uriPath.split(".");
+        let fileExtension =
+          uriParts.length > 1 ? uriParts[uriParts.length - 1] : "jpeg";
+        // Normalize and fallback for non-image extensions
+        if (
+          !["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(
+            fileExtension.toLowerCase(),
+          )
+        ) {
+          fileExtension = "jpeg";
+        }
         const fileName = `avatar.${fileExtension}`;
 
         // Create file object for FormData
         formData.append("file", {
           uri: selectedImg.uri,
           name: fileName,
-          type: `image/${fileExtension}`,
+          type: `image/${fileExtension === "jpg" ? "jpeg" : fileExtension}`,
         } as any);
 
         // Show loading indicator
@@ -972,8 +1007,8 @@ export default function Settings() {
         });
 
         if (res.ok) {
-          // If phone changed, require verification
-          if (fullPhone !== originalPhone) {
+          // If phone changed or not yet verified, require verification
+          if (fullPhone !== originalPhone || !verification.phoneVerified) {
             setEditModal(null);
             setVerificationModal("phone");
             // Request phone verification
@@ -1347,7 +1382,17 @@ export default function Settings() {
     }
   };
 
-  const handlePhonePress = () => {
+  const handlePhonePress = async () => {
+    // If phone is already set but not verified, go directly to verification
+    if (
+      profile.phone &&
+      profile.phone !== t("profile.notSet") &&
+      !verification.phoneVerified
+    ) {
+      setVerificationModal("phone");
+      await requestPhoneVerification();
+      return;
+    }
     handleEditPhone();
   };
 
@@ -1510,11 +1555,13 @@ export default function Settings() {
             keyboardDismissMode={
               Platform.OS === "android" ? "on-drag" : "interactive"
             }
-            {...(Platform.OS === "android" ? {
-              removeClippedSubviews: true,
-              overScrollMode: "never" as const,
-              nestedScrollEnabled: true,
-            } : {})}
+            {...(Platform.OS === "android"
+              ? {
+                  removeClippedSubviews: true,
+                  overScrollMode: "never" as const,
+                  nestedScrollEnabled: true,
+                }
+              : {})}
           >
             <SectionCard>
               <View style={styles.avatarRow}>
@@ -1522,20 +1569,11 @@ export default function Settings() {
                   onPress={pickImage}
                   style={{ position: "relative" }}
                 >
-                  {profile.avatar ? (
-                    // eslint-disable-next-line
-                    <Image
-                      source={{ uri: profile.avatar }}
-                      style={styles.avatar}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.avatar,
-                        { backgroundColor: isDark ? "#5C5548" : "#D4C0A0" },
-                      ]}
-                    />
-                  )}
+                  <AvatarImage
+                    uri={profile.avatar}
+                    size={48}
+                    borderRadius={4}
+                  />
                   <View
                     style={[styles.editBadge, { backgroundColor: colors.tint }]}
                   >
@@ -1885,6 +1923,7 @@ export default function Settings() {
                   },
                 ]}
                 onPress={async () => {
+                  await unregisterPushToken();
                   await SecureStore.deleteItemAsync("auth_token");
                   // Use dismissAll to exit tabs navigator, then navigate to landing
                   router.dismissAll();
@@ -1907,584 +1946,175 @@ export default function Settings() {
               behavior={Platform.OS === "ios" ? "padding" : undefined}
               style={{ flex: 1 }}
             >
-            <View style={styles.modalOverlay} pointerEvents="box-none">
-              <View
-                style={[
-                  styles.modalContent,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "#FFFAF0",
-                    position: "relative",
-                  },
-                ]}
-                pointerEvents="auto"
-              >
-                <View style={styles.modalHeader}>
-                  <Text style={[styles.modalTitle, { color: colors.text }]}>
-                    {showCountryPicker && editModal === "phone"
-                      ? t("profile.selectCountry")
-                      : editModal === "email"
-                        ? t("profile.editEmail")
-                        : editModal === "phone"
-                          ? t("profile.editPhone")
-                          : editModal === "dateOfBirth"
-                            ? t("profile.editDateOfBirth")
-                            : editModal === "address"
-                              ? t("profile.editAddress")
-                              : t("common.edit")}
-                  </Text>
-                  <TouchableButton
-                    onPress={() => {
-                      if (showCountryPicker) {
-                        setShowCountryPicker(false);
-                      } else {
-                        setEditModal(null);
-                      }
-                    }}
-                  >
-                    <Feather name="x" size={24} color={colors.text} />
-                  </TouchableButton>
-                </View>
+              <View style={styles.modalOverlay} pointerEvents="box-none">
+                <View
+                  style={[
+                    styles.modalContent,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "#FFFAF0",
+                      position: "relative",
+                    },
+                  ]}
+                  pointerEvents="auto"
+                >
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {showCountryPicker && editModal === "phone"
+                        ? t("profile.selectCountry")
+                        : editModal === "email"
+                          ? t("profile.editEmail")
+                          : editModal === "phone"
+                            ? t("profile.editPhone")
+                            : editModal === "dateOfBirth"
+                              ? t("profile.editDateOfBirth")
+                              : editModal === "address"
+                                ? t("profile.editAddress")
+                                : t("common.edit")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => {
+                        if (showCountryPicker) {
+                          setShowCountryPicker(false);
+                        } else {
+                          setEditModal(null);
+                        }
+                      }}
+                    >
+                      <Feather name="x" size={24} color={colors.text} />
+                    </TouchableButton>
+                  </View>
 
-                {/* Country Picker Overlay - Shows inside edit modal when phone editing */}
-                {showCountryPicker && editModal === "phone" ? (
-                  <ScrollView style={{ maxHeight: 500 }}>
-                    {COUNTRIES && COUNTRIES.length > 0 ? (
-                      COUNTRIES.map((country) => (
+                  {/* Country Picker Overlay - Shows inside edit modal when phone editing */}
+                  {showCountryPicker && editModal === "phone" ? (
+                    <ScrollView style={{ maxHeight: 500 }}>
+                      {COUNTRIES && COUNTRIES.length > 0 ? (
+                        COUNTRIES.map((country) => (
+                          <TouchableButton
+                            key={country.code}
+                            style={[
+                              {
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingVertical: 16,
+                                paddingHorizontal: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: isDark
+                                  ? "rgba(201,150,63,0.12)"
+                                  : "rgba(184,130,42,0.06)",
+                              },
+                              phoneForm.countryCode === country.dialCode && {
+                                backgroundColor: isDark
+                                  ? "rgba(201, 150, 63, 0.2)"
+                                  : "rgba(201, 150, 63, 0.1)",
+                              },
+                            ]}
+                            onPress={() => {
+                              setPhoneForm({
+                                ...phoneForm,
+                                countryCode: country.dialCode,
+                                countryFlag: country.flag,
+                                countryName: country.name,
+                              });
+                              setShowCountryPicker(false);
+                            }}
+                          >
+                            <Text style={{ fontSize: 28, marginRight: 12 }}>
+                              {country.flag}
+                            </Text>
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                style={[
+                                  styles.modalOptionText,
+                                  { color: colors.text, fontWeight: "700" },
+                                ]}
+                              >
+                                {country.name}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.modalOptionText,
+                                  {
+                                    color: isDark ? "#9A8E7A" : "#8A7B68",
+                                    fontSize: 14,
+                                    marginTop: 2,
+                                  },
+                                ]}
+                              >
+                                {country.dialCode}
+                              </Text>
+                            </View>
+                            {phoneForm.countryCode === country.dialCode && (
+                              <Feather
+                                name="check"
+                                size={20}
+                                color={colors.tint}
+                              />
+                            )}
+                          </TouchableButton>
+                        ))
+                      ) : (
+                        <View />
+                      )}
+                    </ScrollView>
+                  ) : editModal === "address" ? (
+                    <ScrollView style={{ maxHeight: 400 }}>
+                      {(profile.role === "JOB_SEEKER" ||
+                        profile.role === "EMPLOYER") && (
                         <TouchableButton
-                          key={country.code}
-                          style={[
-                            {
-                              flexDirection: "row",
-                              alignItems: "center",
-                              paddingVertical: 16,
-                              paddingHorizontal: 16,
-                              borderBottomWidth: 1,
-                              borderBottomColor: isDark
-                                ? "rgba(201,150,63,0.12)"
-                                : "rgba(184,130,42,0.06)",
-                            },
-                            phoneForm.countryCode === country.dialCode && {
-                              backgroundColor: isDark
-                                ? "rgba(201, 150, 63, 0.2)"
-                                : "rgba(201, 150, 63, 0.1)",
-                            },
-                          ]}
-                          onPress={() => {
-                            setPhoneForm({
-                              ...phoneForm,
-                              countryCode: country.dialCode,
-                              countryFlag: country.flag,
-                              countryName: country.name,
-                            });
-                            setShowCountryPicker(false);
+                          onPress={handleUseCurrentLocation}
+                          disabled={isGettingLocation}
+                          style={{
+                            marginBottom: 16,
+                            backgroundColor: isDark
+                              ? "rgba(201, 150, 63, 0.3)"
+                              : "rgba(201, 150, 63, 0.1)",
+                            borderColor: isDark ? "#C9963F" : "#C9963F",
+                            borderWidth: 1,
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            borderRadius: 8,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
                           }}
                         >
-                          <Text style={{ fontSize: 28, marginRight: 12 }}>
-                            {country.flag}
-                          </Text>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={[
-                                styles.modalOptionText,
-                                { color: colors.text, fontWeight: "700" },
-                              ]}
-                            >
-                              {country.name}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.modalOptionText,
-                                {
-                                  color: isDark ? "#9A8E7A" : "#8A7B68",
-                                  fontSize: 14,
-                                  marginTop: 2,
-                                },
-                              ]}
-                            >
-                              {country.dialCode}
-                            </Text>
-                          </View>
-                          {phoneForm.countryCode === country.dialCode && (
-                            <Feather
-                              name="check"
-                              size={20}
-                              color={colors.tint}
-                            />
+                          {isGettingLocation ? (
+                            <>
+                              <ActivityIndicator
+                                size="small"
+                                color={isDark ? "#C9963F" : "#C9963F"}
+                              />
+                              <Text
+                                style={{
+                                  color: isDark ? "#C9963F" : "#C9963F",
+                                  fontSize: 16,
+                                }}
+                              >
+                                {t("settings.gettingLocation")}
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Feather
+                                name="map-pin"
+                                size={18}
+                                color={isDark ? "#C9963F" : "#C9963F"}
+                              />
+                              <Text
+                                style={{
+                                  color: isDark ? "#C9963F" : "#C9963F",
+                                  fontSize: 16,
+                                }}
+                              >
+                                {t("settings.useCurrentLocation")}
+                              </Text>
+                            </>
                           )}
                         </TouchableButton>
-                      ))
-                    ) : (
-                      <View />
-                    )}
-                  </ScrollView>
-                ) : editModal === "address" ? (
-                  <ScrollView style={{ maxHeight: 400 }}>
-                    {(profile.role === "JOB_SEEKER" ||
-                      profile.role === "EMPLOYER") && (
-                      <TouchableButton
-                        onPress={handleUseCurrentLocation}
-                        disabled={isGettingLocation}
-                        style={{
-                          marginBottom: 16,
-                          backgroundColor: isDark
-                            ? "rgba(201, 150, 63, 0.3)"
-                            : "rgba(201, 150, 63, 0.1)",
-                          borderColor: isDark ? "#C9963F" : "#C9963F",
-                          borderWidth: 1,
-                          paddingVertical: 12,
-                          paddingHorizontal: 16,
-                          borderRadius: 8,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 8,
-                        }}
-                      >
-                        {isGettingLocation ? (
-                          <>
-                            <ActivityIndicator
-                              size="small"
-                              color={isDark ? "#C9963F" : "#C9963F"}
-                            />
-                            <Text
-                              style={{
-                                color: isDark ? "#C9963F" : "#C9963F",
-                                fontSize: 16,
-                              }}
-                            >
-                              {t("settings.gettingLocation")}
-                            </Text>
-                          </>
-                        ) : (
-                          <>
-                            <Feather
-                              name="map-pin"
-                              size={18}
-                              color={isDark ? "#C9963F" : "#C9963F"}
-                            />
-                            <Text
-                              style={{
-                                color: isDark ? "#C9963F" : "#C9963F",
-                                fontSize: 16,
-                              }}
-                            >
-                              {t("settings.useCurrentLocation")}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableButton>
-                    )}
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={addressForm.addressLine1}
-                      onChangeText={(text) =>
-                        setAddressForm({ ...addressForm, addressLine1: text })
-                      }
-                      placeholder={t("profile.addressLine1")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="words"
-                    />
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={addressForm.addressLine2}
-                      onChangeText={(text) =>
-                        setAddressForm({ ...addressForm, addressLine2: text })
-                      }
-                      placeholder={t("profile.addressLine2Optional")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="words"
-                    />
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={addressForm.city}
-                      onChangeText={(text) =>
-                        setAddressForm({ ...addressForm, city: text })
-                      }
-                      placeholder={t("profile.city")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="words"
-                    />
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={addressForm.state}
-                      onChangeText={(text) =>
-                        setAddressForm({ ...addressForm, state: text })
-                      }
-                      placeholder={t("settings.provinceState")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="words"
-                    />
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={addressForm.postalCode}
-                      onChangeText={(text) =>
-                        setAddressForm({ ...addressForm, postalCode: text })
-                      }
-                      placeholder={t("settings.zipPostalCode")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="characters"
-                    />
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={addressForm.country}
-                      onChangeText={(text) =>
-                        setAddressForm({ ...addressForm, country: text })
-                      }
-                      placeholder={t("profile.selectCountry")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="words"
-                    />
-                  </ScrollView>
-                ) : editModal === "dateOfBirth" ? (
-                  <View pointerEvents="auto">
-                    <Text
-                      style={[
-                        styles.modalLabel,
-                        { color: colors.text, marginBottom: 16 },
-                      ]}
-                    >
-                      {t("settings.enterDateOfBirth")}
-                    </Text>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        gap: 12,
-                        marginBottom: 12,
-                      }}
-                      pointerEvents="auto"
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.modalLabel,
-                            {
-                              color: isDark ? "#9A8E7A" : "#8A7B68",
-                              fontSize: 12,
-                              marginBottom: 6,
-                            },
-                          ]}
-                        >
-                          {t("settings.day")}
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.modalInput,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(12, 22, 42, 0.75)"
-                                : "#FFFAF0",
-                              color: colors.text,
-                              borderColor: isDark
-                                ? "rgba(255,250,240,0.12)"
-                                : "#D4C0A0",
-                              padding: 16,
-                              fontSize: 16,
-                              textAlign: "center",
-                            },
-                          ]}
-                          value={dateInput.day}
-                          onChangeText={(text) => {
-                            const num = text.replace(/[^\d]/g, "");
-                            const parsed = num === "" ? 0 : parseInt(num);
-                            const isValid =
-                              num === "" || (parsed >= 1 && parsed <= 31);
-                            if (isValid) {
-                              const newInput = {
-                                ...dateInput,
-                                day: num.slice(0, 2),
-                              };
-                              setDateInput(newInput);
-                              updateDateFromInputs(newInput);
-                            }
-                          }}
-                          placeholder={t("settings.dd")}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          keyboardType="numeric"
-                          maxLength={2}
-                          editable={true}
-                          selectTextOnFocus={false}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }} pointerEvents="box-none">
-                        <Text
-                          style={[
-                            styles.modalLabel,
-                            {
-                              color: isDark ? "#9A8E7A" : "#8A7B68",
-                              fontSize: 12,
-                              marginBottom: 6,
-                            },
-                          ]}
-                        >
-                          {t("settings.month")}
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.modalInput,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(12, 22, 42, 0.75)"
-                                : "#FFFAF0",
-                              color: colors.text,
-                              borderColor: isDark
-                                ? "rgba(255,250,240,0.12)"
-                                : "#D4C0A0",
-                              padding: 16,
-                              fontSize: 16,
-                              textAlign: "center",
-                            },
-                          ]}
-                          value={dateInput.month}
-                          onChangeText={(text) => {
-                            const num = text.replace(/[^\d]/g, "");
-                            const parsed = num === "" ? 0 : parseInt(num);
-                            const isValid =
-                              num === "" || (parsed >= 1 && parsed <= 12);
-                            if (isValid) {
-                              const newInput = {
-                                ...dateInput,
-                                month: num.slice(0, 2),
-                              };
-                              setDateInput(newInput);
-                              updateDateFromInputs(newInput);
-                            }
-                          }}
-                          placeholder={t("settings.mm")}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          keyboardType="numeric"
-                          maxLength={2}
-                          editable={true}
-                          selectTextOnFocus={false}
-                        />
-                      </View>
-                      <View style={{ flex: 1.5 }} pointerEvents="box-none">
-                        <Text
-                          style={[
-                            styles.modalLabel,
-                            {
-                              color: isDark ? "#9A8E7A" : "#8A7B68",
-                              fontSize: 12,
-                              marginBottom: 6,
-                            },
-                          ]}
-                        >
-                          {t("settings.year")}
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.modalInput,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(12, 22, 42, 0.75)"
-                                : "#FFFAF0",
-                              color: colors.text,
-                              borderColor: isDark
-                                ? "rgba(255,250,240,0.12)"
-                                : "#D4C0A0",
-                              padding: 16,
-                              fontSize: 16,
-                              textAlign: "center",
-                            },
-                          ]}
-                          value={dateInput.year}
-                          onChangeText={(text) => {
-                            const num = text.replace(/[^\d]/g, "");
-                            const currentYear = new Date().getFullYear();
-                            // Allow partial inputs while typing (1-4 digits)
-                            // Only validate full range when we have 4 digits
-                            const isValid =
-                              num === "" ||
-                              (num.length <= 4 &&
-                                (num.length < 4 ||
-                                  (parseInt(num) >= 1900 &&
-                                    parseInt(num) <= currentYear)));
-                            if (isValid) {
-                              const newInput = {
-                                ...dateInput,
-                                year: num.slice(0, 4),
-                              };
-                              setDateInput(newInput);
-                              updateDateFromInputs(newInput);
-                            }
-                          }}
-                          placeholder={t("settings.yyyy")}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          keyboardType="numeric"
-                          maxLength={4}
-                          editable={true}
-                          selectTextOnFocus={false}
-                        />
-                      </View>
-                    </View>
-                    {dateOfBirth && (
-                      <Text
-                        style={[
-                          styles.modalLabel,
-                          {
-                            color: isDark ? "#6ee7b7" : "#059669",
-                            fontSize: 14,
-                            marginTop: 8,
-                            textAlign: "center",
-                          },
-                        ]}
-                      >
-                        {(() => {
-                          const month = String(
-                            dateOfBirth.getMonth() + 1,
-                          ).padStart(2, "0");
-                          const day = String(dateOfBirth.getDate()).padStart(
-                            2,
-                            "0",
-                          );
-                          const year = dateOfBirth.getFullYear();
-                          return `${month}/${day}/${year}`;
-                        })()}
-                      </Text>
-                    )}
-                  </View>
-                ) : editModal === "phone" ? (
-                  <View>
-                    {/* Country Picker */}
-                    <TouchableOpacity
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 12,
-                        },
-                      ]}
-                      onPress={() => {
-                        setShowCountryPicker(true);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        <Text style={{ fontSize: 24 }}>
-                          {phoneForm.countryFlag}
-                        </Text>
-                        <Text style={{ color: colors.text, fontSize: 16 }}>
-                          {phoneForm.countryName} {phoneForm.countryCode}
-                        </Text>
-                      </View>
-                      <Feather
-                        name="chevron-down"
-                        size={20}
-                        color={colors.text}
-                      />
-                    </TouchableOpacity>
-
-                    {/* Phone Number Input */}
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={phoneForm.phoneNumber}
-                      onChangeText={(text) =>
-                        setPhoneForm({ ...phoneForm, phoneNumber: text })
-                      }
-                      placeholder={t("settings.enterPhoneNumber")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      keyboardType="phone-pad"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                ) : editModal === "password" ? (
-                  <>
-                    <Text style={[styles.modalLabel, { color: colors.text }]}>
-                      {t("settings.currentPassword")}
-                    </Text>
-                    <View style={{ position: "relative" }}>
+                      )}
                       <TextInput
                         style={[
                           styles.modalInput,
@@ -2496,51 +2126,16 @@ export default function Settings() {
                             borderColor: isDark
                               ? "rgba(255,250,240,0.12)"
                               : "#D4C0A0",
-                            paddingRight: 50,
                           },
                         ]}
-                        value={passwordForm.currentPassword}
+                        value={addressForm.addressLine1}
                         onChangeText={(text) =>
-                          setPasswordForm({
-                            ...passwordForm,
-                            currentPassword: text,
-                          })
+                          setAddressForm({ ...addressForm, addressLine1: text })
                         }
-                        placeholder={t("settings.enterCurrentPassword")}
+                        placeholder={t("profile.addressLine1")}
                         placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        secureTextEntry={!showPassword.current}
-                        autoCapitalize="none"
+                        autoCapitalize="words"
                       />
-                      <TouchableOpacity
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          top: 12,
-                          padding: 4,
-                        }}
-                        onPress={() =>
-                          setShowPassword({
-                            ...showPassword,
-                            current: !showPassword.current,
-                          })
-                        }
-                      >
-                        <Feather
-                          name={showPassword.current ? "eye" : "eye-off"}
-                          size={20}
-                          color={isDark ? "#8A7B68" : "#9A8E7A"}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    <Text
-                      style={[
-                        styles.modalLabel,
-                        { color: colors.text, marginTop: 16 },
-                      ]}
-                    >
-                      {t("settings.newPassword")}
-                    </Text>
-                    <View style={{ position: "relative" }}>
                       <TextInput
                         style={[
                           styles.modalInput,
@@ -2549,129 +2144,363 @@ export default function Settings() {
                               ? "rgba(12, 22, 42, 0.75)"
                               : "#FFFAF0",
                             color: colors.text,
-                            borderColor:
-                              passwordForm.newPassword &&
-                              !validatePassword(passwordForm.newPassword)
-                                .isValid
-                                ? isDark
-                                  ? "#ef4444"
-                                  : "#dc2626"
-                                : isDark
-                                  ? "rgba(255,250,240,0.12)"
-                                  : "#D4C0A0",
-                            paddingRight: 50,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
                           },
                         ]}
-                        value={passwordForm.newPassword}
-                        onChangeText={(text) => {
-                          setPasswordForm({
-                            ...passwordForm,
-                            newPassword: text,
-                          });
-                          const validation = validatePassword(text);
-                          setPasswordErrors(validation.errors);
-                        }}
-                        placeholder={t("settings.enterNewPassword")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        secureTextEntry={!showPassword.new}
-                        autoCapitalize="none"
-                      />
-                      <TouchableOpacity
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          top: 12,
-                          padding: 4,
-                        }}
-                        onPress={() =>
-                          setShowPassword({
-                            ...showPassword,
-                            new: !showPassword.new,
-                          })
+                        value={addressForm.addressLine2}
+                        onChangeText={(text) =>
+                          setAddressForm({ ...addressForm, addressLine2: text })
                         }
+                        placeholder={t("profile.addressLine2Optional")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        autoCapitalize="words"
+                      />
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={addressForm.city}
+                        onChangeText={(text) =>
+                          setAddressForm({ ...addressForm, city: text })
+                        }
+                        placeholder={t("profile.city")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        autoCapitalize="words"
+                      />
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={addressForm.state}
+                        onChangeText={(text) =>
+                          setAddressForm({ ...addressForm, state: text })
+                        }
+                        placeholder={t("settings.provinceState")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        autoCapitalize="words"
+                      />
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={addressForm.postalCode}
+                        onChangeText={(text) =>
+                          setAddressForm({ ...addressForm, postalCode: text })
+                        }
+                        placeholder={t("settings.zipPostalCode")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        autoCapitalize="characters"
+                      />
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={addressForm.country}
+                        onChangeText={(text) =>
+                          setAddressForm({ ...addressForm, country: text })
+                        }
+                        placeholder={t("profile.selectCountry")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        autoCapitalize="words"
+                      />
+                    </ScrollView>
+                  ) : editModal === "dateOfBirth" ? (
+                    <View pointerEvents="auto">
+                      <Text
+                        style={[
+                          styles.modalLabel,
+                          { color: colors.text, marginBottom: 16 },
+                        ]}
                       >
-                        <Feather
-                          name={showPassword.new ? "eye" : "eye-off"}
-                          size={20}
-                          color={isDark ? "#8A7B68" : "#9A8E7A"}
-                        />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Password Requirements */}
-                    {passwordForm.newPassword.length > 0 && (
-                      <View style={{ marginTop: 8, marginBottom: 8 }}>
+                        {t("settings.enterDateOfBirth")}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          gap: 12,
+                          marginBottom: 12,
+                        }}
+                        pointerEvents="auto"
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.modalLabel,
+                              {
+                                color: isDark ? "#9A8E7A" : "#8A7B68",
+                                fontSize: 12,
+                                marginBottom: 6,
+                              },
+                            ]}
+                          >
+                            {t("settings.day")}
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.modalInput,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.75)"
+                                  : "#FFFAF0",
+                                color: colors.text,
+                                borderColor: isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "#D4C0A0",
+                                padding: 16,
+                                fontSize: 16,
+                                textAlign: "center",
+                              },
+                            ]}
+                            value={dateInput.day}
+                            onChangeText={(text) => {
+                              const num = text.replace(/[^\d]/g, "");
+                              const parsed = num === "" ? 0 : parseInt(num);
+                              const isValid =
+                                num === "" || (parsed >= 1 && parsed <= 31);
+                              if (isValid) {
+                                const newInput = {
+                                  ...dateInput,
+                                  day: num.slice(0, 2),
+                                };
+                                setDateInput(newInput);
+                                updateDateFromInputs(newInput);
+                              }
+                            }}
+                            placeholder={t("settings.dd")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            keyboardType="numeric"
+                            maxLength={2}
+                            editable={true}
+                            selectTextOnFocus={false}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }} pointerEvents="box-none">
+                          <Text
+                            style={[
+                              styles.modalLabel,
+                              {
+                                color: isDark ? "#9A8E7A" : "#8A7B68",
+                                fontSize: 12,
+                                marginBottom: 6,
+                              },
+                            ]}
+                          >
+                            {t("settings.month")}
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.modalInput,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.75)"
+                                  : "#FFFAF0",
+                                color: colors.text,
+                                borderColor: isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "#D4C0A0",
+                                padding: 16,
+                                fontSize: 16,
+                                textAlign: "center",
+                              },
+                            ]}
+                            value={dateInput.month}
+                            onChangeText={(text) => {
+                              const num = text.replace(/[^\d]/g, "");
+                              const parsed = num === "" ? 0 : parseInt(num);
+                              const isValid =
+                                num === "" || (parsed >= 1 && parsed <= 12);
+                              if (isValid) {
+                                const newInput = {
+                                  ...dateInput,
+                                  month: num.slice(0, 2),
+                                };
+                                setDateInput(newInput);
+                                updateDateFromInputs(newInput);
+                              }
+                            }}
+                            placeholder={t("settings.mm")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            keyboardType="numeric"
+                            maxLength={2}
+                            editable={true}
+                            selectTextOnFocus={false}
+                          />
+                        </View>
+                        <View style={{ flex: 1.5 }} pointerEvents="box-none">
+                          <Text
+                            style={[
+                              styles.modalLabel,
+                              {
+                                color: isDark ? "#9A8E7A" : "#8A7B68",
+                                fontSize: 12,
+                                marginBottom: 6,
+                              },
+                            ]}
+                          >
+                            {t("settings.year")}
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.modalInput,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.75)"
+                                  : "#FFFAF0",
+                                color: colors.text,
+                                borderColor: isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "#D4C0A0",
+                                padding: 16,
+                                fontSize: 16,
+                                textAlign: "center",
+                              },
+                            ]}
+                            value={dateInput.year}
+                            onChangeText={(text) => {
+                              const num = text.replace(/[^\d]/g, "");
+                              const currentYear = new Date().getFullYear();
+                              // Allow partial inputs while typing (1-4 digits)
+                              // Only validate full range when we have 4 digits
+                              const isValid =
+                                num === "" ||
+                                (num.length <= 4 &&
+                                  (num.length < 4 ||
+                                    (parseInt(num) >= 1900 &&
+                                      parseInt(num) <= currentYear)));
+                              if (isValid) {
+                                const newInput = {
+                                  ...dateInput,
+                                  year: num.slice(0, 4),
+                                };
+                                setDateInput(newInput);
+                                updateDateFromInputs(newInput);
+                              }
+                            }}
+                            placeholder={t("settings.yyyy")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            keyboardType="numeric"
+                            maxLength={4}
+                            editable={true}
+                            selectTextOnFocus={false}
+                          />
+                        </View>
+                      </View>
+                      {dateOfBirth && (
                         <Text
                           style={[
                             styles.modalLabel,
                             {
-                              color: colors.text,
-                              fontSize: 12,
-                              marginBottom: 8,
+                              color: isDark ? "#6ee7b7" : "#059669",
+                              fontSize: 14,
+                              marginTop: 8,
+                              textAlign: "center",
                             },
                           ]}
                         >
-                          {t("settings.passwordRequirements")}:
+                          {(() => {
+                            const month = String(
+                              dateOfBirth.getMonth() + 1,
+                            ).padStart(2, "0");
+                            const day = String(dateOfBirth.getDate()).padStart(
+                              2,
+                              "0",
+                            );
+                            const year = dateOfBirth.getFullYear();
+                            return `${month}/${day}/${year}`;
+                          })()}
                         </Text>
-                        <View style={{ gap: 6 }}>
-                          <RequirementItem
-                            met={checkPasswordRequirement(
-                              passwordForm.newPassword,
-                              "minLength",
-                            )}
-                            text={t("auth.passwordRequirements.minLength")}
-                            colors={colors}
-                            isDark={isDark}
-                          />
-                          <RequirementItem
-                            met={checkPasswordRequirement(
-                              passwordForm.newPassword,
-                              "uppercase",
-                            )}
-                            text={t("auth.passwordRequirements.uppercase")}
-                            colors={colors}
-                            isDark={isDark}
-                          />
-                          <RequirementItem
-                            met={checkPasswordRequirement(
-                              passwordForm.newPassword,
-                              "lowercase",
-                            )}
-                            text={t("auth.passwordRequirements.lowercase")}
-                            colors={colors}
-                            isDark={isDark}
-                          />
-                          <RequirementItem
-                            met={checkPasswordRequirement(
-                              passwordForm.newPassword,
-                              "number",
-                            )}
-                            text={t("auth.passwordRequirements.number")}
-                            colors={colors}
-                            isDark={isDark}
-                          />
-                          <RequirementItem
-                            met={checkPasswordRequirement(
-                              passwordForm.newPassword,
-                              "special",
-                            )}
-                            text={t("auth.passwordRequirements.special")}
-                            colors={colors}
-                            isDark={isDark}
-                          />
+                      )}
+                    </View>
+                  ) : editModal === "phone" ? (
+                    <View>
+                      {/* Country Picker */}
+                      <TouchableOpacity
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 12,
+                          },
+                        ]}
+                        onPress={() => {
+                          setShowCountryPicker(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <Text style={{ fontSize: 24 }}>
+                            {phoneForm.countryFlag}
+                          </Text>
+                          <Text style={{ color: colors.text, fontSize: 16 }}>
+                            {phoneForm.countryName} {phoneForm.countryCode}
+                          </Text>
                         </View>
-                      </View>
-                    )}
+                        <Feather
+                          name="chevron-down"
+                          size={20}
+                          color={colors.text}
+                        />
+                      </TouchableOpacity>
 
-                    <Text
-                      style={[
-                        styles.modalLabel,
-                        { color: colors.text, marginTop: 16 },
-                      ]}
-                    >
-                      {t("settings.confirmPassword")}
-                    </Text>
-                    <View style={{ position: "relative" }}>
+                      {/* Phone Number Input */}
                       <TextInput
                         style={[
                           styles.modalInput,
@@ -2680,138 +2509,357 @@ export default function Settings() {
                               ? "rgba(12, 22, 42, 0.75)"
                               : "#FFFAF0",
                             color: colors.text,
-                            borderColor:
-                              passwordForm.confirmPassword &&
-                              passwordForm.newPassword !==
-                                passwordForm.confirmPassword
-                                ? isDark
-                                  ? "#ef4444"
-                                  : "#dc2626"
-                                : passwordForm.confirmPassword &&
-                                    passwordForm.newPassword ===
-                                      passwordForm.confirmPassword
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={phoneForm.phoneNumber}
+                        onChangeText={(text) =>
+                          setPhoneForm({ ...phoneForm, phoneNumber: text })
+                        }
+                        placeholder={t("settings.enterPhoneNumber")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        keyboardType="phone-pad"
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  ) : editModal === "password" ? (
+                    <>
+                      <Text style={[styles.modalLabel, { color: colors.text }]}>
+                        {t("settings.currentPassword")}
+                      </Text>
+                      <View style={{ position: "relative" }}>
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                              paddingRight: 50,
+                            },
+                          ]}
+                          value={passwordForm.currentPassword}
+                          onChangeText={(text) =>
+                            setPasswordForm({
+                              ...passwordForm,
+                              currentPassword: text,
+                            })
+                          }
+                          placeholder={t("settings.enterCurrentPassword")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          secureTextEntry={!showPassword.current}
+                          autoCapitalize="none"
+                        />
+                        <TouchableOpacity
+                          style={{
+                            position: "absolute",
+                            right: 12,
+                            top: 12,
+                            padding: 4,
+                          }}
+                          onPress={() =>
+                            setShowPassword({
+                              ...showPassword,
+                              current: !showPassword.current,
+                            })
+                          }
+                        >
+                          <Feather
+                            name={showPassword.current ? "eye" : "eye-off"}
+                            size={20}
+                            color={isDark ? "#8A7B68" : "#9A8E7A"}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      <Text
+                        style={[
+                          styles.modalLabel,
+                          { color: colors.text, marginTop: 16 },
+                        ]}
+                      >
+                        {t("settings.newPassword")}
+                      </Text>
+                      <View style={{ position: "relative" }}>
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor:
+                                passwordForm.newPassword &&
+                                !validatePassword(passwordForm.newPassword)
+                                  .isValid
                                   ? isDark
-                                    ? "#10b981"
-                                    : "#059669"
+                                    ? "#ef4444"
+                                    : "#dc2626"
                                   : isDark
                                     ? "rgba(255,250,240,0.12)"
                                     : "#D4C0A0",
-                            paddingRight: 50,
-                          },
-                        ]}
-                        value={passwordForm.confirmPassword}
-                        onChangeText={(text) =>
-                          setPasswordForm({
-                            ...passwordForm,
-                            confirmPassword: text,
-                          })
-                        }
-                        placeholder={t("settings.enterConfirmPassword")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        secureTextEntry={!showPassword.confirm}
-                        autoCapitalize="none"
-                      />
-                      <TouchableOpacity
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          top: 12,
-                          padding: 4,
-                        }}
-                        onPress={() =>
-                          setShowPassword({
-                            ...showPassword,
-                            confirm: !showPassword.confirm,
-                          })
-                        }
-                      >
-                        <Feather
-                          name={showPassword.confirm ? "eye" : "eye-off"}
-                          size={20}
-                          color={isDark ? "#8A7B68" : "#9A8E7A"}
+                              paddingRight: 50,
+                            },
+                          ]}
+                          value={passwordForm.newPassword}
+                          onChangeText={(text) => {
+                            setPasswordForm({
+                              ...passwordForm,
+                              newPassword: text,
+                            });
+                            const validation = validatePassword(text);
+                            setPasswordErrors(validation.errors);
+                          }}
+                          placeholder={t("settings.enterNewPassword")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          secureTextEntry={!showPassword.new}
+                          autoCapitalize="none"
                         />
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                ) : (
-                  <TextInput
-                    style={[
-                      styles.modalInput,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.75)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#D4C0A0",
-                      },
-                    ]}
-                    value={editValue}
-                    onChangeText={setEditValue}
-                    placeholder={t("settings.enterEmailAddress")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                )}
+                        <TouchableOpacity
+                          style={{
+                            position: "absolute",
+                            right: 12,
+                            top: 12,
+                            padding: 4,
+                          }}
+                          onPress={() =>
+                            setShowPassword({
+                              ...showPassword,
+                              new: !showPassword.new,
+                            })
+                          }
+                        >
+                          <Feather
+                            name={showPassword.new ? "eye" : "eye-off"}
+                            size={20}
+                            color={isDark ? "#8A7B68" : "#9A8E7A"}
+                          />
+                        </TouchableOpacity>
+                      </View>
 
-                {editModal && !showCountryPicker && (
-                  <View style={styles.modalButtons}>
-                    <TouchableButton
+                      {/* Password Requirements */}
+                      {passwordForm.newPassword.length > 0 && (
+                        <View style={{ marginTop: 8, marginBottom: 8 }}>
+                          <Text
+                            style={[
+                              styles.modalLabel,
+                              {
+                                color: colors.text,
+                                fontSize: 12,
+                                marginBottom: 8,
+                              },
+                            ]}
+                          >
+                            {t("settings.passwordRequirements")}:
+                          </Text>
+                          <View style={{ gap: 6 }}>
+                            <RequirementItem
+                              met={checkPasswordRequirement(
+                                passwordForm.newPassword,
+                                "minLength",
+                              )}
+                              text={t("auth.passwordRequirements.minLength")}
+                              colors={colors}
+                              isDark={isDark}
+                            />
+                            <RequirementItem
+                              met={checkPasswordRequirement(
+                                passwordForm.newPassword,
+                                "uppercase",
+                              )}
+                              text={t("auth.passwordRequirements.uppercase")}
+                              colors={colors}
+                              isDark={isDark}
+                            />
+                            <RequirementItem
+                              met={checkPasswordRequirement(
+                                passwordForm.newPassword,
+                                "lowercase",
+                              )}
+                              text={t("auth.passwordRequirements.lowercase")}
+                              colors={colors}
+                              isDark={isDark}
+                            />
+                            <RequirementItem
+                              met={checkPasswordRequirement(
+                                passwordForm.newPassword,
+                                "number",
+                              )}
+                              text={t("auth.passwordRequirements.number")}
+                              colors={colors}
+                              isDark={isDark}
+                            />
+                            <RequirementItem
+                              met={checkPasswordRequirement(
+                                passwordForm.newPassword,
+                                "special",
+                              )}
+                              text={t("auth.passwordRequirements.special")}
+                              colors={colors}
+                              isDark={isDark}
+                            />
+                          </View>
+                        </View>
+                      )}
+
+                      <Text
+                        style={[
+                          styles.modalLabel,
+                          { color: colors.text, marginTop: 16 },
+                        ]}
+                      >
+                        {t("settings.confirmPassword")}
+                      </Text>
+                      <View style={{ position: "relative" }}>
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor:
+                                passwordForm.confirmPassword &&
+                                passwordForm.newPassword !==
+                                  passwordForm.confirmPassword
+                                  ? isDark
+                                    ? "#ef4444"
+                                    : "#dc2626"
+                                  : passwordForm.confirmPassword &&
+                                      passwordForm.newPassword ===
+                                        passwordForm.confirmPassword
+                                    ? isDark
+                                      ? "#10b981"
+                                      : "#059669"
+                                    : isDark
+                                      ? "rgba(255,250,240,0.12)"
+                                      : "#D4C0A0",
+                              paddingRight: 50,
+                            },
+                          ]}
+                          value={passwordForm.confirmPassword}
+                          onChangeText={(text) =>
+                            setPasswordForm({
+                              ...passwordForm,
+                              confirmPassword: text,
+                            })
+                          }
+                          placeholder={t("settings.enterConfirmPassword")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          secureTextEntry={!showPassword.confirm}
+                          autoCapitalize="none"
+                        />
+                        <TouchableOpacity
+                          style={{
+                            position: "absolute",
+                            right: 12,
+                            top: 12,
+                            padding: 4,
+                          }}
+                          onPress={() =>
+                            setShowPassword({
+                              ...showPassword,
+                              confirm: !showPassword.confirm,
+                            })
+                          }
+                        >
+                          <Feather
+                            name={showPassword.confirm ? "eye" : "eye-off"}
+                            size={20}
+                            color={isDark ? "#8A7B68" : "#9A8E7A"}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <TextInput
                       style={[
-                        styles.modalButton,
-                        styles.modalButtonCancel,
+                        styles.modalInput,
                         {
                           backgroundColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#F5ECD8",
+                            ? "rgba(12, 22, 42, 0.75)"
+                            : "#FFFAF0",
+                          color: colors.text,
                           borderColor: isDark
-                            ? "rgba(201,150,63,0.25)"
-                            : "rgba(184,130,42,0.2)",
-                          borderWidth: 1,
+                            ? "rgba(255,250,240,0.12)"
+                            : "#D4C0A0",
                         },
                       ]}
-                      onPress={() => setEditModal(null)}
-                    >
-                      <Text
-                        style={[styles.modalButtonText, { color: colors.text }]}
+                      value={editValue}
+                      onChangeText={setEditValue}
+                      placeholder={t("settings.enterEmailAddress")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  )}
+
+                  {editModal && !showCountryPicker && (
+                    <View style={styles.modalButtons}>
+                      <TouchableButton
+                        style={[
+                          styles.modalButton,
+                          styles.modalButtonCancel,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#F5ECD8",
+                            borderColor: isDark
+                              ? "rgba(201,150,63,0.25)"
+                              : "rgba(184,130,42,0.2)",
+                            borderWidth: 1,
+                          },
+                        ]}
+                        onPress={() => setEditModal(null)}
                       >
-                        {t("common.cancel")}
-                      </Text>
-                    </TouchableButton>
-                    <TouchableButton
-                      style={[
-                        styles.modalButton,
-                        styles.modalButtonSave,
-                        {
-                          backgroundColor: isDark ? "#C9963F" : colors.tint,
-                          borderColor: isDark ? "#C9963F" : colors.tint,
-                          shadowColor: isDark ? "#C9963F" : colors.tint,
-                        },
-                      ]}
-                      onPress={handleSaveEdit}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        <ActivityIndicator
-                          color={isDark ? "#F0E8D5" : "#FFFAF0"}
-                        />
-                      ) : (
                         <Text
                           style={[
                             styles.modalButtonText,
-                            { color: isDark ? "#F0E8D5" : "#FFFAF0" },
+                            { color: colors.text },
                           ]}
                         >
-                          {t("common.save")}
+                          {t("common.cancel")}
                         </Text>
-                      )}
-                    </TouchableButton>
-                  </View>
-                )}
+                      </TouchableButton>
+                      <TouchableButton
+                        style={[
+                          styles.modalButton,
+                          styles.modalButtonSave,
+                          {
+                            backgroundColor: isDark ? "#C9963F" : colors.tint,
+                            borderColor: isDark ? "#C9963F" : colors.tint,
+                            shadowColor: isDark ? "#C9963F" : colors.tint,
+                          },
+                        ]}
+                        onPress={handleSaveEdit}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator
+                            color={isDark ? "#F0E8D5" : "#FFFAF0"}
+                          />
+                        ) : (
+                          <Text
+                            style={[
+                              styles.modalButtonText,
+                              { color: isDark ? "#F0E8D5" : "#FFFAF0" },
+                            ]}
+                          >
+                            {t("common.save")}
+                          </Text>
+                        )}
+                      </TouchableButton>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
             </KeyboardAvoidingView>
           </Modal>
 
@@ -2829,214 +2877,216 @@ export default function Settings() {
               behavior={Platform.OS === "ios" ? "padding" : undefined}
               style={{ flex: 1 }}
             >
-            <View style={styles.modalOverlay}>
-              <View
-                style={[
-                  styles.modalContent,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(12, 22, 42, 0.90)"
-                      : "#FFFAF0",
-                  },
-                ]}
-              >
-                <View style={styles.modalHeader}>
-                  <Text style={[styles.modalTitle, { color: colors.text }]}>
-                    {verificationModal === "email"
-                      ? t("settings.verifyEmail")
-                      : t("settings.verifyPhone")}
-                  </Text>
-                  <TouchableButton
-                    onPress={() => {
-                      setVerificationModal(null);
-                      setVerificationCode("");
-                    }}
-                  >
-                    <Feather name="x" size={24} color={colors.text} />
-                  </TouchableButton>
-                </View>
-
-                {verificationModal === "email" ? (
-                  <>
-                    <Text
-                      style={[
-                        styles.modalDescription,
-                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                      ]}
-                    >
-                      {t("settings.verificationCodeEmailDescription")}
+              <View style={styles.modalOverlay}>
+                <View
+                  style={[
+                    styles.modalContent,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.90)"
+                        : "#FFFAF0",
+                    },
+                  ]}
+                >
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      {verificationModal === "email"
+                        ? t("settings.verifyEmail")
+                        : t("settings.verifyPhone")}
                     </Text>
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={verificationCode}
-                      onChangeText={setVerificationCode}
-                      placeholder={t("settings.enterVerificationCodeFromEmail")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
                     <TouchableButton
-                      style={[
-                        styles.resendButton,
-                        {
-                          borderColor: colors.tint,
-                          backgroundColor: isDark
-                            ? "rgba(201, 150, 63, 0.2)"
-                            : "transparent",
-                        },
-                      ]}
-                      onPress={requestEmailVerification}
-                      disabled={isRequestingCode}
+                      onPress={() => {
+                        setVerificationModal(null);
+                        setVerificationCode("");
+                      }}
                     >
-                      {isRequestingCode ? (
-                        <ActivityIndicator color={colors.tint} />
-                      ) : (
-                        <Text
-                          style={[
-                            styles.resendButtonText,
-                            { color: colors.tint },
-                          ]}
-                        >
-                          {t("settings.resendVerificationEmail")}
-                        </Text>
-                      )}
+                      <Feather name="x" size={24} color={colors.text} />
                     </TouchableButton>
-                  </>
-                ) : (
-                  <>
-                    <Text
-                      style={[
-                        styles.modalDescription,
-                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                      ]}
-                    >
-                      {t("settings.verificationCodePhoneDescription")}
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={verificationCode}
-                      onChangeText={setVerificationCode}
-                      placeholder={t("settings.enter6DigitCode")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                    />
-                    <TouchableButton
-                      style={[
-                        styles.resendButton,
-                        {
-                          borderColor: colors.tint,
-                          backgroundColor: isDark
-                            ? "rgba(201, 150, 63, 0.2)"
-                            : "transparent",
-                        },
-                      ]}
-                      onPress={requestPhoneVerification}
-                      disabled={isRequestingCode}
-                    >
-                      {isRequestingCode ? (
-                        <ActivityIndicator color={colors.tint} />
-                      ) : (
-                        <Text
-                          style={[
-                            styles.resendButtonText,
-                            { color: colors.tint },
-                          ]}
-                        >
-                          Resend Code
-                        </Text>
-                      )}
-                    </TouchableButton>
-                  </>
-                )}
+                  </View>
 
-                <View style={styles.modalButtons}>
-                  <TouchableButton
-                    style={[
-                      styles.modalButton,
-                      styles.modalButtonCancel,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.75)"
-                          : "#F5ECD8",
-                        borderColor: isDark
-                          ? "rgba(201,150,63,0.12)"
-                          : "transparent",
-                        borderWidth: isDark ? 1 : 0,
-                      },
-                    ]}
-                    onPress={() => {
-                      setVerificationModal(null);
-                      setVerificationCode("");
-                    }}
-                  >
-                    <Text
-                      style={[styles.modalButtonText, { color: colors.text }]}
-                    >
-                      {t("common.cancel")}
-                    </Text>
-                  </TouchableButton>
-                  {(verificationModal === "phone" ||
-                    verificationModal === "email") && (
+                  {verificationModal === "email" ? (
+                    <>
+                      <Text
+                        style={[
+                          styles.modalDescription,
+                          { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                        ]}
+                      >
+                        {t("settings.verificationCodeEmailDescription")}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={verificationCode}
+                        onChangeText={setVerificationCode}
+                        placeholder={t(
+                          "settings.enterVerificationCodeFromEmail",
+                        )}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <TouchableButton
+                        style={[
+                          styles.resendButton,
+                          {
+                            borderColor: colors.tint,
+                            backgroundColor: isDark
+                              ? "rgba(201, 150, 63, 0.2)"
+                              : "transparent",
+                          },
+                        ]}
+                        onPress={requestEmailVerification}
+                        disabled={isRequestingCode}
+                      >
+                        {isRequestingCode ? (
+                          <ActivityIndicator color={colors.tint} />
+                        ) : (
+                          <Text
+                            style={[
+                              styles.resendButtonText,
+                              { color: colors.tint },
+                            ]}
+                          >
+                            {t("settings.resendVerificationEmail")}
+                          </Text>
+                        )}
+                      </TouchableButton>
+                    </>
+                  ) : (
+                    <>
+                      <Text
+                        style={[
+                          styles.modalDescription,
+                          { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                        ]}
+                      >
+                        {t("settings.verificationCodePhoneDescription")}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={verificationCode}
+                        onChangeText={setVerificationCode}
+                        placeholder={t("settings.enter6DigitCode")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                      <TouchableButton
+                        style={[
+                          styles.resendButton,
+                          {
+                            borderColor: colors.tint,
+                            backgroundColor: isDark
+                              ? "rgba(201, 150, 63, 0.2)"
+                              : "transparent",
+                          },
+                        ]}
+                        onPress={requestPhoneVerification}
+                        disabled={isRequestingCode}
+                      >
+                        {isRequestingCode ? (
+                          <ActivityIndicator color={colors.tint} />
+                        ) : (
+                          <Text
+                            style={[
+                              styles.resendButtonText,
+                              { color: colors.tint },
+                            ]}
+                          >
+                            Resend Code
+                          </Text>
+                        )}
+                      </TouchableButton>
+                    </>
+                  )}
+
+                  <View style={styles.modalButtons}>
                     <TouchableButton
                       style={[
                         styles.modalButton,
-                        styles.modalButtonSave,
+                        styles.modalButtonCancel,
                         {
-                          backgroundColor: isDark ? "#C9963F" : colors.tint,
-                          borderColor: isDark ? "#C9963F" : colors.tint,
-                          shadowColor: isDark ? "#C9963F" : colors.tint,
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.75)"
+                            : "#F5ECD8",
+                          borderColor: isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "transparent",
+                          borderWidth: isDark ? 1 : 0,
                         },
                       ]}
-                      onPress={handleVerifyCode}
-                      disabled={
-                        isVerifying ||
-                        (verificationModal === "phone"
-                          ? verificationCode.length !== 6
-                          : !verificationCode.trim())
-                      }
+                      onPress={() => {
+                        setVerificationModal(null);
+                        setVerificationCode("");
+                      }}
                     >
-                      {isVerifying ? (
-                        <ActivityIndicator
-                          color={isDark ? "#F0E8D5" : "#FFFAF0"}
-                        />
-                      ) : (
-                        <Text
-                          style={[
-                            styles.modalButtonText,
-                            { color: isDark ? "#F0E8D5" : "#FFFAF0" },
-                          ]}
-                        >
-                          {t("common.verify")}
-                        </Text>
-                      )}
+                      <Text
+                        style={[styles.modalButtonText, { color: colors.text }]}
+                      >
+                        {t("common.cancel")}
+                      </Text>
                     </TouchableButton>
-                  )}
+                    {(verificationModal === "phone" ||
+                      verificationModal === "email") && (
+                      <TouchableButton
+                        style={[
+                          styles.modalButton,
+                          styles.modalButtonSave,
+                          {
+                            backgroundColor: isDark ? "#C9963F" : colors.tint,
+                            borderColor: isDark ? "#C9963F" : colors.tint,
+                            shadowColor: isDark ? "#C9963F" : colors.tint,
+                          },
+                        ]}
+                        onPress={handleVerifyCode}
+                        disabled={
+                          isVerifying ||
+                          (verificationModal === "phone"
+                            ? verificationCode.length !== 6
+                            : !verificationCode.trim())
+                        }
+                      >
+                        {isVerifying ? (
+                          <ActivityIndicator
+                            color={isDark ? "#F0E8D5" : "#FFFAF0"}
+                          />
+                        ) : (
+                          <Text
+                            style={[
+                              styles.modalButtonText,
+                              { color: isDark ? "#F0E8D5" : "#FFFAF0" },
+                            ]}
+                          >
+                            {t("common.verify")}
+                          </Text>
+                        )}
+                      </TouchableButton>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
             </KeyboardAvoidingView>
           </Modal>
 

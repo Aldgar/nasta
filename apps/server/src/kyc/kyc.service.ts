@@ -29,6 +29,7 @@ export class KycService {
     userId: string,
     verificationType: VerificationType,
     consent?: { accepted: boolean; version?: string; textHash?: string },
+    documentType?: string,
   ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -54,6 +55,7 @@ export class KycService {
       data: {
         userId,
         verificationType,
+        documentType: (documentType as any) || null,
         status: 'PENDING',
         consentAcceptedAt: new Date(),
         consentVersion: consent.version || null,
@@ -266,7 +268,7 @@ export class KycService {
     return { url: fileUrl, message: 'CV uploaded. Awaiting review.' };
   }
 
-  // Optional: allow users to set document details (number/country/expiry) for manual review context
+  // Optional: allow users to set document details (number/country/expiry/type) for manual review context
   async setDocumentDetails(
     verificationId: string,
     userId: string,
@@ -274,6 +276,7 @@ export class KycService {
       documentNumber?: string;
       documentCountry?: string;
       documentExpiry?: string | Date;
+      documentType?: string;
     },
   ) {
     const kyc = await this.prisma.idVerification.findUnique({
@@ -294,6 +297,17 @@ export class KycService {
         throw new BadRequestException('Invalid documentExpiry');
       data.documentExpiry = expDate;
     }
+    if (typeof details.documentType === 'string' && details.documentType) {
+      const validTypes = [
+        'DRIVERS_LICENSE',
+        'PASSPORT',
+        'NATIONAL_ID',
+        'RESIDENCE_PERMIT',
+      ];
+      if (validTypes.includes(details.documentType)) {
+        data.documentType = details.documentType;
+      }
+    }
     const updated = await this.prisma.idVerification.update({
       where: { id: verificationId },
       data,
@@ -302,6 +316,7 @@ export class KycService {
         documentNumber: true,
         documentCountry: true,
         documentExpiry: true,
+        documentType: true,
       },
     });
     return { ...updated, message: 'Document details saved' };
@@ -320,16 +335,35 @@ export class KycService {
         id: true,
         status: true,
         verificationType: true,
+        documentType: true,
         documentFrontUrl: true,
         documentBackUrl: true,
         selfieUrl: true,
         certifications: true,
         cvDocuments: true,
-        documentStatuses: true, // Include individual document statuses
+        documentStatuses: true,
         createdAt: true,
       },
     });
-    return { user, current: current || undefined };
+
+    // Get all verifications for this user (including driver's license)
+    const allVerifications = await this.prisma.idVerification.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        verificationType: true,
+        documentType: true,
+        status: true,
+        documentFrontUrl: true,
+        documentBackUrl: true,
+        selfieUrl: true,
+        documentStatuses: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { user, current: current || undefined, allVerifications };
   }
 
   async adminList(
@@ -370,6 +404,92 @@ export class KycService {
       }));
   }
 
+  async adminListVehicles(
+    statuses: Array<'PENDING' | 'VERIFIED' | 'REJECTED'>,
+  ) {
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { status: { in: statuses } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        userId: true,
+        vehicleType: true,
+        make: true,
+        model: true,
+        year: true,
+        color: true,
+        licensePlate: true,
+        capacity: true,
+        status: true,
+        photoFrontUrl: true,
+        photoBackUrl: true,
+        photoLeftUrl: true,
+        photoRightUrl: true,
+        vehicleLicenseUrl: true,
+        adminNotes: true,
+        reviewedBy: true,
+        reviewedAt: true,
+        createdAt: true,
+      },
+    });
+
+    const userIds = [...new Set(vehicles.map((v) => v.userId))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return vehicles
+      .filter((v) => userMap.has(v.userId))
+      .map(({ userId, ...rest }) => ({
+        ...rest,
+        user: userMap.get(userId)!,
+      }));
+  }
+
+  async adminReviewVehicle(
+    vehicleId: string,
+    adminId: string,
+    decision: 'VERIFIED' | 'REJECTED',
+    adminNotes?: string,
+  ) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+
+    return this.prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        status: decision,
+        adminNotes: adminNotes || undefined,
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+      },
+    });
+  }
+
+  async adminGetVehicle(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: vehicle.userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+      },
+    });
+
+    return { ...vehicle, user };
+  }
+
   async adminGetVerification(verificationId: string) {
     const verification = await this.prisma.idVerification.findUnique({
       where: { id: verificationId },
@@ -388,6 +508,12 @@ export class KycService {
         documentCountry: true,
         documentExpiry: true,
         documentStatuses: true,
+        confidence: true,
+        faceMatch: true,
+        livenessCheck: true,
+        extractedData: true,
+        extractedBy: true,
+        extractedAt: true,
         userId: true,
         user: {
           select: {
@@ -396,6 +522,11 @@ export class KycService {
             lastName: true,
             email: true,
             phone: true,
+            avatar: true,
+            role: true,
+            country: true,
+            isIdVerified: true,
+            idVerificationStatus: true,
           },
         },
       },
@@ -432,11 +563,115 @@ export class KycService {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Get vehicles for this user
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { userId: verification.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
     return {
       ...verification,
       allVerifications,
       backgroundCheck: backgroundCheck || undefined,
+      vehicles,
     };
+  }
+
+  async saveExtractedData(
+    verificationId: string,
+    adminId: string,
+    extractedData: {
+      legalFirstName?: string;
+      legalLastName?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      nationality?: string;
+      placeOfBirth?: string;
+      documentNumber?: string;
+      documentType?: string;
+      issueDate?: string;
+      expiryDate?: string;
+      issuingCountry?: string;
+      issuingAuthority?: string;
+      bsnNumber?: string;
+      address?: string;
+      mrzLine1?: string;
+      mrzLine2?: string;
+      photoMatchConfirmed?: boolean;
+      workAuthorization?: string;
+      adminNotes?: string;
+      isEuCitizen?: boolean;
+      citizenshipCountry?: string;
+    },
+  ) {
+    const kyc = await this.prisma.idVerification.findUnique({
+      where: { id: verificationId },
+    });
+    if (!kyc) throw new NotFoundException('Verification not found');
+
+    // Sync documentExpiry and documentCountry from extracted data
+    const syncData: Record<string, unknown> = {
+      extractedData: extractedData as any,
+      extractedBy: adminId,
+      extractedAt: new Date(),
+    };
+
+    if (extractedData.expiryDate) {
+      const exp = new Date(extractedData.expiryDate);
+      if (!isNaN(exp.getTime())) {
+        syncData.documentExpiry = exp;
+      }
+    }
+    if (extractedData.issuingCountry) {
+      syncData.documentCountry = extractedData.issuingCountry;
+    }
+
+    // If new expiry date is set and is in the future, clear any existing restriction
+    if (extractedData.expiryDate) {
+      const exp = new Date(extractedData.expiryDate);
+      if (!isNaN(exp.getTime()) && exp > new Date()) {
+        syncData.documentExpiryNotifiedAt = null;
+        syncData.documentExpiryRestricted = false;
+
+        // Also clear the restriction on the user's idVerificationData if it was set
+        const user = await this.prisma.user.findUnique({
+          where: { id: kyc.userId },
+          select: { idVerificationData: true },
+        });
+        const verificationData = (user?.idVerificationData as any) || {};
+        if (
+          verificationData?.restricted &&
+          verificationData?.restrictions?.documentExpired
+        ) {
+          const { documentExpired, ...restRestrictions } =
+            verificationData.restrictions;
+          const hasOtherRestrictions = Object.values(restRestrictions).some(
+            (v) => v === false,
+          );
+          await this.prisma.user.update({
+            where: { id: kyc.userId },
+            data: {
+              idVerificationData: hasOtherRestrictions
+                ? { ...verificationData, restrictions: restRestrictions }
+                : {},
+            },
+          });
+        }
+      }
+    }
+
+    const updated = await this.prisma.idVerification.update({
+      where: { id: verificationId },
+      data: syncData,
+      select: {
+        id: true,
+        extractedData: true,
+        extractedBy: true,
+        extractedAt: true,
+      },
+    });
+
+    return { ...updated, message: 'Document data saved successfully' };
   }
 
   async adminReview(

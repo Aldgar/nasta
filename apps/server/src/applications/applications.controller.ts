@@ -17,6 +17,7 @@ import { ApplicationsService } from './applications.service';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UpdateApplicationStatusDto } from './dto/update-status.dto';
 import { WithdrawApplicationDto } from './dto/withdraw-application.dto';
+import { RespondInstantJobRequestDto } from './dto/respond-instant-job-request.dto';
 import { RequestAdditionalRatesDto } from './dto/request-additional-rates.dto';
 import { RespondAdditionalRatesDto } from './dto/respond-additional-rates.dto';
 import { UpdateSelectedRatesDto } from './dto/update-selected-rates.dto';
@@ -753,5 +754,25 @@ export class SeekerApplicationsController {
   ) {
     const user = req.user as { id: string };
     return this.service.withdrawAsSeeker(user.id, id, dto.reason);
+  }
+
+  // Seeker: accept or reject an instant job request
+  @Post(':id/respond-to-request')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Accept or reject an instant job request (service provider)' })
+  @ApiBody({ type: RespondInstantJobRequestDto })
+  async respondToRequest(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: RespondInstantJobRequestDto,
+  ) {
+    const user = req.user as { id: string };
+    return this.service.respondToInstantJobRequest(
+      user.id,
+      id,
+      dto.accept,
+      dto.rejectionReason,
+    );
   }
 }

@@ -17,7 +17,13 @@ import { useLanguage } from "../../context/LanguageContext";
 import * as SecureStore from "expo-secure-store";
 import { getApiBase } from "../../lib/api";
 
-type FilterStatus = "ALL" | "PENDING" | "REVIEWING" | "ACCEPTED" | "REJECTED";
+type FilterStatus =
+  | "ALL"
+  | "REQUESTED"
+  | "PENDING"
+  | "ACCEPTED"
+  | "COMPLETED"
+  | "REJECTED";
 
 interface BackendApp {
   id: string;
@@ -53,27 +59,45 @@ interface AppItem {
   company?: string;
 }
 
-function statusLabel(raw: string): string {
+function statusLabel(
+  raw: string,
+  hasCompleted: boolean,
+  t: (key: string) => string,
+): string {
+  if (raw.toUpperCase() === "ACCEPTED" && hasCompleted) {
+    return t("applications.statusCompleted");
+  }
   switch (raw.toUpperCase()) {
+    case "REQUESTED":
+      return t("applications.statusRequested");
     case "PENDING":
-      return "Under Review";
+      return t("applications.statusPending");
     case "REVIEWING":
-      return "Under Review";
+      return t("applications.statusReviewing");
     case "SHORTLISTED":
-      return "Shortlisted";
+      return t("applications.statusShortlisted");
     case "ACCEPTED":
-      return "Accepted";
+      return t("applications.statusAccepted");
     case "REJECTED":
-      return "Rejected";
+      return t("applications.statusRejected");
     case "WITHDRAWN":
-      return "Withdrawn";
+      return t("applications.statusWithdrawn");
     default:
       return raw;
   }
 }
 
-function statusColor(raw: string, isDark: boolean): string {
+function statusColor(
+  raw: string,
+  isDark: boolean,
+  hasCompleted?: boolean,
+): string {
+  if (raw.toUpperCase() === "ACCEPTED" && hasCompleted) {
+    return "#8B5CF6"; // purple for completed
+  }
   switch (raw.toUpperCase()) {
+    case "REQUESTED":
+      return "#60A5FA";
     case "PENDING":
     case "REVIEWING":
       return "#E8B86D";
@@ -88,8 +112,11 @@ function statusColor(raw: string, isDark: boolean): string {
   }
 }
 
-function progressForStatus(raw: string): number {
+function progressForStatus(raw: string, hasCompleted?: boolean): number {
+  if (raw.toUpperCase() === "ACCEPTED" && hasCompleted) return 1;
   switch (raw.toUpperCase()) {
+    case "REQUESTED":
+      return 0.1;
     case "PENDING":
       return 0.2;
     case "REVIEWING":
@@ -106,23 +133,19 @@ function progressForStatus(raw: string): number {
   }
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(
+  dateStr: string,
+  t: (key: string, params?: any) => string,
+): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return t("applications.track.minutesAgo", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t("applications.track.hoursAgo", { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return t("applications.track.daysAgo", { count: days });
   return new Date(dateStr).toLocaleDateString();
 }
-
-const FILTERS: { key: FilterStatus; label: string }[] = [
-  { key: "ALL", label: "All" },
-  { key: "PENDING", label: "Active" },
-  { key: "ACCEPTED", label: "Accepted" },
-  { key: "REJECTED", label: "Rejected" },
-];
 
 export default function MyApplicationsTab() {
   const { colors, isDark } = useTheme();
@@ -135,7 +158,8 @@ export default function MyApplicationsTab() {
   const [filter, setFilter] = useState<FilterStatus>("ALL");
 
   const fetchApps = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const token = await SecureStore.getItemAsync("auth_token");
       if (!token) return;
@@ -158,7 +182,12 @@ export default function MyApplicationsTab() {
             jobType: a.job?.type,
             workMode: a.job?.workMode,
             isInstant: a.job?.isInstantBook,
-            category: typeof cat === "object" && cat ? cat.name : typeof cat === "string" ? cat : undefined,
+            category:
+              typeof cat === "object" && cat
+                ? cat.name
+                : typeof cat === "string"
+                  ? cat
+                  : undefined,
             company: a.job?.company?.name,
           };
         });
@@ -172,21 +201,46 @@ export default function MyApplicationsTab() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchApps(); }, []));
+  useFocusEffect(
+    useCallback(() => {
+      fetchApps();
+    }, []),
+  );
 
   const filtered = apps.filter((a) => {
     if (filter === "ALL") return true;
-    if (filter === "PENDING") return ["PENDING", "REVIEWING", "SHORTLISTED"].includes(a.status.toUpperCase());
-    if (filter === "ACCEPTED") return a.status.toUpperCase() === "ACCEPTED";
-    if (filter === "REJECTED") return ["REJECTED", "WITHDRAWN"].includes(a.status.toUpperCase());
+    if (filter === "REQUESTED") return a.status.toUpperCase() === "REQUESTED";
+    if (filter === "PENDING")
+      return (
+        ["PENDING", "REVIEWING", "SHORTLISTED"].includes(
+          a.status.toUpperCase(),
+        ) ||
+        (a.status.toUpperCase() === "ACCEPTED" && !a.completedAt)
+      );
+    if (filter === "ACCEPTED")
+      return a.status.toUpperCase() === "ACCEPTED" && !a.completedAt;
+    if (filter === "COMPLETED")
+      return a.status.toUpperCase() === "ACCEPTED" && !!a.completedAt;
+    if (filter === "REJECTED")
+      return ["REJECTED", "WITHDRAWN"].includes(a.status.toUpperCase());
     return true;
   });
 
   const counts = {
     total: apps.length,
-    active: apps.filter((a) => ["PENDING", "REVIEWING", "SHORTLISTED"].includes(a.status.toUpperCase())).length,
-    accepted: apps.filter((a) => a.status.toUpperCase() === "ACCEPTED").length,
-    rejected: apps.filter((a) => ["REJECTED", "WITHDRAWN"].includes(a.status.toUpperCase())).length,
+    requests: apps.filter((a) => a.status.toUpperCase() === "REQUESTED").length,
+    active: apps.filter((a) =>
+      ["PENDING", "REVIEWING", "SHORTLISTED"].includes(a.status.toUpperCase()),
+    ).length,
+    accepted: apps.filter(
+      (a) => a.status.toUpperCase() === "ACCEPTED" && !a.completedAt,
+    ).length,
+    completed: apps.filter(
+      (a) => a.status.toUpperCase() === "ACCEPTED" && !!a.completedAt,
+    ).length,
+    rejected: apps.filter((a) =>
+      ["REJECTED", "WITHDRAWN"].includes(a.status.toUpperCase()),
+    ).length,
   };
 
   const cardBg = isDark ? "rgba(12, 22, 42, 0.75)" : "rgba(255, 248, 235, 0.9)";
@@ -195,30 +249,60 @@ export default function MyApplicationsTab() {
   const gold = "#E8B86D";
 
   const renderItem = ({ item }: { item: AppItem }) => {
-    const progress = progressForStatus(item.status);
-    const sColor = statusColor(item.status, isDark);
+    const isCompleted = !!(
+      item.status.toUpperCase() === "ACCEPTED" && item.completedAt
+    );
+    const progress = progressForStatus(item.status, isCompleted);
+    const sColor = statusColor(item.status, isDark, isCompleted);
 
     return (
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}
+        style={[
+          styles.card,
+          { backgroundColor: cardBg, borderColor: cardBorder },
+        ]}
         activeOpacity={0.7}
         onPress={() => router.push(`/my-application/${item.id}`)}
       >
         <View style={styles.cardTop}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.jobTitle, { color: colors.text }]} numberOfLines={1}>
+            <Text
+              style={[styles.jobTitle, { color: colors.text }]}
+              numberOfLines={1}
+            >
               {item.jobTitle}
             </Text>
             {item.company ? (
-              <Text style={[styles.company, { color: mutedText }]} numberOfLines={1}>
+              <Text
+                style={[styles.company, { color: mutedText }]}
+                numberOfLines={1}
+              >
                 {item.company}
               </Text>
             ) : null}
           </View>
           {item.isInstant && (
-            <View style={[styles.instantBadge, { backgroundColor: isDark ? "rgba(232,184,109,0.15)" : "rgba(201,150,63,0.1)" }]}>
+            <View
+              style={[
+                styles.instantBadge,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(232,184,109,0.15)"
+                    : "rgba(201,150,63,0.1)",
+                },
+              ]}
+            >
               <Ionicons name="flash" size={12} color={gold} />
-              <Text style={{ color: gold, fontSize: 11, fontWeight: "600", marginLeft: 2 }}>Instant</Text>
+              <Text
+                style={{
+                  color: gold,
+                  fontSize: 11,
+                  fontWeight: "600",
+                  marginLeft: 2,
+                }}
+              >
+                {t("applications.track.instant")}
+              </Text>
             </View>
           )}
         </View>
@@ -235,13 +319,17 @@ export default function MyApplicationsTab() {
           {item.category ? (
             <View style={styles.metaItem}>
               <Feather name="tag" size={12} color={mutedText} />
-              <Text style={[styles.metaText, { color: mutedText }]}>{item.category}</Text>
+              <Text style={[styles.metaText, { color: mutedText }]}>
+                {item.category}
+              </Text>
             </View>
           ) : null}
           {item.jobType ? (
             <View style={styles.metaItem}>
               <Feather name="clock" size={12} color={mutedText} />
-              <Text style={[styles.metaText, { color: mutedText }]}>{item.jobType.replace(/_/g, " ")}</Text>
+              <Text style={[styles.metaText, { color: mutedText }]}>
+                {item.jobType.replace(/_/g, " ")}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -249,18 +337,36 @@ export default function MyApplicationsTab() {
         <View style={styles.cardBottom}>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: sColor }]} />
-            <Text style={[styles.statusText, { color: sColor }]}>{statusLabel(item.status)}</Text>
+            <Text style={[styles.statusText, { color: sColor }]}>
+              {statusLabel(item.status, isCompleted, t)}
+            </Text>
           </View>
-          <Text style={[styles.timeText, { color: mutedText }]}>{timeAgo(item.appliedAt)}</Text>
+          <Text style={[styles.timeText, { color: mutedText }]}>
+            {timeAgo(item.completedAt || item.appliedAt, t)}
+          </Text>
         </View>
 
-        <View style={[styles.progressTrack, { backgroundColor: isDark ? "rgba(255,250,240,0.08)" : "rgba(0,0,0,0.06)" }]}>
+        <View
+          style={[
+            styles.progressTrack,
+            {
+              backgroundColor: isDark
+                ? "rgba(255,250,240,0.08)"
+                : "rgba(0,0,0,0.06)",
+            },
+          ]}
+        >
           <View
             style={[
               styles.progressFill,
               {
                 width: `${progress * 100}%`,
-                backgroundColor: item.status.toUpperCase() === "REJECTED" ? "#ef4444" : gold,
+                backgroundColor:
+                  item.status.toUpperCase() === "REJECTED"
+                    ? "#ef4444"
+                    : isCompleted
+                      ? "#8B5CF6"
+                      : gold,
               },
             ]}
           />
@@ -280,42 +386,71 @@ export default function MyApplicationsTab() {
           </Text>
         </View>
 
-        {/* Summary Cards */}
+        {/* Summary Cards (clickable filters) */}
         <View style={styles.summaryRow}>
-          {[
-            { label: "Total", value: counts.total, color: colors.text },
-            { label: "Active", value: counts.active, color: gold },
-            { label: "Accepted", value: counts.accepted, color: "#22c55e" },
-            { label: "Rejected", value: counts.rejected, color: "#ef4444" },
-          ].map((s, i) => (
-            <View key={i} style={[styles.summaryCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-              <Text style={[styles.summaryValue, { color: s.color }]}>{s.value}</Text>
-              <Text style={[styles.summaryLabel, { color: mutedText }]}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Filter Chips */}
-        <View style={styles.filterRow}>
-          {FILTERS.map((f) => (
+          {(
+            [
+              {
+                key: "ALL" as FilterStatus,
+                label: t("applications.track.total"),
+                value: counts.total,
+                color: colors.text,
+              },
+              {
+                key: "REQUESTED" as FilterStatus,
+                label: t("applications.track.requests"),
+                value: counts.requests,
+                color: "#60A5FA",
+              },
+              {
+                key: "PENDING" as FilterStatus,
+                label: t("applications.track.active"),
+                value: counts.active,
+                color: gold,
+              },
+              {
+                key: "ACCEPTED" as FilterStatus,
+                label: t("applications.track.accepted"),
+                value: counts.accepted,
+                color: "#22c55e",
+              },
+              {
+                key: "COMPLETED" as FilterStatus,
+                label: t("applications.track.completed"),
+                value: counts.completed,
+                color: "#8B5CF6",
+              },
+              {
+                key: "REJECTED" as FilterStatus,
+                label: t("applications.track.rejected"),
+                value: counts.rejected,
+                color: "#ef4444",
+              },
+            ] as const
+          ).map((s) => (
             <TouchableOpacity
-              key={f.key}
+              key={s.key}
               style={[
-                styles.filterChip,
+                styles.summaryCard,
                 {
-                  backgroundColor: filter === f.key ? (isDark ? gold : "#C9963F") : "transparent",
-                  borderColor: filter === f.key ? (isDark ? gold : "#C9963F") : cardBorder,
+                  backgroundColor: cardBg,
+                  borderColor: filter === s.key ? s.color : cardBorder,
+                  borderWidth: filter === s.key ? 1.5 : 1,
                 },
               ]}
-              onPress={() => setFilter(f.key)}
+              activeOpacity={0.7}
+              onPress={() => setFilter(s.key)}
             >
+              <Text style={[styles.summaryValue, { color: s.color }]}>
+                {s.value}
+              </Text>
               <Text
                 style={[
-                  styles.filterText,
-                  { color: filter === f.key ? "#FFFAF0" : colors.text },
+                  styles.summaryLabel,
+                  { color: filter === s.key ? s.color : mutedText },
                 ]}
               >
-                {f.label}
+                {s.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -327,12 +462,18 @@ export default function MyApplicationsTab() {
           </View>
         ) : filtered.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="document-text-outline" size={48} color={mutedText} />
+            <Ionicons
+              name="document-text-outline"
+              size={48}
+              color={mutedText}
+            />
             <Text style={[styles.emptyText, { color: mutedText }]}>
-              {filter === "ALL" ? "No applications yet" : `No ${filter.toLowerCase()} applications`}
+              {filter === "ALL"
+                ? t("applications.track.noApplications")
+                : t("applications.track.noFilteredApplications")}
             </Text>
             <Text style={[styles.emptyHint, { color: mutedText }]}>
-              Browse available jobs and start applying
+              {t("applications.track.browseJobs")}
             </Text>
           </View>
         ) : (
@@ -372,12 +513,14 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 16,
     gap: 8,
     marginBottom: 12,
   },
   summaryCard: {
-    flex: 1,
+    width: "30%",
+    flexGrow: 1,
     alignItems: "center",
     paddingVertical: 10,
     borderRadius: 12,
@@ -391,22 +534,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "500",
     marginTop: 2,
-  },
-  filterRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 12,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterText: {
-    fontSize: 13,
-    fontWeight: "600",
   },
   list: {
     paddingHorizontal: 16,

@@ -235,12 +235,36 @@ export default function NotificationsScreen() {
         case "ACTION_FORM":
         case "WARNING":
         case "LEGAL_ACTION":
-          // These might not have specific navigation targets
-          // Could navigate to a support/help page or stay on notifications
+          if (payload?.ticketId || payload?.ticketNumber) {
+            router.push("/support" as any);
+          } else if (payload?.conversationId) {
+            router.push(
+              `/chat/room?conversationId=${payload.conversationId}` as any,
+            );
+          }
           break;
 
         case "SYSTEM":
-          // System notifications might not need navigation
+          if (
+            payload?.type === "KYC_ADDITIONAL_DOCUMENTS" ||
+            payload?.type === "KYC_DOCUMENT_REQUEST"
+          ) {
+            router.push("/kyc-start" as any);
+          } else if (payload?.type === "VEHICLE_REVIEW") {
+            router.push("/settings" as any);
+          } else if (payload?.conversationId) {
+            router.push(
+              `/chat/room?conversationId=${payload.conversationId}` as any,
+            );
+          } else if (payload?.postId) {
+            router.push("/(tabs)" as any);
+          } else if (payload?.bookingId) {
+            router.push("/tracking" as any);
+          } else if (payload?.jobId) {
+            router.push(`/jobs/${payload.jobId}` as any);
+          } else if (payload?.ticketId || payload?.ticketNumber) {
+            router.push("/support" as any);
+          }
           break;
 
         default:

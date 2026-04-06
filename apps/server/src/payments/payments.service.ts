@@ -607,7 +607,7 @@ export class PaymentsService {
     );
 
     // Check if there's an existing completed payment
-    const application = await this.prisma.application.findUnique({
+    let application = await this.prisma.application.findUnique({
       where: { id: params.applicationId },
       include: {
         payment: true,
@@ -634,6 +634,21 @@ export class PaymentsService {
     const additionalAmountInCents = params.amount;
     let amountToChargeInCents = additionalAmountInCents;
     let isAdditionalPayment = false;
+
+    // Reconcile local payment record with Stripe before deciding whether this
+    // is a first payment or additional payment.  The employer may have paid
+    // through an earlier checkout that the local record lost track of.
+    if (application?.payment && params.applicationId) {
+      await this.reconcilePaymentRecord(params.applicationId);
+      // Re-read after reconciliation
+      const freshApp = await this.prisma.application.findUnique({
+        where: { id: params.applicationId },
+        include: { payment: true },
+      });
+      if (freshApp?.payment) {
+        application = freshApp;
+      }
+    }
 
     if (
       application?.payment &&
@@ -804,6 +819,82 @@ export class PaymentsService {
       status: paymentIntent.paymentIntent.status,
       nextAction: paymentIntent.paymentIntent.next_action ?? null,
     };
+  }
+
+  /**
+   * Reconcile the local Payment record with the actual state in Stripe.
+   *
+   * Employers can start and abandon multiple checkouts. Each new checkout
+   * overwrites stripePaymentIntentId / stripeSessionId and resets status to
+   * CREATED, even though an earlier PI may have already succeeded in Stripe.
+   *
+   * This method calls checkApplicationPayment() (which scans ALL Stripe PIs
+   * for this application) and, if Stripe shows the payment as completed but
+   * the local record still says CREATED, updates the record to SUCCEEDED with
+   * the correct PI ID.  This keeps every downstream gate working without
+   * restructuring the data model.
+   */
+  async reconcilePaymentRecord(applicationId: string): Promise<void> {
+    try {
+      const application = await this.prisma.application.findUnique({
+        where: { id: applicationId },
+        include: { payment: true },
+      });
+
+      if (!application?.payment) return;
+
+      // If already SUCCEEDED, nothing to reconcile
+      if (application.payment.status === PaymentStatusDb.SUCCEEDED) return;
+
+      // Ask Stripe what's really going on
+      const stripeStatus = await this.checkApplicationPayment(applicationId);
+
+      if (!stripeStatus.paymentCompleted) return; // genuinely not paid
+
+      // Stripe says paid — find the actual succeeded/captured PI
+      const { customerId } = await this.ensureCustomer(
+        application.payment.userId,
+      );
+      const list = await this.stripe.paymentIntents.list({
+        customer: customerId,
+        limit: 50,
+      });
+
+      const completedPi = (list.data || [])
+        .filter((pi) => {
+          const md = pi.metadata || {};
+          return (
+            md.applicationId === applicationId &&
+            (md.type === 'application_payment' || md.type === undefined)
+          );
+        })
+        .filter(
+          (pi) => pi.status === 'succeeded' || pi.status === 'requires_capture',
+        )
+        .sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+
+      if (!completedPi) return; // shouldn't happen, but be safe
+
+      const totalPaidCents = Math.round((stripeStatus.paidAmount || 0) * 100);
+
+      await this.prisma.payment.update({
+        where: { id: application.payment.id },
+        data: {
+          stripePaymentIntentId: completedPi.id,
+          status: PaymentStatusDb.SUCCEEDED,
+          amount: totalPaidCents > 0 ? totalPaidCents : undefined,
+        },
+      });
+
+      this.logger.log(
+        `[reconcilePaymentRecord] Reconciled payment for application ${applicationId}: ` +
+          `PI ${completedPi.id}, status ${completedPi.status}, amount ${totalPaidCents} cents`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[reconcilePaymentRecord] Failed for application ${applicationId}: ${err}`,
+      );
+    }
   }
 
   /**
@@ -1483,9 +1574,25 @@ export class PaymentsService {
 
         const isAdditional = meta['isAdditionalPayment'] === 'true';
 
-        const payment = await this.prisma.payment.findFirst({
+        let payment = await this.prisma.payment.findFirst({
           where: { stripeSessionId: session.id },
         });
+
+        // Fallback: if primary lookup fails (session ID was overwritten by a
+        // newer checkout), find the payment by applicationId instead.
+        if (!payment && meta['applicationId']) {
+          const app = await this.prisma.application.findUnique({
+            where: { id: meta['applicationId'] },
+            include: { payment: true },
+          });
+          if (app?.payment) {
+            payment = app.payment;
+            this.logger.log(
+              `[Webhook] checkout.session.completed: Primary lookup by sessionId failed. ` +
+                `Found payment ${payment.id} via applicationId ${meta['applicationId']}`,
+            );
+          }
+        }
 
         let paidAmount = receivedAmount;
         if (isAdditional && payment && receivedAmount !== undefined) {
@@ -1503,15 +1610,30 @@ export class PaymentsService {
             ? session.payment_intent
             : (session.payment_intent?.id ?? undefined);
 
-        await this.prisma.payment.updateMany({
-          where: { stripeSessionId: session.id },
-          data: {
-            status: PaymentStatusDb.SUCCEEDED,
-            amount: paidAmount, // Store in cents (Int)
-            currency: session.currency ?? undefined,
-            ...(piId ? { stripePaymentIntentId: piId } : {}),
-          },
-        });
+        // Update by payment ID if we found it (handles overwritten sessionId),
+        // otherwise fall back to sessionId match.
+        if (payment) {
+          await this.prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: PaymentStatusDb.SUCCEEDED,
+              amount: paidAmount, // Store in cents (Int)
+              currency: session.currency ?? undefined,
+              stripeSessionId: session.id, // restore correct session link
+              ...(piId ? { stripePaymentIntentId: piId } : {}),
+            },
+          });
+        } else {
+          await this.prisma.payment.updateMany({
+            where: { stripeSessionId: session.id },
+            data: {
+              status: PaymentStatusDb.SUCCEEDED,
+              amount: paidAmount,
+              currency: session.currency ?? undefined,
+              ...(piId ? { stripePaymentIntentId: piId } : {}),
+            },
+          });
+        }
 
         const applicationId = meta['applicationId'];
         if (applicationId) {
@@ -1527,9 +1649,25 @@ export class PaymentsService {
           `💳 Processing payment_intent.succeeded: ${pi.id}, amount: ${pi.amount} ${pi.currency}, status: ${pi.status}`,
         );
 
-        const payment = await this.prisma.payment.findFirst({
+        let payment = await this.prisma.payment.findFirst({
           where: { stripePaymentIntentId: pi.id },
         });
+
+        // Fallback: if primary lookup fails (PI ID was overwritten by a newer
+        // checkout attempt), find the payment via applicationId metadata.
+        if (!payment && pi.metadata?.['applicationId']) {
+          const app = await this.prisma.application.findUnique({
+            where: { id: pi.metadata['applicationId'] },
+            include: { payment: true },
+          });
+          if (app?.payment) {
+            payment = app.payment;
+            this.logger.log(
+              `[Webhook] payment_intent.succeeded: Primary lookup by PI failed. ` +
+                `Found payment ${payment.id} via applicationId ${pi.metadata['applicationId']}`,
+            );
+          }
+        }
 
         if (payment) {
           this.logger.log(
@@ -1570,6 +1708,7 @@ export class PaymentsService {
               status: PaymentStatusDb.SUCCEEDED,
               amount: paidAmountInCents, // Store in cents (Int) - NOT currency units
               currency: pi.currency ?? undefined,
+              stripePaymentIntentId: pi.id, // always store the correct PI
             },
           });
 
@@ -1596,8 +1735,13 @@ export class PaymentsService {
       }
       case 'payment_intent.payment_failed': {
         const pi = event.data.object;
+        // Don't revert SUCCEEDED — a different PI for the same app may have
+        // already succeeded even though this one failed.
         await this.prisma.payment.updateMany({
-          where: { stripePaymentIntentId: pi.id },
+          where: {
+            stripePaymentIntentId: pi.id,
+            status: { not: PaymentStatusDb.SUCCEEDED },
+          },
           data: {
             status: PaymentStatusDb.FAILED,
           },
@@ -1606,8 +1750,14 @@ export class PaymentsService {
       }
       case 'checkout.session.expired': {
         const session = event.data.object;
+        // Only mark as canceled if the payment isn't already SUCCEEDED.
+        // An employer may have paid via an earlier session/PI while a newer
+        // checkout session expired — we must not revert the SUCCEEDED status.
         await this.prisma.payment.updateMany({
-          where: { stripeSessionId: session.id },
+          where: {
+            stripeSessionId: session.id,
+            status: { not: PaymentStatusDb.SUCCEEDED },
+          },
           data: { status: PaymentStatusDb.CANCELED },
         });
         break;
@@ -3058,7 +3208,7 @@ export class PaymentsService {
         allPaid: false,
         unpaidAmount: 0,
         message:
-          'No payment has been initiated. Please select services and complete payment first.',
+          'No payment has been initiated. Please complete payment first.',
       };
     }
 
@@ -3132,10 +3282,16 @@ export class PaymentsService {
     // If already completed, just sync the booking (don't throw error)
     if (application.completedAt) {
       this.logger.log(
-        `Application ${applicationId} is already completed. Syncing booking...`,
+        `Application ${applicationId} is already completed. Reconciling payment and syncing booking...`,
       );
+
+      // Reconcile payment record before syncing — the stored PI/session may
+      // have been overwritten by an abandoned checkout while the real payment
+      // succeeded in Stripe.
+      await this.reconcilePaymentRecord(applicationId);
+
       // Still proceed to sync booking, but skip payment capture
-      await this.syncBookingForCompletedApplication(applicationId, application);
+      await this.syncBookingForCompletedApplication(applicationId);
 
       // Best-effort: if receipt emails were missed, try again (idempotent).
       try {
@@ -3193,18 +3349,71 @@ export class PaymentsService {
     }
 
     if (!application.payment) {
-      throw new BadRequestException('No payment found for this application');
+      throw new BadRequestException(
+        'No payment found for this application. Payment must be completed before marking the job as done.',
+      );
     }
 
-    if (!application.payment.stripePaymentIntentId) {
-      throw new BadRequestException('No payment intent found');
+    // The stored stripePaymentIntentId may be null if the employer started checkout but
+    // abandoned it, then paid successfully with a new checkout session.
+    // In that case, Stripe still has the completed PI (matched by customer+applicationId metadata).
+    // We resolve the actual PI from Stripe before giving up.
+    let resolvedPaymentIntentId = application.payment.stripePaymentIntentId;
+
+    if (!resolvedPaymentIntentId) {
+      // Scan Stripe for a completed PI matching this application (same logic as checkApplicationPayment)
+      try {
+        const { customerId } = await this.ensureCustomer(
+          application.payment.userId,
+        );
+        const list = await this.stripe.paymentIntents.list({
+          customer: customerId,
+          limit: 50,
+        });
+        const completedPi = (list.data || [])
+          .filter((pi) => {
+            const md = pi.metadata || {};
+            return (
+              md.applicationId === applicationId &&
+              (md.type === 'application_payment' || md.type === undefined)
+            );
+          })
+          .filter(
+            (pi) =>
+              pi.status === 'succeeded' || pi.status === 'requires_capture',
+          )
+          .sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+
+        if (completedPi) {
+          resolvedPaymentIntentId = completedPi.id;
+          this.logger.log(
+            `[completeApplicationPayment] Stored PI was null for application ${applicationId}. ` +
+              `Resolved actual completed PI from Stripe: ${completedPi.id} (status: ${completedPi.status})`,
+          );
+          // Update the Payment record so future lookups don't need this scan
+          await this.prisma.payment.update({
+            where: { id: application.payment.id },
+            data: { stripePaymentIntentId: completedPi.id },
+          });
+        }
+      } catch (scanErr) {
+        this.logger.warn(
+          `[completeApplicationPayment] Failed to scan Stripe for PI: ${scanErr}`,
+        );
+      }
+    }
+
+    if (!resolvedPaymentIntentId) {
+      throw new BadRequestException(
+        'No payment intent found. The payment checkout was not completed. Please complete the payment first.',
+      );
     }
 
     // Retrieve payment intent to check status
     let paymentIntent;
     try {
       paymentIntent = await this.stripe.paymentIntents.retrieve(
-        application.payment.stripePaymentIntentId,
+        resolvedPaymentIntentId,
       );
     } catch (err) {
       throw new BadRequestException('Failed to retrieve payment intent');
@@ -3324,7 +3533,7 @@ export class PaymentsService {
         // Use UUID-based idempotency key to avoid conflicts on retries
         const idempotencyKey = `capture_${applicationId}_${randomUUID()}`;
         capturedIntent = await this.stripe.paymentIntents.capture(
-          application.payment.stripePaymentIntentId,
+          resolvedPaymentIntentId,
           {
             // Never attempt to capture more than the intent's amount.
             amount_to_capture: Math.min(totalAmount, paymentIntent.amount),
@@ -3352,7 +3561,7 @@ export class PaymentsService {
           // Retry without idempotency key, or check status again
           try {
             const retryIntent = await this.stripe.paymentIntents.retrieve(
-              application.payment.stripePaymentIntentId,
+              resolvedPaymentIntentId,
             );
             if (retryIntent.status === 'succeeded') {
               capturedIntent = retryIntent;
@@ -3362,7 +3571,7 @@ export class PaymentsService {
             } else {
               // Try capture again without idempotency key
               capturedIntent = await this.stripe.paymentIntents.capture(
-                application.payment.stripePaymentIntentId,
+                resolvedPaymentIntentId,
                 {
                   amount_to_capture: totalAmount,
                 },
@@ -4196,13 +4405,31 @@ export class PaymentsService {
         return;
       }
 
+      // Reconcile local payment record with Stripe before checking status.
+      // The employer may have abandoned a checkout (overwriting the stored PI/session),
+      // then paid through a different checkout — leaving local status as CREATED
+      // even though Stripe has the money.
+      await this.reconcilePaymentRecord(applicationId);
+
+      // Re-fetch payment after reconciliation
+      const reconciledPayment = await this.prisma.payment.findFirst({
+        where: { applications: { some: { id: applicationId } } },
+        select: { amount: true, currency: true, status: true },
+      });
+
       // Check if payment exists and is succeeded
-      if (!application.payment || application.payment.status !== 'SUCCEEDED') {
+      if (!reconciledPayment || reconciledPayment.status !== 'SUCCEEDED') {
         this.logger.warn(
           `Application ${applicationId} has no succeeded payment, skipping booking sync`,
         );
         return;
       }
+
+      // Use reconciled payment data going forward
+      application = {
+        ...application,
+        payment: reconciledPayment,
+      };
 
       // Calculate service provider amount (after 10% platform fee)
       // Stripe is the source of truth: use cumulative paid amount across all intents.
@@ -4387,10 +4614,45 @@ export class PaymentsService {
       for (const booking of bookings) {
         if (!booking.job) continue;
 
-        // Find completed application for this booking
-        const completedApplication = booking.job.applications.find(
+        // Find completed application for this booking.
+        // First try the fast path (local status already SUCCEEDED).
+        let completedApplication = booking.job.applications.find(
           (app) => app.completedAt && app.payment?.status === 'SUCCEEDED',
         );
+
+        // If no locally-SUCCEEDED app found, try reconciling any completed
+        // application whose payment status is stale (e.g. CREATED after
+        // an abandoned checkout, even though Stripe holds the money).
+        if (!completedApplication) {
+          const staleCandidates = booking.job.applications.filter(
+            (app) => app.completedAt && app.payment,
+          );
+          for (const candidate of staleCandidates) {
+            await this.reconcilePaymentRecord(candidate.id);
+          }
+          // Re-fetch applications after reconciliation
+          if (staleCandidates.length > 0) {
+            const freshJob = await this.prisma.job.findUnique({
+              where: { id: booking.job.id },
+              include: {
+                applications: {
+                  where: {
+                    applicantId: serviceProviderId,
+                    completedAt: { not: null },
+                  },
+                  include: {
+                    payment: {
+                      select: { amount: true, currency: true, status: true },
+                    },
+                  },
+                },
+              },
+            });
+            completedApplication = freshJob?.applications.find(
+              (app) => app.completedAt && app.payment?.status === 'SUCCEEDED',
+            );
+          }
+        }
 
         if (completedApplication) {
           try {
@@ -4633,7 +4895,10 @@ export class PaymentsService {
         bankAccountId,
       );
 
-      this.logger.log('[PaymentsService] ✅ Bank account deleted:', bankAccountId);
+      this.logger.log(
+        '[PaymentsService] ✅ Bank account deleted:',
+        bankAccountId,
+      );
       return { success: true, message: 'Bank account deleted successfully' };
     } catch (error: any) {
       this.logger.error(

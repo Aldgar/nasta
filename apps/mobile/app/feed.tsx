@@ -228,14 +228,44 @@ const AcceptedJobCard = ({
             styles.acceptedBadge,
             {
               backgroundColor: isDark
-                ? "rgba(34, 197, 94, 0.2)"
-                : "rgba(34, 197, 94, 0.1)",
+                ? application._bookingStatus === "IN_PROGRESS"
+                  ? "rgba(20, 184, 166, 0.2)"
+                  : "rgba(34, 197, 94, 0.2)"
+                : application._bookingStatus === "IN_PROGRESS"
+                  ? "rgba(20, 184, 166, 0.1)"
+                  : "rgba(34, 197, 94, 0.1)",
             },
           ]}
         >
-          <Feather name="check-circle" size={14} color="#22c55e" />
-          <Text style={[styles.acceptedBadgeText, { color: "#22c55e" }]}>
-            {t("applications.statusAccepted")}
+          <Feather
+            name={
+              application._bookingStatus === "IN_PROGRESS"
+                ? "activity"
+                : "check-circle"
+            }
+            size={14}
+            color={
+              application._bookingStatus === "IN_PROGRESS"
+                ? "#14B8A6"
+                : "#22c55e"
+            }
+          />
+          <Text
+            style={[
+              styles.acceptedBadgeText,
+              {
+                color:
+                  application._bookingStatus === "IN_PROGRESS"
+                    ? "#14B8A6"
+                    : "#22c55e",
+              },
+            ]}
+          >
+            {application._bookingStatus === "IN_PROGRESS"
+              ? t("common.active")
+              : application._bookingStatus === "CONFIRMED"
+                ? t("common.confirmed")
+                : t("applications.statusAccepted")}
           </Text>
         </View>
       </View>
@@ -417,6 +447,7 @@ export default function Feed() {
   const [acceptedJobs, setAcceptedJobs] = useState<any[]>([]);
   const [loadingAcceptedJobs, setLoadingAcceptedJobs] = useState(false);
   const [hasTemporaryPassword, setHasTemporaryPassword] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   useEffect(() => {
     fetchJobs();
@@ -425,6 +456,7 @@ export default function Feed() {
     fetchProfile();
     fetchAppliedJobs();
     fetchAcceptedJobs();
+    fetchUnreadMessages();
   }, []);
 
   const fetchAppliedJobs = async () => {
@@ -471,25 +503,108 @@ export default function Feed() {
       if (!token) return;
 
       const base = getApiBase();
-      const res = await fetch(
-        `${base}/applications/me?status=ACCEPTED&limit=10`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const jobIdsSeen = new Set<string>();
+      const results: any[] = [];
 
-      if (res.ok) {
-        const data = await res.json();
+      // 1. Fetch accepted applications
+      const appRes = await fetch(
+        `${base}/applications/me?status=ACCEPTED&limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (appRes.ok) {
+        const data = await appRes.json();
         const applications = Array.isArray(data)
           ? data
           : data.applications || [];
-        const accepted = applications.filter((app: any) => app.job);
-        setAcceptedJobs(accepted);
+        for (const app of applications) {
+          if (!app.job) continue;
+          if (
+            app.completedAt &&
+            new Date(app.completedAt).getTime() < oneDayAgo
+          )
+            continue;
+          results.push({ ...app, _source: "application" });
+          if (app.job?.id) jobIdsSeen.add(app.job.id);
+        }
       }
+
+      // 2. Fetch active bookings (CONFIRMED + IN_PROGRESS) to cover direct bookings
+      for (const status of ["IN_PROGRESS", "CONFIRMED"]) {
+        try {
+          const bookingRes = await fetch(
+            `${base}/bookings/seeker/me?status=${status}&pageSize=10`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (bookingRes.ok) {
+            const bookings = await bookingRes.json();
+            const bookingList = Array.isArray(bookings) ? bookings : [];
+            for (const booking of bookingList) {
+              // Skip if we already have this job from applications
+              if (booking.jobId && jobIdsSeen.has(booking.jobId)) continue;
+              if (booking.jobId) jobIdsSeen.add(booking.jobId);
+              // Normalize booking to look like an application for the card
+              results.push({
+                id: booking.applicationId || booking.id,
+                status: booking.status,
+                job: booking.job || {
+                  title: booking.title || "Direct Booking",
+                },
+                completedAt: booking.completedAt,
+                _source: "booking",
+                _bookingId: booking.id,
+                _bookingStatus: booking.status,
+              });
+            }
+          }
+        } catch {}
+      }
+
+      setAcceptedJobs(results);
     } catch (err) {
       console.log("Error fetching accepted jobs:", err);
     } finally {
       setLoadingAcceptedJobs(false);
+    }
+  };
+
+  const fetchUnreadMessages = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("auth_token");
+      if (!token) return;
+
+      // Decode current user ID from token
+      let myUserId: string | null = null;
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        myUserId = payload.sub || payload.id;
+      } catch {}
+      if (!myUserId) return;
+
+      const base = getApiBase();
+      const res = await fetch(`${base}/chat/conversations?pageSize=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const conversations = Array.isArray(data)
+          ? data
+          : data.conversations || [];
+        let count = 0;
+        for (const conv of conversations) {
+          const lastMsg = conv.lastMessage;
+          if (
+            lastMsg &&
+            lastMsg.senderUserId &&
+            lastMsg.senderUserId !== myUserId
+          ) {
+            count++;
+          }
+        }
+        setUnreadMessageCount(count);
+      }
+    } catch (err) {
+      console.log("Error fetching unread messages:", err);
     }
   };
 
@@ -518,14 +633,14 @@ export default function Feed() {
 
       Alert.alert(
         t("home.verificationRequired"),
-        t("jobs.completeVerificationsBeforeApplying", {
+        t("applications.completeVerificationsBeforeApplying", {
           missing: missingVerifications.join(", "),
         }),
         [
           { text: t("common.ok") },
           {
             text: t("applications.goToSettings"),
-            onPress: () => router.push("/(tabs)/settings" as any),
+            onPress: () => router.push("/(tabs)/menu" as any),
           },
         ],
       );
@@ -558,14 +673,14 @@ export default function Feed() {
 
       Alert.alert(
         t("home.verificationRequired"),
-        t("jobs.completeVerificationsBeforeApplying", {
+        t("applications.completeVerificationsBeforeApplying", {
           missing: missingVerifications.join(", "),
         }),
         [
           { text: t("common.ok") },
           {
             text: t("applications.goToSettings"),
-            onPress: () => router.push("/(tabs)/settings" as any),
+            onPress: () => router.push("/(tabs)/menu" as any),
           },
         ],
       );
@@ -667,6 +782,7 @@ export default function Feed() {
       fetchBalance();
       fetchAcceptedJobs();
       fetchProfile(); // Refresh profile to update temporary password banner
+      fetchUnreadMessages();
     }, []),
   );
 
@@ -1022,11 +1138,13 @@ export default function Feed() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={true}
-          {...(Platform.OS === "android" ? {
-            removeClippedSubviews: true,
-            overScrollMode: "never" as const,
-            nestedScrollEnabled: true,
-          } : {})}
+          {...(Platform.OS === "android"
+            ? {
+                removeClippedSubviews: true,
+                overScrollMode: "never" as const,
+                nestedScrollEnabled: true,
+              }
+            : {})}
         >
           <EmailVerificationBanner
             emailVerified={emailVerified}
@@ -1157,12 +1275,21 @@ export default function Feed() {
                 style={[styles.iconBox, themeStyles.actionBtn]}
                 onPress={() => router.push("/chat/inbox" as any)}
               >
-                <Feather
-                  name="message-square"
-                  size={22}
-                  color={themeStyles.iconColor}
-                  style={{ marginBottom: 6 }}
-                />
+                <View>
+                  <Feather
+                    name="message-square"
+                    size={22}
+                    color={themeStyles.iconColor}
+                    style={{ marginBottom: 6 }}
+                  />
+                  {unreadMessageCount > 0 && (
+                    <View style={styles.messageBadge}>
+                      <Text style={styles.messageBadgeText}>
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text
                   style={[styles.iconText, themeStyles.textPrimary]}
                   numberOfLines={2}
@@ -1233,7 +1360,7 @@ export default function Feed() {
             ) : (
               acceptedJobs.map((app: any) => {
                 const job = app.job;
-                if (!job || !job.startDate) return null;
+                if (!job) return null;
 
                 return (
                   <AcceptedJobCard
@@ -1243,9 +1370,15 @@ export default function Feed() {
                     colors={colors}
                     isDark={isDark}
                     t={t}
-                    onPress={() =>
-                      router.push(`/my-application/${app.id}` as any)
-                    }
+                    onPress={() => {
+                      if (app._source === "booking" && app._bookingId) {
+                        router.push(
+                          `/tracking?bookingId=${app._bookingId}&role=JOB_SEEKER` as any,
+                        );
+                      } else {
+                        router.push(`/my-application/${app.id}` as any);
+                      }
+                    }}
                   />
                 );
               })
@@ -1281,11 +1414,12 @@ export default function Feed() {
             setSelectedJobId(null);
           }}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1 }}
-          >
-            <View style={styles.modalOverlay}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+              style={{ width: "100%" }}
+            >
               <View
                 style={[
                   styles.modalContent,
@@ -1479,8 +1613,8 @@ export default function Feed() {
                   </TouchableButton>
                 </View>
               </View>
-            </View>
-          </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+          </View>
         </Modal>
       </SafeAreaView>
     </GradientBackground>
@@ -1576,6 +1710,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     flexShrink: 1,
     width: "100%",
+  },
+  messageBadge: {
+    position: "absolute",
+    top: -6,
+    right: -10,
+    backgroundColor: "#ef4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: "rgba(12, 22, 42, 0.9)",
+  },
+  messageBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 12,
   },
   availabilityRow: { marginTop: 0 },
   availabilityBox: {

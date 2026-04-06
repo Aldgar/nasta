@@ -44,11 +44,14 @@ export class JobsController {
 
   @Get('my-jobs')
   @UseGuards(JwtAuthGuard)
-  async getMyJobs(@Request() req: { user: { id: string; role?: string } }) {
+  async getMyJobs(
+    @Request() req: { user: { id: string; role?: string } },
+    @Query('candidateId') candidateId?: string,
+  ) {
     if (req.user.role !== 'EMPLOYER' && req.user.role !== 'ADMIN') {
       throw new ForbiddenException('Only employers can access their jobs');
     }
-    return this.jobsService.getMyJobs(req.user.id);
+    return this.jobsService.getMyJobs(req.user.id, candidateId);
   }
 
   @Get('employer/stats')

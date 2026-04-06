@@ -20,6 +20,7 @@ import GradientBackground from "../../components/GradientBackground";
 import { TouchableButton } from "../../components/TouchableButton";
 import * as SecureStore from "expo-secure-store";
 import { getApiBase } from "../../lib/api";
+import AvatarImage from "../../components/AvatarImage";
 import { useStripeAvailability } from "../../context/StripeContext";
 
 // Load Stripe hook at module level so the hook call count is consistent across renders
@@ -190,7 +191,13 @@ export default function CandidateProfileScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [employerJobs, setEmployerJobs] = useState<
-    Array<{ id: string; title: string; category?: { name: string } }>
+    Array<{
+      id: string;
+      title: string;
+      status: string;
+      category?: { name: string };
+      candidateApplied?: boolean;
+    }>
   >([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -403,7 +410,27 @@ export default function CandidateProfileScreen() {
   };
 
   const handleContact = async () => {
-    // Only show referral modal - no chat functionality
+    // Check verification before opening referral modal
+    if (!emailVerified || !phoneVerified || !hasAddress) {
+      const missing = [];
+      if (!emailVerified) missing.push(t("settings.email"));
+      if (!phoneVerified) missing.push(t("settings.phone"));
+      if (!hasAddress) missing.push(t("profile.address"));
+      Alert.alert(
+        t("candidate.verificationRequired"),
+        t("candidate.completeVerificationBeforeReferring", {
+          missing: missing.join(", "),
+        }),
+        [
+          { text: t("common.ok") },
+          {
+            text: t("candidate.goToSettings"),
+            onPress: () => router.push("/employer-tabs/menu" as any),
+          },
+        ],
+      );
+      return;
+    }
     await fetchEmployerJobs();
     setShowReferralModal(true);
   };
@@ -415,13 +442,20 @@ export default function CandidateProfileScreen() {
       if (!token) return;
 
       const base = getApiBase();
-      const res = await fetch(`${base}/jobs/my-jobs?status=ACTIVE`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${base}/jobs/my-jobs${candidate?.id ? `?candidateId=${candidate.id}` : ""}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
       if (res.ok) {
         const data = await res.json();
-        setEmployerJobs(data.jobs || []);
+        // Filter to only ACTIVE jobs (non-instant) for referral
+        const activeJobs = (data.jobs || data || []).filter(
+          (j: any) => j.status === "ACTIVE" && !j.isInstantBook,
+        );
+        setEmployerJobs(activeJobs);
       }
     } catch (error) {
       console.error("Error fetching employer jobs:", error);
@@ -785,30 +819,11 @@ export default function CandidateProfileScreen() {
               },
             ]}
           >
-            {candidate.avatar ? (
-              <Image
-                source={{ uri: candidate.avatar }}
-                style={styles.avatar}
-                resizeMode="cover"
-              />
-            ) : (
-              <View
-                style={[
-                  styles.avatarPlaceholder,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(201,150,63,0.12)"
-                      : "#F0E8D5",
-                  },
-                ]}
-              >
-                <Feather
-                  name="user"
-                  size={48}
-                  color={isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"}
-                />
-              </View>
-            )}
+            <AvatarImage
+              uri={candidate.avatar}
+              size={120}
+              style={{ marginBottom: 16 }}
+            />
             <Text style={[styles.name, { color: colors.text }]}>
               {fullName}
             </Text>
@@ -852,9 +867,7 @@ export default function CandidateProfileScreen() {
                         rate.paymentType.slice(1).toLowerCase();
                   return (
                     <View key={index} style={styles.rateItem}>
-                      <Text
-                        style={[styles.hourlyRate, { color: colors.tint }]}
-                      >
+                      <Text style={[styles.hourlyRate, { color: colors.tint }]}>
                         €{rate.rate}/{paymentTypeLabel}
                       </Text>
                       {rate.description ? (
@@ -1104,7 +1117,11 @@ export default function CandidateProfileScreen() {
                         },
                       ]}
                     >
-                      <Feather name="check-circle" size={14} color={colors.tint} />
+                      <Feather
+                        name="check-circle"
+                        size={14}
+                        color={colors.tint}
+                      />
                       <Text
                         style={[
                           styles.verificationText,
@@ -1809,29 +1826,13 @@ export default function CandidateProfileScreen() {
                 return (
                   <View key={review.id} style={styles.reviewItem}>
                     <View style={styles.reviewHeader}>
-                      {review.reviewer.avatar ? (
-                        <Image
-                          source={{ uri: review.reviewer.avatar }}
-                          style={styles.reviewerAvatar}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.reviewerAvatarPlaceholder,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(201,150,63,0.12)"
-                                : "#F0E8D5",
-                            },
-                          ]}
-                        >
-                          <Feather
-                            name="user"
-                            size={16}
-                            color={isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"}
-                          />
-                        </View>
-                      )}
+                      <AvatarImage
+                        uri={review.reviewer.avatar}
+                        size={40}
+                        borderRadius={4}
+                        iconSize={16}
+                        style={{ marginRight: 12 }}
+                      />
                       <View style={styles.reviewerInfo}>
                         <Text
                           style={[styles.reviewerName, { color: colors.text }]}
@@ -1937,9 +1938,9 @@ export default function CandidateProfileScreen() {
               onPress={() => {
                 if (!emailVerified || !phoneVerified || !hasAddress) {
                   const missing = [];
-                  if (!emailVerified) missing.push("Email");
-                  if (!phoneVerified) missing.push("Phone");
-                  if (!hasAddress) missing.push("Address");
+                  if (!emailVerified) missing.push(t("settings.email"));
+                  if (!phoneVerified) missing.push(t("settings.phone"));
+                  if (!hasAddress) missing.push(t("profile.address"));
                   Alert.alert(
                     t("candidate.verificationRequired"),
                     t("candidate.completeVerificationBeforeRequesting", {
@@ -1949,7 +1950,8 @@ export default function CandidateProfileScreen() {
                       { text: t("common.ok") },
                       {
                         text: t("candidate.goToSettings"),
-                        onPress: () => router.push("/(tabs)/settings" as any),
+                        onPress: () =>
+                          router.push("/employer-tabs/menu" as any),
                       },
                     ],
                   );
@@ -1967,41 +1969,29 @@ export default function CandidateProfileScreen() {
               </Text>
             </TouchableButton>
 
-            {/* Refer to Job Button - Only show for candidates who haven't applied */}
-            {(() => {
-              const hasApplied =
-                candidate?.applicationInfo?.hasApplied === true;
-              const shouldShowReferButton = !hasApplied;
-
-              if (!shouldShowReferButton) {
-                return null;
-              }
-
-              return (
-                <TouchableButton
-                  style={[
-                    styles.contactButton,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.2)"
-                        : "rgba(201, 150, 63, 0.1)",
-                      borderColor: isDark
-                        ? "rgba(201, 150, 63, 0.3)"
-                        : "rgba(201, 150, 63, 0.2)",
-                      marginTop: 12,
-                    },
-                  ]}
-                  onPress={handleContact}
-                >
-                  <Feather name="user-plus" size={20} color={colors.tint} />
-                  <Text
-                    style={[styles.contactButtonText, { color: colors.tint }]}
-                  >
-                    {t("candidate.referToJob")}
-                  </Text>
-                </TouchableButton>
-              );
-            })()}
+            {/* Refer to Job Button - Always visible for employers */}
+            <TouchableButton
+              style={[
+                styles.contactButton,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(201, 150, 63, 0.2)"
+                    : "rgba(201, 150, 63, 0.1)",
+                  borderColor: isDark
+                    ? "rgba(201, 150, 63, 0.3)"
+                    : "rgba(201, 150, 63, 0.2)",
+                  marginTop: 12,
+                  opacity:
+                    !emailVerified || !phoneVerified || !hasAddress ? 0.5 : 1,
+                },
+              ]}
+              onPress={handleContact}
+            >
+              <Feather name="user-plus" size={20} color={colors.tint} />
+              <Text style={[styles.contactButtonText, { color: colors.tint }]}>
+                {t("candidate.referToJob")}
+              </Text>
+            </TouchableButton>
           </View>
         </ScrollView>
 
@@ -2108,7 +2098,7 @@ export default function CandidateProfileScreen() {
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Refer Candidate to Job
+                  {t("candidate.referCandidateToJob")}
                 </Text>
                 <TouchableButton onPress={() => setShowReferralModal(false)}>
                   <Feather name="x" size={24} color={colors.text} />
@@ -2121,8 +2111,7 @@ export default function CandidateProfileScreen() {
                     { color: isDark ? "#B8A88A" : "#6B6355" },
                   ]}
                 >
-                  Select a job to refer this candidate to. They will receive an
-                  email notification about the opportunity.
+                  {t("candidate.referCandidateDescription")}
                 </Text>
                 {loadingJobs ? (
                   <ActivityIndicator
@@ -2131,14 +2120,39 @@ export default function CandidateProfileScreen() {
                     style={{ marginVertical: 20 }}
                   />
                 ) : employerJobs.length === 0 ? (
-                  <Text
-                    style={[
-                      styles.modalDescription,
-                      { color: isDark ? "#9A8E7A" : "#8A7B68", marginTop: 20 },
-                    ]}
-                  >
-                    You don't have any active jobs. Please create a job first.
-                  </Text>
+                  <View style={{ marginTop: 20, alignItems: "center" }}>
+                    <Text
+                      style={[
+                        styles.modalDescription,
+                        {
+                          color: isDark ? "#9A8E7A" : "#8A7B68",
+                          textAlign: "center",
+                        },
+                      ]}
+                    >
+                      {t("candidate.noActiveJobs")}
+                    </Text>
+                    <TouchableButton
+                      style={[
+                        styles.contactButton,
+                        {
+                          backgroundColor: isDark ? "#C9963F" : "#B8822A",
+                          borderColor: isDark ? "#E8B86D" : "#C9963F",
+                          marginTop: 16,
+                          paddingHorizontal: 24,
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowReferralModal(false);
+                        router.push("/post-job" as any);
+                      }}
+                    >
+                      <Feather name="plus" size={18} color="#FFFAF0" />
+                      <Text style={styles.contactButtonText}>
+                        {t("candidate.postJobFirst")}
+                      </Text>
+                    </TouchableButton>
+                  </View>
                 ) : (
                   employerJobs.map((job) => (
                     <TouchableButton
@@ -2164,11 +2178,45 @@ export default function CandidateProfileScreen() {
                       ]}
                       onPress={() => setSelectedJobId(job.id)}
                     >
-                      <Text
-                        style={[styles.jobOptionText, { color: colors.text }]}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
                       >
-                        {job.title}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.jobOptionText,
+                            { color: colors.text, flex: 1 },
+                          ]}
+                        >
+                          {job.title}
+                        </Text>
+                        {job.candidateApplied && (
+                          <View
+                            style={{
+                              backgroundColor: isDark
+                                ? "rgba(76, 175, 80, 0.2)"
+                                : "rgba(76, 175, 80, 0.1)",
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: 8,
+                              marginLeft: 8,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: "600",
+                                color: isDark ? "#81C784" : "#4CAF50",
+                              }}
+                            >
+                              {t("candidate.applied")}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       {job.category && (
                         <Text
                           style={[
@@ -2205,7 +2253,7 @@ export default function CandidateProfileScreen() {
                   <Text
                     style={[styles.modalButtonText, { color: colors.text }]}
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Text>
                 </TouchableButton>
                 <TouchableButton
@@ -2224,7 +2272,7 @@ export default function CandidateProfileScreen() {
                     <ActivityIndicator color="#FFFAF0" />
                   ) : (
                     <Text style={styles.modalButtonTextSubmit}>
-                      Send Referral
+                      {t("candidate.sendReferral")}
                     </Text>
                   )}
                 </TouchableButton>

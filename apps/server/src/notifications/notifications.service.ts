@@ -218,6 +218,8 @@ export class NotificationsService {
     t: (key: string, params?: any) => string,
     language: 'en' | 'pt' = 'en',
   ): string {
+    const e = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     const locationText =
       job.city && job.country
         ? `${job.city}, ${job.country}`
@@ -251,25 +253,25 @@ export class NotificationsService {
           <!-- Content -->
           <tr>
             <td style="padding: 40px;">
-              <h2 style="margin: 0 0 20px; color: #F5E6C8; font-size: 24px; font-weight: 600;">${t('email.jobs.jobReferralGreeting', { candidateName })} 👋</h2>
+              <h2 style="margin: 0 0 20px; color: #F5E6C8; font-size: 24px; font-weight: 600;">${e(t('email.jobs.jobReferralGreeting', { candidateName }))} 👋</h2>
               <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
-                ${t('email.jobs.jobReferralMessage', { employerName, employerEmail })}
+                ${e(t('email.jobs.jobReferralMessage', { employerName, employerEmail }))}
               </p>
               
               <!-- Job Details Card -->
               <div style="margin: 32px 0; padding: 24px; background-color: #0E1B32; border-radius: 8px; border-left: 4px solid #C9963F;">
-                <h3 style="margin: 0 0 16px; color: #F5E6C8; font-size: 20px; font-weight: 600;">${job.title}</h3>
+                <h3 style="margin: 0 0 16px; color: #F5E6C8; font-size: 20px; font-weight: 600;">${e(job.title)}</h3>
                 
-                ${job.category ? `<p style="margin: 0 0 12px; color: #B8A88A; font-size: 15px;"><strong>${t('email.jobs.category')}:</strong> ${job.category.name}</p>` : ''}
+                ${job.category ? `<p style="margin: 0 0 12px; color: #B8A88A; font-size: 15px;"><strong>${e(t('email.jobs.category'))}:</strong> ${e(job.category.name)}</p>` : ''}
                 
-                <p style="margin: 0 0 12px; color: #B8A88A; font-size: 15px;"><strong>${t('email.jobs.location')}:</strong> ${locationText}</p>
+                <p style="margin: 0 0 12px; color: #B8A88A; font-size: 15px;"><strong>${e(t('email.jobs.location'))}:</strong> ${e(locationText)}</p>
                 
-                ${job.rateAmount ? `<p style="margin: 0 0 12px; color: #B8A88A; font-size: 15px;"><strong>${t('email.jobs.rate')}:</strong> ${rateText}</p>` : ''}
+                ${job.rateAmount ? `<p style="margin: 0 0 12px; color: #B8A88A; font-size: 15px;"><strong>${e(t('email.jobs.rate'))}:</strong> ${e(rateText)}</p>` : ''}
                 
                 
                 <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #1E3048;">
-                  <p style="margin: 0 0 8px; color: #F5E6C8; font-size: 15px; font-weight: 600;">${t('email.jobs.description')}:</p>
-                  <p style="margin: 0; color: #B8A88A; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${job.description}</p>
+                  <p style="margin: 0 0 8px; color: #F5E6C8; font-size: 15px; font-weight: 600;">${e(t('email.jobs.description'))}:</p>
+                  <p style="margin: 0; color: #B8A88A; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${e(job.description)}</p>
                 </div>
               </div>
               
@@ -277,13 +279,13 @@ export class NotificationsService {
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 32px 0;">
                 <tr>
                   <td align="center" style="padding: 0;">
-                    <a href="${jobLink}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #C9963F 0%, #D4A853 50%, #C9963F 100%); color: #0A1628; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(201, 150, 63, 0.35);">${t('email.jobs.viewAndApplyButton')}</a>
+                    <a href="${e(jobLink)}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #C9963F 0%, #D4A853 50%, #C9963F 100%); color: #0A1628; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(201, 150, 63, 0.35);">${e(t('email.jobs.viewAndApplyButton'))}</a>
                   </td>
                 </tr>
               </table>
               
               <p style="margin: 32px 0 0; color: #8B7A5E; font-size: 14px; line-height: 1.6; text-align: center;">
-                ${t('email.jobs.jobReferralFooter', { employerName })}
+                ${e(t('email.jobs.jobReferralFooter', { employerName }))}
               </p>
             </td>
           </tr>
@@ -968,14 +970,17 @@ export class NotificationsService {
         }
       }
 
+      const tNotif = await this.emailTranslations.getTranslatorForUser(
+        event.userId,
+      );
       const title =
         event.decision === 'APPROVED'
-          ? 'Account Deletion Approved'
-          : 'Account Deletion Request Denied';
+          ? tNotif('notifications.templates.accountDeletionApprovedTitle')
+          : tNotif('notifications.templates.accountDeletionDeniedTitle');
       const body =
         event.decision === 'APPROVED'
-          ? `Your deletion request ${event.ticketNumber} has been approved. Your account will be permanently removed.`
-          : `Your deletion request ${event.ticketNumber} has been denied. Your account remains active.`;
+          ? tNotif('notifications.templates.accountDeletionApprovedBody', { ticketNumber: event.ticketNumber })
+          : tNotif('notifications.templates.accountDeletionDeniedBody', { ticketNumber: event.ticketNumber });
 
       await this.createNotification({
         userId: event.userId,
@@ -1013,15 +1018,26 @@ export class NotificationsService {
       if (user?.email) {
         const firstName = user.firstName || t('email.common.there');
         const ticket = event.ticketNumber || event.requestId;
+        const reason = event.reason || t('email.common.na');
         const subject = t('email.deletion.requestCreatedSubject', {
           ticketNumber: ticket,
         });
         const text = t('email.deletion.requestCreatedText', {
           firstName,
           ticketNumber: ticket,
-          reason: event.reason || t('email.common.na'),
+          reason,
         });
-        await this.sendEmail(user.email, subject, text);
+        const language = this.normalizeHtmlLang(
+          await this.emailTranslations.getUserLanguage(event.userId),
+        );
+        const html = this.getDeletionRequestCreatedHtml(
+          firstName,
+          ticket,
+          reason,
+          t,
+          language,
+        );
+        await this.sendEmail(user.email, subject, text, html);
       }
 
       const ticketNumber = event.ticketNumber || event.requestId || '';
@@ -1038,6 +1054,105 @@ export class NotificationsService {
         `Send deletion request email failed: ${(err as Error).message}`,
       );
     }
+  }
+
+  private getDeletionRequestCreatedHtml(
+    firstName: string,
+    ticketNumber: string,
+    reason: string,
+    t: (key: string, params?: any) => string,
+    language: 'en' | 'pt' = 'en',
+  ): string {
+    return `
+<!DOCTYPE html>
+<html lang="${language}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t('email.deletion.requestCreatedSubject', { ticketNumber })}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #080F1E;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #080F1E;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #0D1A30; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 1px rgba(201, 150, 63, 0.2);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #C9963F; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0; color: #F5E6C8; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">${t('email.common.brandName')}</h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="margin: 0 0 20px; color: #F5E6C8; font-size: 24px; font-weight: 600;">${t('email.deletion.htmlHeader')}</h2>
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.deletion.htmlGreeting', { firstName })}
+              </p>
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.deletion.htmlMessage')}
+              </p>
+              
+              <!-- Ticket Info -->
+              <div style="margin: 32px 0; padding: 24px; background-color: #0E1B32; border-radius: 8px; border-left: 4px solid #C9963F;">
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 6px 0; color: #D4A853; font-size: 14px; font-weight: 600; width: 120px;">${t('email.deletion.htmlReference')}</td>
+                    <td style="padding: 6px 0; color: #F5E6C8; font-size: 14px; font-family: 'Courier New', monospace;">${ticketNumber}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #D4A853; font-size: 14px; font-weight: 600;">${t('email.deletion.htmlReason')}</td>
+                    <td style="padding: 6px 0; color: #F5E6C8; font-size: 14px;">${reason}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #D4A853; font-size: 14px; font-weight: 600;">${t('email.deletion.htmlStatus')}</td>
+                    <td style="padding: 6px 0; color: #eab308; font-size: 14px; font-weight: 600;">${t('email.deletion.htmlStatusPending')}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.deletion.htmlNextSteps')}
+              </p>
+              
+              <!-- Warning Box -->
+              <div style="margin: 32px 0; padding: 20px; background: rgba(234, 179, 8, 0.08); border-radius: 8px; border-left: 4px solid #eab308;">
+                <p style="margin: 0; color: #eab308; font-size: 14px; font-weight: 600;">
+                  ⚠️ ${t('email.deletion.htmlChangeMind')}
+                </p>
+                <p style="margin: 8px 0 0; color: #B8A88A; font-size: 14px; line-height: 1.5;">
+                  ${t('email.deletion.htmlChangeMindMessage', { supportEmail: t('email.common.supportEmail') })}
+                </p>
+              </div>
+              
+              <p style="margin: 24px 0 0; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.common.bestRegards')}<br>
+                <strong style="color: #F5E6C8;">${t('email.common.nestaTeam')}</strong>
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px 40px; background-color: #0E1B32; border-radius: 0 0 12px 12px; border-top: 1px solid #1E3048;">
+              <p style="margin: 0; color: #8B7A5E; font-size: 14px; line-height: 1.6;">
+                ${t('email.common.supportMessage')}
+              </p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Footer Text -->
+        <p style="margin: 24px 0 0; color: #5C4F3A; font-size: 12px; text-align: center;">
+          ${t('email.common.copyright', { year: new Date().getFullYear().toString() })}
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
   }
 
   emitBackgroundCheckSubmitted(event: BackgroundCheckSubmittedEvent) {
@@ -1149,6 +1264,115 @@ export class NotificationsService {
       }
     } catch (err) {
       this.logger.warn(`Lookup/send SMS failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Start a Vonage Verify v2 verification request (sends OTP via SMS automatically).
+   * Returns the request_id to be stored and used for checking the code later.
+   */
+  async requestVonageVerify(
+    phone: string,
+    userId?: string,
+  ): Promise<{ requestId: string } | null> {
+    const apiKey = this.config.get<string>('VONAGE_API_KEY');
+    const apiSecret = this.config.get<string>('VONAGE_API_SECRET');
+    if (!apiKey || !apiSecret) {
+      this.logger.warn('Vonage Verify: missing API key/secret');
+      return null;
+    }
+
+    // Resolve user language for the SMS locale
+    let locale = 'en-us';
+    if (userId) {
+      try {
+        const lang = await this.emailTranslations.getUserLanguage(userId);
+        if (lang?.toLowerCase().startsWith('pt')) {
+          locale = 'pt-pt';
+        }
+      } catch {
+        // fallback to en-us
+      }
+    }
+
+    // Vonage Verify v2 wants numbers without leading '+' in E.164
+    const to = phone.startsWith('+') ? phone.slice(1) : phone;
+    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+
+    try {
+      const res = await fetch('https://api.nexmo.com/v2/verify/', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brand: 'Nasta',
+          locale,
+          code_length: 6,
+          channel_timeout: 120,
+          workflow: [{ channel: 'sms', to }],
+        }),
+      });
+
+      if (res.status === 202) {
+        const data = (await res.json()) as { request_id: string };
+        this.logger.log(
+          `Vonage Verify request created: ${data.request_id} for ${to}`,
+        );
+        return { requestId: data.request_id };
+      }
+
+      const errBody = await res.text();
+      this.logger.error(
+        `Vonage Verify request failed (${res.status}): ${errBody}`,
+      );
+      return null;
+    } catch (err) {
+      this.logger.error(
+        `Vonage Verify request error: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Check a user-supplied code against a Vonage Verify v2 request.
+   * Returns true if the code is correct.
+   */
+  async checkVonageVerify(requestId: string, code: string): Promise<boolean> {
+    const apiKey = this.config.get<string>('VONAGE_API_KEY');
+    const apiSecret = this.config.get<string>('VONAGE_API_SECRET');
+    if (!apiKey || !apiSecret) return false;
+
+    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+
+    try {
+      const res = await fetch(
+        `https://api.nexmo.com/v2/verify/${encodeURIComponent(requestId)}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code }),
+        },
+      );
+
+      if (res.status === 200) {
+        this.logger.log(`Vonage Verify code accepted for ${requestId}`);
+        return true;
+      }
+
+      const errBody = await res.text();
+      this.logger.warn(
+        `Vonage Verify check failed (${res.status}) for ${requestId}: ${errBody}`,
+      );
+      return false;
+    } catch (err) {
+      this.logger.error(`Vonage Verify check error: ${(err as Error).message}`);
+      return false;
     }
   }
 
@@ -1897,8 +2121,418 @@ export class NotificationsService {
     `.trim();
   }
 
+  getInstantJobRequestHtml(
+    data: {
+      providerName: string;
+      jobTitle: string;
+      category: string;
+      location: string;
+      startDate: string;
+      payment: string;
+      employerName: string;
+      ctaUrl: string;
+    },
+    t: (key: string, params?: any) => string,
+    language: 'en' | 'pt' = 'en',
+  ): string {
+    const e = (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return `
+<!DOCTYPE html>
+<html lang="${language}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${e(t('email.instantJobRequest.newRequestSubject', { jobTitle: data.jobTitle }))}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #080F1E;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #080F1E;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #0D1A30; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 1px rgba(201, 150, 63, 0.2);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #C9963F; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0 0 8px; color: #F5E6C8; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">${e(t('email.common.brandName'))}</h1>
+              <p style="margin: 0; color: #C9963F; font-size: 16px; font-weight: 500;">⚡ ${e(t('email.instantJobRequest.newRequestHeader'))}</p>
+            </td>
+          </tr>
+          
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 40px 40px 0;">
+              <p style="margin: 0 0 16px; color: #F5E6C8; font-size: 18px; font-weight: 600;">${e(t('email.instantJobRequest.newRequestGreeting', { providerName: data.providerName }))}</p>
+              <p style="margin: 0 0 32px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${e(t('email.instantJobRequest.newRequestIntro'))}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Job Details Card -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; background: linear-gradient(135deg, rgba(201, 150, 63, 0.08) 0%, rgba(212, 168, 83, 0.05) 100%); border-radius: 8px; border: 1px solid rgba(201, 150, 63, 0.2);">
+                <tr>
+                  <td style="padding: 24px;">
+                    <h3 style="margin: 0 0 16px; color: #C9963F; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">📋 ${e(t('email.instantJobRequest.jobDetailsTitle'))}</h3>
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; width: 120px; vertical-align: top;">${e(t('email.instantJobRequest.jobTitle'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px; font-weight: 600;">${e(data.jobTitle)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">${e(t('email.instantJobRequest.category'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px;">${e(data.category)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">📍 ${e(t('email.instantJobRequest.location'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px;">${e(data.location)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">📅 ${e(t('email.instantJobRequest.startDate'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px;">${e(data.startDate)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">💰 ${e(t('email.instantJobRequest.payment'))}</td>
+                        <td style="padding: 8px 0; color: #C9963F; font-size: 14px; font-weight: 600;">${e(data.payment)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Employer Info -->
+          <tr>
+            <td style="padding: 16px 40px 0;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #0E1B32; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <h3 style="margin: 0 0 8px; color: #C9963F; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">👤 ${e(t('email.instantJobRequest.employerTitle'))}</h3>
+                    <p style="margin: 0; color: #F5E6C8; font-size: 15px;">${e(data.employerName)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Action Required -->
+          <tr>
+            <td style="padding: 24px 40px 0;">
+              <div style="padding: 20px 24px; background: linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(96, 165, 250, 0.05) 100%); border-radius: 8px; border-left: 4px solid #60A5FA;">
+                <h3 style="margin: 0 0 8px; color: #60A5FA; font-size: 16px; font-weight: 600;">🔔 ${e(t('email.instantJobRequest.actionRequired'))}</h3>
+                <p style="margin: 0; color: #B8A88A; font-size: 14px; line-height: 1.6;">${e(t('email.instantJobRequest.actionDescription'))}</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- CTA Button -->
+          <tr>
+            <td align="center" style="padding: 32px 40px 0;">
+              <a href="${e(data.ctaUrl)}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #C9963F 0%, #D4A853 50%, #C9963F 100%); color: #0A1628; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(201, 150, 63, 0.35);">${e(t('email.instantJobRequest.openAppButton'))}</a>
+            </td>
+          </tr>
+
+          <!-- Note -->
+          <tr>
+            <td style="padding: 32px 40px;">
+              <div style="padding: 16px 20px; background-color: #0E1B32; border-radius: 8px; border-left: 4px solid #C9963F;">
+                <p style="margin: 0 0 4px; color: #D4A853; font-size: 13px; font-weight: 600;">💡 ${e(t('email.instantJobRequest.noteTitle'))}</p>
+                <p style="margin: 0; color: #8B7A5E; font-size: 13px; line-height: 1.5;">${e(t('email.instantJobRequest.noteText'))}</p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px 30px; background-color: #0E1B32; border-radius: 0 0 12px 12px; border-top: 1px solid #1E3048;">
+              <p style="margin: 0 0 8px; color: #8B7A5E; font-size: 13px; line-height: 1.6;">${e(t('email.instantJobRequest.footerText'))}</p>
+              <p style="margin: 0; color: #8B7A5E; font-size: 13px;">${e(t('email.common.supportMessage'))}</p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Copyright -->
+        <p style="margin: 24px 0 0; color: #5C4F3A; font-size: 12px; text-align: center;">
+          ${t('email.common.copyright', { year: new Date().getFullYear().toString() })}
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
+
+  getInstantJobRequestAcceptedHtml(
+    data: {
+      employerName: string;
+      providerName: string;
+      jobTitle: string;
+      category: string;
+      location: string;
+      startDate: string;
+      payment: string;
+      ctaUrl: string;
+    },
+    t: (key: string, params?: any) => string,
+    language: 'en' | 'pt' = 'en',
+  ): string {
+    const e = (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return `
+<!DOCTYPE html>
+<html lang="${language}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${e(t('email.instantJobRequest.acceptedSubject', { jobTitle: data.jobTitle }))}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #080F1E;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #080F1E;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #0D1A30; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 1px rgba(201, 150, 63, 0.2);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #22C55E; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0 0 8px; color: #F5E6C8; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">${e(t('email.common.brandName'))}</h1>
+              <p style="margin: 0; color: #22C55E; font-size: 18px; font-weight: 600;">✅ ${e(t('email.instantJobRequest.acceptedHeader'))}</p>
+            </td>
+          </tr>
+          
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 40px 40px 0;">
+              <p style="margin: 0 0 16px; color: #F5E6C8; font-size: 18px; font-weight: 600;">${e(t('email.instantJobRequest.acceptedGreeting', { employerName: data.employerName }))}</p>
+              <p style="margin: 0 0 32px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${e(t('email.instantJobRequest.acceptedIntro', { providerName: data.providerName }))}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Job Details Card -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.03) 100%); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.2);">
+                <tr>
+                  <td style="padding: 24px;">
+                    <h3 style="margin: 0 0 16px; color: #22C55E; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">📋 ${e(t('email.instantJobRequest.jobDetailsTitle'))}</h3>
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; width: 120px; vertical-align: top;">${e(t('email.instantJobRequest.jobTitle'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px; font-weight: 600;">${e(data.jobTitle)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">${e(t('email.instantJobRequest.category'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px;">${e(data.category)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">📍 ${e(t('email.instantJobRequest.location'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px;">${e(data.location)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">📅 ${e(t('email.instantJobRequest.startDate'))}</td>
+                        <td style="padding: 8px 0; color: #F5E6C8; font-size: 14px;">${e(data.startDate)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #8B7A5E; font-size: 14px; vertical-align: top;">💰 ${e(t('email.instantJobRequest.payment'))}</td>
+                        <td style="padding: 8px 0; color: #C9963F; font-size: 14px; font-weight: 600;">${e(data.payment)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Provider Info -->
+          <tr>
+            <td style="padding: 16px 40px 0;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #0E1B32; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <h3 style="margin: 0 0 8px; color: #22C55E; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">👤 ${e(t('email.instantJobRequest.providerTitle'))}</h3>
+                    <p style="margin: 0; color: #F5E6C8; font-size: 15px;">${e(data.providerName)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Next Steps -->
+          <tr>
+            <td style="padding: 24px 40px 0;">
+              <div style="padding: 24px; background-color: #0E1B32; border-radius: 8px;">
+                <h3 style="margin: 0 0 16px; color: #F5E6C8; font-size: 18px; font-weight: 600;">🚀 ${e(t('email.instantJobRequest.nextStepsTitle'))}</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #B8A88A; font-size: 15px; line-height: 1.8;">
+                  <li style="margin-bottom: 8px;">${e(t('email.instantJobRequest.nextStep1'))}</li>
+                  <li style="margin-bottom: 8px;">${e(t('email.instantJobRequest.nextStep2'))}</li>
+                  <li>${e(t('email.instantJobRequest.nextStep3'))}</li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+
+          <!-- CTA Button -->
+          <tr>
+            <td align="center" style="padding: 32px 40px;">
+              <a href="${e(data.ctaUrl)}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.35);">${e(t('email.instantJobRequest.viewApplicationButton'))}</a>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px 30px; background-color: #0E1B32; border-radius: 0 0 12px 12px; border-top: 1px solid #1E3048;">
+              <p style="margin: 0; color: #8B7A5E; font-size: 13px; line-height: 1.6;">${e(t('email.common.supportMessage'))}</p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Copyright -->
+        <p style="margin: 24px 0 0; color: #5C4F3A; font-size: 12px; text-align: center;">
+          ${t('email.common.copyright', { year: new Date().getFullYear().toString() })}
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
+
+  getInstantJobRequestRejectedHtml(
+    data: {
+      employerName: string;
+      providerName: string;
+      jobTitle: string;
+      category: string;
+      location: string;
+      reason: string;
+      ctaUrl: string;
+    },
+    t: (key: string, params?: any) => string,
+    language: 'en' | 'pt' = 'en',
+  ): string {
+    const e = (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return `
+<!DOCTYPE html>
+<html lang="${language}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${e(t('email.instantJobRequest.rejectedSubject', { jobTitle: data.jobTitle }))}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #080F1E;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #080F1E;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #0D1A30; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 1px rgba(201, 150, 63, 0.2);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #EF4444; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0 0 8px; color: #F5E6C8; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">${e(t('email.common.brandName'))}</h1>
+              <p style="margin: 0; color: #EF4444; font-size: 18px; font-weight: 600;">${e(t('email.instantJobRequest.rejectedHeader'))}</p>
+            </td>
+          </tr>
+          
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 40px 40px 0;">
+              <p style="margin: 0 0 16px; color: #F5E6C8; font-size: 18px; font-weight: 600;">${e(t('email.instantJobRequest.rejectedGreeting', { employerName: data.employerName }))}</p>
+              <p style="margin: 0 0 32px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${e(t('email.instantJobRequest.rejectedIntro', { providerName: data.providerName }))}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Job Info -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #0E1B32; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <h3 style="margin: 0 0 12px; color: #C9963F; font-size: 16px; font-weight: 600;">📋 ${e(t('email.instantJobRequest.jobDetailsTitle'))}</h3>
+                    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 6px 0; color: #8B7A5E; font-size: 14px; width: 120px;">${e(t('email.instantJobRequest.jobTitle'))}</td>
+                        <td style="padding: 6px 0; color: #F5E6C8; font-size: 14px; font-weight: 600;">${e(data.jobTitle)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #8B7A5E; font-size: 14px;">${e(t('email.instantJobRequest.category'))}</td>
+                        <td style="padding: 6px 0; color: #F5E6C8; font-size: 14px;">${e(data.category)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #8B7A5E; font-size: 14px;">📍 ${e(t('email.instantJobRequest.location'))}</td>
+                        <td style="padding: 6px 0; color: #F5E6C8; font-size: 14px;">${e(data.location)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Rejection Reason -->
+          <tr>
+            <td style="padding: 16px 40px 0;">
+              <div style="padding: 20px 24px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.03) 100%); border-radius: 8px; border-left: 4px solid #EF4444;">
+                <h3 style="margin: 0 0 8px; color: #EF4444; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">${e(t('email.instantJobRequest.reasonTitle'))}</h3>
+                <p style="margin: 0; color: #F5E6C8; font-size: 15px; line-height: 1.6;">${e(data.reason)}</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- What's Next -->
+          <tr>
+            <td style="padding: 24px 40px 0;">
+              <div style="padding: 24px; background-color: #0E1B32; border-radius: 8px;">
+                <h3 style="margin: 0 0 12px; color: #F5E6C8; font-size: 18px; font-weight: 600;">${e(t('email.instantJobRequest.whatNextTitle'))}</h3>
+                <p style="margin: 0; color: #B8A88A; font-size: 15px; line-height: 1.6;">${e(t('email.instantJobRequest.whatNextText'))}</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- CTA Button -->
+          <tr>
+            <td align="center" style="padding: 32px 40px;">
+              <a href="${e(data.ctaUrl)}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #C9963F 0%, #D4A853 50%, #C9963F 100%); color: #0A1628; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(201, 150, 63, 0.35);">${e(t('email.instantJobRequest.browseProvidersButton'))}</a>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px 30px; background-color: #0E1B32; border-radius: 0 0 12px 12px; border-top: 1px solid #1E3048;">
+              <p style="margin: 0; color: #8B7A5E; font-size: 13px; line-height: 1.6;">${e(t('email.common.supportMessage'))}</p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Copyright -->
+        <p style="margin: 24px 0 0; color: #5C4F3A; font-size: 12px; text-align: center;">
+          ${t('email.common.copyright', { year: new Date().getFullYear().toString() })}
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
+
   async registerPushToken(userId: string, pushToken: string, platform: string) {
     try {
+      // Remove this token from any other user to prevent cross-account notifications
+      await this.prisma.user.updateMany({
+        where: {
+          pushToken,
+          id: { not: userId },
+        },
+        data: {
+          pushToken: null,
+          pushTokenPlatform: null,
+        },
+      });
+
       await this.prisma.user.update({
         where: { id: userId },
         data: {
@@ -1911,6 +2545,25 @@ export class NotificationsService {
     } catch (err) {
       this.logger.warn(
         `Failed to register push token: ${(err as Error).message}`,
+      );
+      throw err;
+    }
+  }
+
+  async unregisterPushToken(userId: string) {
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          pushToken: null,
+          pushTokenPlatform: null,
+        },
+      });
+      this.logger.log(`Push token unregistered for user ${userId}`);
+      return { success: true, message: 'Push token unregistered' };
+    } catch (err) {
+      this.logger.warn(
+        `Failed to unregister push token: ${(err as Error).message}`,
       );
       throw err;
     }
@@ -1950,6 +2603,21 @@ export class NotificationsService {
       });
 
       if (response.ok) {
+        const result = (await response.json()) as any;
+        // Clean up invalid tokens
+        if (
+          result?.data?.status === 'error' &&
+          result?.data?.details?.error === 'DeviceNotRegistered'
+        ) {
+          this.logger.warn(
+            `Push token for user ${userId} is no longer valid, clearing`,
+          );
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { pushToken: null, pushTokenPlatform: null },
+          });
+          return false;
+        }
         this.logger.log(`Push notification sent to user ${userId}`);
         return true;
       } else {

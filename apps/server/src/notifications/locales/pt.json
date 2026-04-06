@@ -1,4 +1,12 @@
 {
+  "onboarding": {
+    "hourly": "Por Hora",
+    "daily": "Diário",
+    "weekly": "Semanal",
+    "monthly": "Mensal",
+    "hour": "Hora",
+    "other": "Outro"
+  },
   "email": {
     "common": {
       "there": "olá",
@@ -140,6 +148,16 @@
     "deletion": {
       "requestCreatedSubject": "Pedido de eliminação de conta recebido: {{ticketNumber}}",
       "requestCreatedText": "Olá {{firstName}},\n\nRecebemos o seu pedido de eliminação de conta.\n\nReferência: {{ticketNumber}}\nMotivo: {{reason}}\n\nA nossa equipa irá rever o seu pedido. Será notificado quando uma decisão for tomada. Se não fez este pedido, contacte o suporte imediatamente.\n\nCom os melhores cumprimentos,\nEquipa Nasta",
+      "htmlHeader": "Pedido de Eliminação de Conta",
+      "htmlGreeting": "Olá {{firstName}},",
+      "htmlMessage": "Lamentamos vê-lo partir. Recebemos o seu pedido para eliminar a sua conta e todos os dados associados.",
+      "htmlReference": "Referência:",
+      "htmlReason": "Motivo:",
+      "htmlStatus": "Estado:",
+      "htmlStatusPending": "Em Análise",
+      "htmlNextSteps": "A nossa equipa irá rever cuidadosamente o seu pedido. Receberá uma notificação assim que uma decisão for tomada. Este processo demora normalmente 1–3 dias úteis.",
+      "htmlChangeMind": "Mudou de ideias?",
+      "htmlChangeMindMessage": "Se não fez este pedido, ou se deseja cancelá-lo, contacte a nossa equipa de suporte imediatamente em {{supportEmail}} ou cancele o pedido na aplicação.",
       "requestApprovedSubject": "Eliminação de conta aprovada: {{ticketNumber}}",
       "requestApprovedText": "Olá {{firstName}},\n\nO seu pedido de eliminação de conta ({{ticketNumber}}) foi aprovado. A sua conta e dados serão permanentemente removidos.\n\nSe tiver questões, contacte o suporte.\n\nCom os melhores cumprimentos,\nEquipa Nasta",
       "requestDeniedSubject": "Pedido de eliminação de conta negado: {{ticketNumber}}",
@@ -366,8 +384,45 @@
       "benefit3": "Fluxos seguros para reservas e pagamentos",
       "benefit4": "Construa confiança com perfis, avaliações e verificação",
       "invitationFooter": "Este convite foi enviado por {{referrerName}}. Se não estava à espera, pode ignorar este email com segurança.",
-      "invitationText": "Olá {{friendName}}!\n\n{{referrerName}} ({{referrerEmail}}) convidou-o a juntar-se ao Nasta.\n\nCrie a sua conta gratuita aqui: {{signupLink}}\n\nSe não estava à espera deste email, pode ignorá-lo."
-    }
+      "invitationText": "Olá {{friendName}}!\n\n{{referrerName}} ({{referrerEmail}}) convidou-o a juntar-se ao Nasta.\n\nCrie a sua conta gratuita aqui: {{signupLink}}\n\nSe não estava à espera deste email, pode ignorá-lo."    },
+    "instantJobRequest": {
+      "newRequestSubject": "Novo Pedido de Trabalho Instantâneo — \"{{jobTitle}}\"",
+      "newRequestHeader": "Novo Pedido de Trabalho",
+      "newRequestGreeting": "Olá {{providerName}},",
+      "newRequestIntro": "Boas notícias! Um empregador solicitou os seus serviços para um trabalho instantâneo. Reveja os detalhes abaixo e aceite ou recuse o pedido na aplicação.",
+      "jobDetailsTitle": "Detalhes do Trabalho",
+      "jobTitle": "Título do Trabalho",
+      "category": "Categoria",
+      "location": "Localização",
+      "startDate": "Data de Início",
+      "payment": "Pagamento",
+      "employerTitle": "Empregador",
+      "employerName": "Nome",
+      "actionRequired": "Ação Necessária",
+      "actionDescription": "Abra a aplicação Nasta para rever os detalhes completos e responder a este pedido. Pode aceitar ou recusar com um motivo.",
+      "openAppButton": "Abrir Aplicação Nasta",
+      "noteTitle": "Nota Importante",
+      "noteText": "Se aceitar este pedido, poderá negociar tarifas e disponibilidade com o empregador antes de o trabalho ser confirmado.",
+      "footerText": "Este email foi enviado porque um empregador o selecionou para um trabalho instantâneo no Nasta.",
+      "acceptedSubject": "Pedido de Trabalho Aceite — \"{{jobTitle}}\"",
+      "acceptedHeader": "Pedido Aceite!",
+      "acceptedGreeting": "Olá {{employerName}},",
+      "acceptedIntro": "{{providerName}} aceitou o seu pedido de trabalho instantâneo. Pode agora prosseguir com a negociação e pagamento.",
+      "providerTitle": "Prestador de Serviços",
+      "providerName": "Nome",
+      "nextStepsTitle": "Próximos Passos",
+      "nextStep1": "Reveja e negoceie tarifas com o prestador de serviços",
+      "nextStep2": "Confirme o pagamento para finalizar a reserva",
+      "nextStep3": "Coordene a data de início e os detalhes do trabalho",
+      "viewApplicationButton": "Ver Candidatura",
+      "rejectedSubject": "Pedido de Trabalho Recusado — \"{{jobTitle}}\"",
+      "rejectedHeader": "Pedido Recusado",
+      "rejectedGreeting": "Olá {{employerName}},",
+      "rejectedIntro": "Infelizmente, {{providerName}} recusou o seu pedido de trabalho instantâneo.",
+      "reasonTitle": "Motivo",
+      "whatNextTitle": "E Agora?",
+      "whatNextText": "Pode procurar outros prestadores de serviços disponíveis no Nasta e enviar um novo pedido.",
+      "browseProvidersButton": "Procurar Prestadores"    }
   },
   "notifications": {
     "common": {
@@ -483,9 +538,19 @@
       "accountDeletionRequestTitle": "Pedido de Eliminação de Conta Recebido",
       "accountDeletionRequestBody": "O seu pedido de eliminação {{ticketNumber}} foi recebido e está em análise.",
 
+      "accountDeletionApprovedTitle": "Eliminação de Conta Aprovada",
+      "accountDeletionApprovedBody": "O seu pedido de eliminação {{ticketNumber}} foi aprovado. A sua conta será permanentemente removida.",
+      "accountDeletionDeniedTitle": "Pedido de Eliminação de Conta Negado",
+      "accountDeletionDeniedBody": "O seu pedido de eliminação {{ticketNumber}} foi negado. A sua conta permanece ativa.",
+
       "employerAcceptanceThankYouTitle": "Candidatura Aceite — Próximos Passos",
       "employerAcceptanceThankYouBody": "Obrigado por aceitar a candidatura para \"{{jobTitle}}\". Quando o prestador de serviços marcar o trabalho como feito, por favor reveja e marque-o como concluído. Se não for concluído manualmente, será automaticamente concluído 48 horas após a data de início do trabalho ({{autoCompleteDate}}).",
-      "employerAcceptanceThankYouPushBody": "Obrigado por aceitar a candidatura para \"{{jobTitle}}\". Lembre-se de marcar o trabalho como concluído após o prestador de serviços terminar."
+      "employerAcceptanceThankYouPushBody": "Obrigado por aceitar a candidatura para \"{{jobTitle}}\". Lembre-se de marcar o trabalho como concluído após o prestador de serviços terminar.",
+
+      "instantJobRequestAcceptedTitle": "Pedido de Trabalho Aceite! 🎉",
+      "instantJobRequestAcceptedBody": "{{providerName}} aceitou o seu pedido de trabalho instantâneo para \"{{jobTitle}}\". Pode agora prosseguir com negociações e pagamento.",
+      "instantJobRequestRejectedTitle": "Pedido de Trabalho Recusado",
+      "instantJobRequestRejectedBody": "{{providerName}} recusou o seu pedido de trabalho instantâneo para \"{{jobTitle}}\". Motivo: {{reason}}"
     }
   }
 }

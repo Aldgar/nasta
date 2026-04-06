@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { api, API_BASE } from "../../../../lib/api";
 
 interface TicketAttachment {
@@ -7,6 +7,15 @@ interface TicketAttachment {
   name: string;
   type?: "image" | "document";
   mimeType?: string;
+}
+
+interface TicketResponse {
+  id: string;
+  adminId: string;
+  channel: "EMAIL" | "CHAT";
+  message: string;
+  emailSent: boolean;
+  createdAt: string;
 }
 
 interface SupportTicket {
@@ -28,9 +37,13 @@ interface SupportTicket {
   name?: string;
   email?: string;
   assignedTo?: string;
+  escalatedTo?: string;
+  escalatedAt?: string;
+  conversationId?: string;
   resolution?: string;
   adminNotes?: string;
   attachments?: TicketAttachment[];
+  responses?: TicketResponse[];
   createdAt: string;
 }
 
@@ -50,7 +63,12 @@ export default function AdminSupportPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [resolution, setResolution] = useState("");
   const [responseText, setResponseText] = useState("");
+  const [responseChannel, setResponseChannel] = useState<
+    "EMAIL" | "CHAT" | "BOTH"
+  >("EMAIL");
   const [submitting, setSubmitting] = useState(false);
+  const [internalNote, setInternalNote] = useState("");
+  const responseEndRef = useRef<HTMLDivElement>(null);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -101,6 +119,8 @@ export default function AdminSupportPage() {
     setActiveModal(null);
     setResolution("");
     setResponseText("");
+    setResponseChannel("EMAIL");
+    setInternalNote("");
   };
 
   const handleAssign = async (id: string) => {
@@ -140,10 +160,29 @@ export default function AdminSupportPage() {
     setSubmitting(true);
     await api(`/support/admin/tickets/${selectedTicketId}/respond`, {
       method: "POST",
-      body: { response: responseText.trim() },
+      body: { response: responseText.trim(), channel: responseChannel },
     });
     setSubmitting(false);
     closeModal();
+    fetchTickets();
+    fetchTicketDetail(selectedTicketId);
+  };
+
+  const handleAddNote = async () => {
+    if (!selectedTicketId || !internalNote.trim()) return;
+    setSubmitting(true);
+    await api(`/support/admin/tickets/${selectedTicketId}/status`, {
+      method: "POST",
+      body: {
+        status: ticketDetail?.status || "IN_PROGRESS",
+        notes: internalNote.trim(),
+      },
+    });
+    setSubmitting(false);
+    setInternalNote("");
+    setActiveModal(null);
+    fetchTickets();
+    fetchTicketDetail(selectedTicketId);
   };
 
   const priorityColor = (p: string) => {
@@ -156,14 +195,60 @@ export default function AdminSupportPage() {
   const statusColorFn = (s: string) => {
     if (s === "OPEN") return "bg-yellow-500/20 text-yellow-300";
     if (s === "IN_PROGRESS") return "bg-blue-500/20 text-blue-300";
+    if (s === "WAITING_USER_RESPONSE")
+      return "bg-purple-500/20 text-purple-300";
+    if (s === "ESCALATED_KYC") return "bg-orange-500/20 text-orange-300";
+    if (s === "ESCALATED_ADMIN") return "bg-red-500/20 text-red-300";
+    if (s === "ESCALATED_BUG_TEAM") return "bg-pink-500/20 text-pink-300";
     if (s === "RESOLVED") return "bg-green-500/20 text-green-300";
+    if (s === "CLOSED")
+      return "bg-[var(--surface-alt)] text-[var(--muted-text)]";
     return "bg-[var(--surface-alt)] text-[var(--muted-text)]";
+  };
+
+  const statusLabel = (s: string) => {
+    const labels: Record<string, string> = {
+      OPEN: "Open",
+      IN_PROGRESS: "In Progress",
+      WAITING_USER_RESPONSE: "Waiting Response",
+      ESCALATED_KYC: "Escalated: KYC",
+      ESCALATED_ADMIN: "Escalated: Admin",
+      ESCALATED_BUG_TEAM: "Escalated: Bug Team",
+      RESOLVED: "Resolved",
+      CLOSED: "Closed",
+    };
+    return labels[s] || s.replace(/_/g, " ");
   };
 
   const resolveAttachmentUrl = (url: string) => {
     if (!url) return "";
     if (url.startsWith("http")) return url;
     return `${API_BASE.replace(/\/+$/, "")}/${url.startsWith("/") ? url.slice(1) : url}`;
+  };
+
+  /** Parse attachment paths embedded in the message text and return clean message + attachments */
+  const parseMessageAttachments = (
+    message: string,
+    existingAttachments?: TicketAttachment[],
+  ): { cleanMessage: string; attachments: TicketAttachment[] } => {
+    if (existingAttachments && existingAttachments.length > 0) {
+      return { cleanMessage: message, attachments: existingAttachments };
+    }
+    const attachmentRegex = /\n\nAttachments:\n((?:- .+\n?)+)/;
+    const match = message.match(attachmentRegex);
+    if (!match) return { cleanMessage: message, attachments: [] };
+    const cleanMessage = message.replace(attachmentRegex, "").trimEnd();
+    const lines = match[1].split("\n").filter((l) => l.startsWith("- "));
+    const attachments: TicketAttachment[] = lines.map((line) => {
+      const path = line.replace(/^- /, "").trim();
+      const name = path.split("/").pop() || path;
+      const ext = name.split(".").pop()?.toLowerCase() || "";
+      const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(
+        ext,
+      );
+      return { url: path, name, type: isImage ? "image" : "document" };
+    });
+    return { cleanMessage, attachments };
   };
 
   return (
@@ -211,14 +296,24 @@ export default function AdminSupportPage() {
                 </button>
               ))}
             </div>
-            <div className="flex rounded-lg border border-[var(--border-color)] bg-[var(--surface)] overflow-hidden">
-              {["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", ""].map((s) => (
+            <div className="flex flex-wrap rounded-lg border border-[var(--border-color)] bg-[var(--surface)] overflow-hidden">
+              {[
+                { value: "", label: "All" },
+                { value: "OPEN", label: "Open" },
+                { value: "IN_PROGRESS", label: "In Progress" },
+                { value: "WAITING_USER_RESPONSE", label: "Waiting" },
+                { value: "ESCALATED_KYC", label: "KYC" },
+                { value: "ESCALATED_ADMIN", label: "Admin" },
+                { value: "ESCALATED_BUG_TEAM", label: "Bug" },
+                { value: "RESOLVED", label: "Resolved" },
+                { value: "CLOSED", label: "Closed" },
+              ].map((s) => (
                 <button
-                  key={s || "all-status"}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-4 py-2 text-xs font-medium capitalize transition-colors ${statusFilter === s ? "bg-[var(--primary)] text-white" : "text-[var(--muted-text)] hover:bg-[var(--surface-alt)]"}`}
+                  key={s.value || "all-status"}
+                  onClick={() => setStatusFilter(s.value)}
+                  className={`px-3 py-2 text-xs font-medium transition-colors ${statusFilter === s.value ? "bg-[var(--primary)] text-white" : "text-[var(--muted-text)] hover:bg-[var(--surface-alt)]"}`}
                 >
-                  {s || "All"}
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -274,14 +369,25 @@ export default function AdminSupportPage() {
                           ` (${ticket.user?.email || ticket.email})`}
                       </p>
                       <p className="mt-2 text-sm text-[var(--foreground)]/70 line-clamp-2">
-                        {ticket.message}
+                        {
+                          parseMessageAttachments(
+                            ticket.message,
+                            ticket.attachments,
+                          ).cleanMessage
+                        }
                       </p>
-                      {ticket.attachments && ticket.attachments.length > 0 && (
-                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-[var(--muted-text)]">
-                          📎 {ticket.attachments.length} attachment
-                          {ticket.attachments.length !== 1 ? "s" : ""}
-                        </span>
-                      )}
+                      {(() => {
+                        const { attachments } = parseMessageAttachments(
+                          ticket.message,
+                          ticket.attachments,
+                        );
+                        return attachments.length > 0 ? (
+                          <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-[var(--muted-text)]">
+                            📎 {attachments.length} attachment
+                            {attachments.length !== 1 ? "s" : ""}
+                          </span>
+                        ) : null;
+                      })()}
                       <div className="mt-2 text-[10px] text-[var(--muted-text)]">
                         Created:{" "}
                         {new Date(ticket.createdAt).toLocaleDateString(
@@ -386,50 +492,58 @@ export default function AdminSupportPage() {
                     <h4 className="text-base font-semibold text-[var(--foreground)]">
                       {t.subject}
                     </h4>
-                    <p className="mt-2 text-sm text-[var(--foreground)]/80 whitespace-pre-wrap">
-                      {t.message}
-                    </p>
+                    {(() => {
+                      const { cleanMessage, attachments: parsedAtts } =
+                        parseMessageAttachments(t.message, t.attachments);
+                      return (
+                        <>
+                          <p className="mt-2 text-sm text-[var(--foreground)]/80 whitespace-pre-wrap">
+                            {cleanMessage}
+                          </p>
 
-                    {/* Attachments */}
-                    {t.attachments && t.attachments.length > 0 && (
-                      <div className="mt-4">
-                        <p className="text-xs font-medium text-[var(--muted-text)] mb-2">
-                          Attachments ({t.attachments.length})
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {t.attachments.map((att, i) => {
-                            const fullUrl = resolveAttachmentUrl(att.url);
-                            const isImage =
-                              att.type === "image" ||
-                              att.mimeType?.startsWith("image/");
-                            return (
-                              <a
-                                key={i}
-                                href={fullUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-2 transition-colors hover:border-[var(--primary)]/30 block"
-                              >
-                                {isImage ? (
-                                  <img
-                                    src={fullUrl}
-                                    alt={att.name}
-                                    className="h-24 w-full rounded object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-24 w-full items-center justify-center rounded bg-[var(--surface-alt)]">
-                                    <span className="text-2xl">📄</span>
-                                  </div>
-                                )}
-                                <p className="mt-1.5 truncate text-[10px] text-[var(--muted-text)] group-hover:text-[var(--foreground)]">
-                                  {att.name}
-                                </p>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                          {/* Attachments */}
+                          {parsedAtts.length > 0 && (
+                            <div className="mt-4">
+                              <p className="text-xs font-medium text-[var(--muted-text)] mb-2">
+                                Attachments ({parsedAtts.length})
+                              </p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {parsedAtts.map((att, i) => {
+                                  const fullUrl = resolveAttachmentUrl(att.url);
+                                  const isImage =
+                                    att.type === "image" ||
+                                    att.mimeType?.startsWith("image/");
+                                  return (
+                                    <a
+                                      key={i}
+                                      href={fullUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="group rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-2 transition-colors hover:border-[var(--primary)]/30 block"
+                                    >
+                                      {isImage ? (
+                                        <img
+                                          src={fullUrl}
+                                          alt={att.name}
+                                          className="h-24 w-full rounded object-cover"
+                                        />
+                                      ) : (
+                                        <div className="flex h-24 w-full items-center justify-center rounded bg-[var(--surface-alt)]">
+                                          <span className="text-2xl">📄</span>
+                                        </div>
+                                      )}
+                                      <p className="mt-1.5 truncate text-[10px] text-[var(--muted-text)] group-hover:text-[var(--foreground)]">
+                                        {att.name}
+                                      </p>
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {/* Badges */}
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -441,7 +555,7 @@ export default function AdminSupportPage() {
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${statusColorFn(t.status)}`}
                       >
-                        {t.status}
+                        {statusLabel(t.status)}
                       </span>
                       <span className="rounded-full bg-purple-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-purple-300">
                         {t.category}
@@ -485,6 +599,95 @@ export default function AdminSupportPage() {
                     </div>
                   )}
 
+                  {/* Escalation Info */}
+                  {t.escalatedTo && (
+                    <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5">
+                      <h3 className="text-sm font-bold text-orange-400 mb-2">
+                        ESCALATION
+                      </h3>
+                      <div className="flex items-center gap-3 text-sm">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${statusColorFn(t.status)}`}
+                        >
+                          {statusLabel(t.status)}
+                        </span>
+                        <span className="text-[var(--muted-text)]">
+                          Escalated to{" "}
+                          <strong className="text-[var(--foreground)]">
+                            {t.escalatedTo}
+                          </strong>
+                        </span>
+                        {t.escalatedAt && (
+                          <span className="text-[10px] text-[var(--muted-text)]">
+                            {new Date(t.escalatedAt).toLocaleDateString(
+                              "en-GB",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Response History */}
+                  {t.responses && t.responses.length > 0 && (
+                    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface)] p-5">
+                      <h3 className="text-sm font-bold text-[var(--foreground)] mb-3">
+                        RESPONSE HISTORY
+                      </h3>
+                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {t.responses.map((resp) => (
+                          <div
+                            key={resp.id}
+                            className="rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-3"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                  resp.channel === "EMAIL"
+                                    ? "bg-blue-500/20 text-blue-300"
+                                    : "bg-green-500/20 text-green-300"
+                                }`}
+                              >
+                                {resp.channel === "EMAIL"
+                                  ? "✉️ Email"
+                                  : "💬 Chat"}
+                              </span>
+                              {resp.channel === "EMAIL" && (
+                                <span
+                                  className={`text-[10px] ${resp.emailSent ? "text-green-400" : "text-red-400"}`}
+                                >
+                                  {resp.emailSent ? "Delivered" : "Failed"}
+                                </span>
+                              )}
+                              <span className="ml-auto text-[10px] text-[var(--muted-text)]">
+                                {new Date(resp.createdAt).toLocaleDateString(
+                                  "en-GB",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-sm text-[var(--foreground)]/80 whitespace-pre-wrap">
+                              {resp.message}
+                            </p>
+                          </div>
+                        ))}
+                        <div ref={responseEndRef} />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface)] p-5">
                     <h3 className="text-sm font-bold text-[var(--foreground)] mb-3">
@@ -525,13 +728,61 @@ export default function AdminSupportPage() {
                       <button
                         onClick={() => {
                           setResponseText("");
+                          setResponseChannel("EMAIL");
                           setActiveModal("respond");
                         }}
                         className="flex items-center justify-center gap-2 rounded-lg bg-purple-500/20 px-3 py-2.5 text-xs font-medium text-purple-300 hover:bg-purple-500/30 transition-colors"
                       >
                         💬 Respond to User
                       </button>
+                      <button
+                        onClick={() => {
+                          setInternalNote("");
+                          setActiveModal("note");
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-lg bg-[var(--surface-alt)] px-3 py-2.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/10 transition-colors"
+                      >
+                        📝 Add Note
+                      </button>
                     </div>
+
+                    {/* Escalation Row */}
+                    {t.status !== "RESOLVED" && t.status !== "CLOSED" && (
+                      <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
+                        <p className="text-[10px] font-medium text-[var(--muted-text)] mb-2 uppercase">
+                          Escalate Ticket
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() =>
+                              handleStatusChange(t.id, "ESCALATED_KYC")
+                            }
+                            disabled={actionLoading === t.id}
+                            className="rounded-lg bg-orange-500/10 px-3 py-2 text-xs font-medium text-orange-300 hover:bg-orange-500/20 transition-colors disabled:opacity-50"
+                          >
+                            🔐 KYC Team
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(t.id, "ESCALATED_ADMIN")
+                            }
+                            disabled={actionLoading === t.id}
+                            className="rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                          >
+                            👑 Admin
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(t.id, "ESCALATED_BUG_TEAM")
+                            }
+                            disabled={actionLoading === t.id}
+                            className="rounded-lg bg-pink-500/10 px-3 py-2 text-xs font-medium text-pink-300 hover:bg-pink-500/20 transition-colors disabled:opacity-50"
+                          >
+                            🐛 Bug Team
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -590,6 +841,48 @@ export default function AdminSupportPage() {
                 <p className="mt-1 text-xs text-[var(--muted-text)]">
                   Send a response message to the user regarding this ticket.
                 </p>
+
+                {/* Channel Selector */}
+                <div className="mt-4">
+                  <p className="text-[10px] font-medium text-[var(--muted-text)] mb-2 uppercase">
+                    Response Channel
+                  </p>
+                  <div className="flex rounded-lg border border-[var(--border-color)] bg-[var(--background)] overflow-hidden">
+                    {[
+                      {
+                        value: "EMAIL" as const,
+                        label: "✉️ Email",
+                        desc: "Send branded email",
+                      },
+                      {
+                        value: "CHAT" as const,
+                        label: "💬 Chat",
+                        desc: "In-app message",
+                      },
+                      {
+                        value: "BOTH" as const,
+                        label: "📨 Both",
+                        desc: "Email + Chat",
+                      },
+                    ].map((ch) => (
+                      <button
+                        key={ch.value}
+                        onClick={() => setResponseChannel(ch.value)}
+                        className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+                          responseChannel === ch.value
+                            ? "bg-[var(--primary)] text-white"
+                            : "text-[var(--muted-text)] hover:bg-[var(--surface-alt)]"
+                        }`}
+                      >
+                        <span className="block">{ch.label}</span>
+                        <span className="block text-[9px] opacity-70 mt-0.5">
+                          {ch.desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <textarea
                   value={responseText}
                   onChange={(e) => setResponseText(e.target.value)}
@@ -609,7 +902,49 @@ export default function AdminSupportPage() {
                     disabled={!responseText.trim() || submitting}
                     className="rounded-lg bg-purple-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   >
-                    {submitting ? "Sending..." : "Send Response"}
+                    {submitting
+                      ? "Sending..."
+                      : responseChannel === "BOTH"
+                        ? "Send via Email & Chat"
+                        : responseChannel === "CHAT"
+                          ? "Send via Chat"
+                          : "Send via Email"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Internal Note Modal */}
+          {activeModal === "note" && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--surface)] p-6 shadow-xl">
+                <h2 className="text-lg font-bold text-[var(--foreground)]">
+                  Add Internal Note
+                </h2>
+                <p className="mt-1 text-xs text-[var(--muted-text)]">
+                  This note is visible to admins only, not sent to the user.
+                </p>
+                <textarea
+                  value={internalNote}
+                  onChange={(e) => setInternalNote(e.target.value)}
+                  placeholder="Write an internal note..."
+                  rows={4}
+                  className="mt-4 w-full rounded-lg border border-[var(--border-color)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 resize-none"
+                />
+                <div className="mt-4 flex justify-end gap-3">
+                  <button
+                    onClick={closeModal}
+                    className="rounded-lg border border-[var(--border-color)] bg-[var(--surface-alt)] px-4 py-2 text-sm font-medium text-[var(--foreground)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddNote}
+                    disabled={!internalNote.trim() || submitting}
+                    className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {submitting ? "Saving..." : "Save Note"}
                   </button>
                 </div>
               </div>

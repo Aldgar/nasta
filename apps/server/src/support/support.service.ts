@@ -6,11 +6,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AdminCapability } from '@prisma/client';
+import {
+  AdminCapability,
+  SupportStatus,
+  ResponseChannel,
+} from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailTranslationsService } from '../notifications/email-translations.service';
 
-type SupportStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 type SupportCategory =
   | 'GENERAL'
   | 'TECHNICAL'
@@ -664,6 +667,9 @@ export class SupportService {
             lastName: true,
           },
         },
+        responses: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -758,21 +764,42 @@ export class SupportService {
       );
     }
 
+    // Build update data
+    const data: Record<string, unknown> = {
+      status,
+      adminNotes: notes || ticket.adminNotes,
+    };
+
+    // Handle escalation statuses
+    const escalationMap: Record<string, string> = {
+      ESCALATED_KYC: 'KYC',
+      ESCALATED_ADMIN: 'ADMIN',
+      ESCALATED_BUG_TEAM: 'BUG_TEAM',
+    };
+
+    if (escalationMap[status]) {
+      data.escalatedTo = escalationMap[status];
+      data.escalatedAt = new Date();
+      data.escalatedBy = adminId;
+    }
+
     const updated = await this.prisma.supportTicket.update({
       where: { id: ticketId },
-      data: {
-        status,
-        adminNotes: notes || ticket.adminNotes,
-      },
+      data,
     });
 
     return { ticket: updated, message: 'Ticket status updated successfully' };
   }
 
   /**
-   * Respond to a support ticket (send email to user)
+   * Respond to a support ticket via email, chat, or both
    */
-  async respondToTicket(ticketId: string, adminId: string, response: string) {
+  async respondToTicket(
+    ticketId: string,
+    adminId: string,
+    response: string,
+    channel: 'EMAIL' | 'CHAT' | 'BOTH' = 'EMAIL',
+  ) {
     const ticket = await this.getTicket(ticketId);
 
     // Get user email
@@ -782,9 +809,9 @@ export class SupportService {
         ticket.user.email
       : ticket.name || 'there';
 
-    if (!userEmail) {
+    if (!userEmail && (channel === 'EMAIL' || channel === 'BOTH')) {
       throw new BadRequestException(
-        'Cannot respond to ticket: no email address found',
+        'Cannot send email: no email address found',
       );
     }
 
@@ -802,74 +829,180 @@ export class SupportService {
       ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() || admin.email
       : 'Support Team';
 
-    // Send response email
-    try {
-      const userId = ticket.userId || undefined;
-      const t = await this.emailTranslations.getTranslatorForUser(userId);
-      const language = await this.emailTranslations.getUserLanguage(userId);
+    let emailSent = false;
 
-      const emailSubject = t('email.support.responseSubject', {
-        subject: ticket.subject,
-        ticketNumber: ticket.ticketNumber,
-      });
-      const emailText = t('email.support.responseText', {
-        userName,
-        ticketNumber: ticket.ticketNumber,
-        response,
-        adminName,
-      });
+    // Send email if channel is EMAIL or BOTH
+    if ((channel === 'EMAIL' || channel === 'BOTH') && userEmail) {
+      try {
+        const userId = ticket.userId || undefined;
+        const t = await this.emailTranslations.getTranslatorForUser(userId);
+        const language = await this.emailTranslations.getUserLanguage(userId);
 
-      const emailHtml = `
-        <!DOCTYPE html>
-        <html lang="${language}">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${t('email.support.responseTitle')}</title>
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #B8A88A; background-color: #080F1E; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #C9963F; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: #F5E6C8; margin: 0; font-size: 28px;">${t('email.support.responseHeader')}</h1>
-          </div>
-          <div style="background: #0E1B32; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #1E3048; border-top: none;">
-            <p style="font-size: 16px; margin-bottom: 20px;">${t('email.support.greeting', { userName })}</p>
-            <p style="font-size: 16px; margin-bottom: 20px;">${t('email.support.responseThankYou')}</p>
-            
-            <div style="background: #0D1A30; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C9963F;">
-              <p style="margin: 10px 0; color: #8B7A5E; font-size: 14px;"><strong>${t('email.support.ticketNumber')}:</strong> ${ticket.ticketNumber}</p>
-              <p style="margin: 10px 0; color: #8B7A5E; font-size: 14px;"><strong>${t('email.support.subject')}:</strong> ${ticket.subject}</p>
+        const emailSubject = t('email.support.responseSubject', {
+          subject: ticket.subject,
+          ticketNumber: ticket.ticketNumber,
+        });
+        const emailText = t('email.support.responseText', {
+          userName,
+          ticketNumber: ticket.ticketNumber,
+          response,
+          adminName,
+        });
+
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html lang="${language}">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${t('email.support.responseTitle')}</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #B8A88A; background-color: #080F1E; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #C9963F; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #F5E6C8; margin: 0; font-size: 28px;">${t('email.support.responseHeader')}</h1>
             </div>
-            
-            <div style="background: #0D1A30; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="white-space: pre-wrap; font-size: 16px; line-height: 1.8;">${response.replace(/\n/g, '<br>')}</p>
+            <div style="background: #0E1B32; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #1E3048; border-top: none;">
+              <p style="font-size: 16px; margin-bottom: 20px;">${t('email.support.greeting', { userName })}</p>
+              <p style="font-size: 16px; margin-bottom: 20px;">${t('email.support.responseThankYou')}</p>
+              
+              <div style="background: #0D1A30; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C9963F;">
+                <p style="margin: 10px 0; color: #8B7A5E; font-size: 14px;"><strong>${t('email.support.ticketNumber')}:</strong> ${ticket.ticketNumber}</p>
+                <p style="margin: 10px 0; color: #8B7A5E; font-size: 14px;"><strong>${t('email.support.subject')}:</strong> ${ticket.subject}</p>
+              </div>
+              
+              <div style="background: #0D1A30; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="white-space: pre-wrap; font-size: 16px; line-height: 1.8;">${response.replace(/\n/g, '<br>')}</p>
+              </div>
+              
+              <p style="font-size: 16px; margin-top: 20px;">${t('email.support.responseFurtherQuestions', { ticketNumber: ticket.ticketNumber })}</p>
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #1E3048;">
+                <p style="color: #8B7A5E; font-size: 14px; margin: 0;">${t('email.support.bestRegards')}<br><strong style="color: #C9963F;">${adminName}</strong><br>${t('email.support.supportTeam')}</p>
+              </div>
             </div>
-            
-            <p style="font-size: 16px; margin-top: 20px;">${t('email.support.responseFurtherQuestions', { ticketNumber: ticket.ticketNumber })}</p>
-            
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #1E3048;">
-              <p style="color: #8B7A5E; font-size: 14px; margin: 0;">${t('email.support.bestRegards')}<br><strong style="color: #C9963F;">${adminName}</strong><br>${t('email.support.supportTeam')}</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+          </body>
+          </html>
+        `;
 
-      await this.notifications.sendEmail(
-        userEmail,
-        emailSubject,
-        emailText,
-        emailHtml,
-      );
-      this.logger.log(
-        `Support ticket response email sent to ${userEmail} for ticket ${ticket.ticketNumber}`,
-      );
-
-      return { success: true, message: 'Response sent successfully' };
-    } catch (emailError) {
-      this.logger.error(
-        `Failed to send support ticket response email: ${emailError}`,
-      );
-      throw new BadRequestException('Failed to send response email');
+        await this.notifications.sendEmail(
+          userEmail,
+          emailSubject,
+          emailText,
+          emailHtml,
+        );
+        emailSent = true;
+        this.logger.log(
+          `Support ticket response email sent to ${userEmail} for ticket ${ticket.ticketNumber}`,
+        );
+      } catch (emailError) {
+        this.logger.error(
+          `Failed to send support ticket response email: ${emailError}`,
+        );
+        if (channel === 'EMAIL') {
+          throw new BadRequestException('Failed to send response email');
+        }
+      }
     }
+
+    // Send chat message if channel is CHAT or BOTH
+    if (channel === 'CHAT' || channel === 'BOTH') {
+      if (ticket.userId) {
+        // Ensure we have a conversation linked to this ticket
+        let conversationId = ticket.conversationId;
+        if (!conversationId) {
+          // Create a support conversation
+          const conversation = await this.prisma.conversation.create({
+            data: {
+              type: 'SUPPORT',
+              title: `Support: ${ticket.subject}`,
+              createdById: adminId,
+            },
+          });
+          conversationId = conversation.id;
+
+          // Add participants
+          const participantData = [
+            {
+              conversationId: conversation.id,
+              userId: adminId,
+              role: 'ADMIN' as const,
+            },
+            {
+              conversationId: conversation.id,
+              userId: ticket.userId,
+              role: 'JOB_SEEKER' as const,
+            },
+          ];
+
+          await this.prisma.conversationParticipant.createMany({
+            data: participantData,
+          });
+
+          // Link conversation to ticket
+          await this.prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: { conversationId: conversation.id },
+          });
+        }
+
+        // Send the message in the conversation
+        await this.prisma.message.create({
+          data: {
+            conversationId,
+            senderUserId: adminId,
+            senderRole: 'ADMIN',
+            body: response,
+            payload: {
+              ticketId,
+              ticketNumber: ticket.ticketNumber,
+              isTicketResponse: true,
+            },
+          },
+        });
+
+        // Touch conversation timestamp
+        await this.prisma.conversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
+
+        // Send push notification
+        await this.notifications.createNotification({
+          userId: ticket.userId,
+          type: 'JOB_MESSAGE',
+          title: 'Support Response',
+          body:
+            response.length > 100
+              ? response.substring(0, 100) + '...'
+              : response,
+          payload: {
+            conversationId,
+            ticketId,
+          },
+        });
+      }
+    }
+
+    // Log the response
+    await this.prisma.ticketResponse.create({
+      data: {
+        ticketId,
+        adminId,
+        channel:
+          channel === 'BOTH' ? ResponseChannel.EMAIL : ResponseChannel[channel],
+        message: response,
+        emailSent,
+      },
+    });
+
+    // Update ticket status to WAITING_USER_RESPONSE if still open/in-progress
+    if (ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS') {
+      await this.prisma.supportTicket.update({
+        where: { id: ticketId },
+        data: { status: 'WAITING_USER_RESPONSE' },
+      });
+    }
+
+    return { success: true, message: 'Response sent successfully', emailSent };
   }
 }

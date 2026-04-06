@@ -835,36 +835,70 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
     if (!user.phone) throw new BadRequestException('Phone number is required');
-    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 10); // 10 min
+
+    // Use Vonage Verify v2 API – it handles OTP generation and SMS delivery
+    const result = await this.notifications.requestVonageVerify(
+      user.phone,
+      userId,
+    );
+
+    if (result) {
+      // Store the Vonage request_id as the token so we can check against it later
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 10); // 10 min
+      await this.verificationTokens.create({
+        data: {
+          userId,
+          type: 'PHONE',
+          token: result.requestId,
+          expiresAt,
+        },
+      });
+      return { success: true, message: 'OTP sent to phone' };
+    }
+
+    // Fallback: generate our own code (for dev/testing when Vonage is unavailable)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 10);
     await this.verificationTokens.create({
-      data: { userId, type: 'PHONE', token: code, expiresAt },
+      data: { userId, type: 'PHONE', token: `local:${code}`, expiresAt },
     });
-    // Dev: log OTP (replace with SMS provider later)
     await this.notifications.emitPhoneOtp({ userId, code });
     return { success: true, message: 'OTP sent to phone' };
   }
 
   async verifyPhone(userId: string, code: string) {
-    const rec = await this.verificationTokens.findUnique({
-      where: { token: code },
+    // Find the latest unconsumed PHONE token
+    const prismaAny = this.prisma as any;
+    const rec = await prismaAny.verificationToken.findFirst({
+      where: { userId, type: 'PHONE', consumed: false },
+      orderBy: { expiresAt: 'desc' },
     });
-    if (
-      !rec ||
-      rec.userId !== userId ||
-      rec.type !== 'PHONE' ||
-      rec.consumed ||
-      (rec.expiresAt && rec.expiresAt < new Date())
-    ) {
+    if (!rec || (rec.expiresAt && rec.expiresAt < new Date())) {
+      throw new BadRequestException(
+        'No active verification request. Please request a new code.',
+      );
+    }
+
+    let valid = false;
+    if (rec.token.startsWith('local:')) {
+      // Fallback: code was generated locally
+      valid = rec.token === `local:${code}`;
+    } else {
+      // Vonage Verify v2: check against their API
+      valid = await this.notifications.checkVonageVerify(rec.token, code);
+    }
+
+    if (!valid) {
       throw new BadRequestException('Invalid or expired code');
     }
+
     // mark token consumed and set user.phoneVerifiedAt
     await this.prisma.user.update({
       where: { id: userId },
       data: { phoneVerifiedAt: new Date() },
     });
     await this.verificationTokens.update({
-      where: { token: code },
+      where: { token: rec.token },
       data: { consumed: true },
     });
     return { success: true, message: 'Phone verified' };

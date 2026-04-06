@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { api } from "../../../../lib/api";
+import { useRouter } from "next/navigation";
+import { api, API_BASE } from "../../../../lib/api";
 
 interface User {
   id: string;
@@ -72,6 +73,77 @@ interface UserDetails {
     status: string;
     createdAt: string;
   }>;
+  kycVerifications?: Array<{
+    id: string;
+    status: string;
+    verificationType: string;
+    documentType?: string;
+    documentNumber?: string;
+    documentCountry?: string;
+    documentExpiry?: string;
+    documentFrontUrl?: string;
+    documentBackUrl?: string;
+    selfieUrl?: string;
+    confidence?: number;
+    faceMatch?: number;
+    livenessCheck?: boolean;
+    extractedData?: Record<string, unknown>;
+    extractedBy?: string;
+    extractedAt?: string;
+    certifications?: Array<{
+      url: string;
+      status: string;
+      uploadedAt: string;
+    }>;
+    cvDocuments?: Array<{ url: string; status: string; uploadedAt: string }>;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  vehicles?: Array<{
+    id: string;
+    vehicleType: string;
+    otherTypeSpecification?: string;
+    make: string;
+    model: string;
+    year: number;
+    color?: string;
+    licensePlate: string;
+    capacity?: number;
+    photoFrontUrl?: string;
+    photoBackUrl?: string;
+    photoLeftUrl?: string;
+    photoRightUrl?: string;
+    vehicleLicenseUrl?: string;
+    status: string;
+    adminNotes?: string;
+    reviewedAt?: string;
+    createdAt: string;
+  }>;
+  supportTickets?: Array<{
+    id: string;
+    ticketNumber?: string;
+    subject: string;
+    message: string;
+    category: string;
+    status: string;
+    priority: string;
+    assignedTo?: string;
+    assignedAt?: string;
+    resolvedBy?: string;
+    resolvedAt?: string;
+    resolution?: string;
+    adminNotes?: string;
+    conversationId?: string;
+    createdAt: string;
+    updatedAt: string;
+    responses?: Array<{
+      id: string;
+      message: string;
+      channel: string;
+      createdAt: string;
+      adminId: string;
+    }>;
+  }>;
   accountStats?: {
     totalServiceProviders: number;
     totalThisMonth: number;
@@ -95,6 +167,7 @@ interface UserAction {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"providers" | "employers">(
     "providers",
   );
@@ -162,7 +235,35 @@ export default function AdminUsersPage() {
       api<UserDetails>(`/admin/users/${userId}`),
       api<{ actions: UserAction[] }>(`/admin/users/${userId}/actions`),
     ]);
-    if (detailRes.data) setUserDetails(detailRes.data);
+    if (detailRes.data) {
+      console.log(
+        "[USER-DETAIL] Full API response keys:",
+        Object.keys(detailRes.data),
+      );
+      console.log(
+        "[USER-DETAIL] kycVerifications:",
+        detailRes.data.kycVerifications?.length,
+        detailRes.data.kycVerifications,
+      );
+      console.log(
+        "[USER-DETAIL] vehicles:",
+        detailRes.data.vehicles?.length,
+        detailRes.data.vehicles,
+      );
+      console.log(
+        "[USER-DETAIL] supportTickets:",
+        detailRes.data.supportTickets?.length,
+        detailRes.data.supportTickets,
+      );
+      setUserDetails(detailRes.data);
+    } else {
+      console.log(
+        "[USER-DETAIL] API error:",
+        detailRes.error,
+        "status:",
+        detailRes.status,
+      );
+    }
     if (actionsRes.data) setUserActions(actionsRes.data.actions || []);
     setLoadingDetail(false);
     setLoadingActions(false);
@@ -269,7 +370,71 @@ export default function AdminUsersPage() {
       month: "short",
       year: "numeric",
     });
+
+  const resolveUrl = (raw?: string | null): string => {
+    if (!raw) return "";
+    if (raw.startsWith("http")) return raw;
+    const base = API_BASE.replace(/\/+$/, "");
+    const p = raw.startsWith("/") ? raw.slice(1) : raw;
+    return `${base}/${p}`;
+  };
   const currentUsers = activeTab === "providers" ? providers : employers;
+
+  // Expanded section states
+  const [expandedKycId, setExpandedKycId] = useState<string | null>(null);
+  const [expandedVehicleId, setExpandedVehicleId] = useState<string | null>(
+    null,
+  );
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+  const [imageModal, setImageModal] = useState<string | null>(null);
+
+  // Support ticket action states
+  const [ticketResponseText, setTicketResponseText] = useState("");
+  const [ticketResolveText, setTicketResolveText] = useState("");
+  const [ticketActionLoading, setTicketActionLoading] = useState(false);
+  const [ticketStatusSelect, setTicketStatusSelect] = useState("");
+
+  const handleAssignTicket = async (ticketId: string) => {
+    setTicketActionLoading(true);
+    await api(`/support/admin/tickets/${ticketId}/assign`, { method: "POST" });
+    setTicketActionLoading(false);
+    if (selectedUserId) fetchUserDetail(selectedUserId);
+  };
+
+  const handleRespondTicket = async (ticketId: string) => {
+    if (!ticketResponseText.trim()) return;
+    setTicketActionLoading(true);
+    await api(`/support/admin/tickets/${ticketId}/respond`, {
+      method: "POST",
+      body: { response: ticketResponseText.trim(), channel: "EMAIL" },
+    });
+    setTicketResponseText("");
+    setTicketActionLoading(false);
+    if (selectedUserId) fetchUserDetail(selectedUserId);
+  };
+
+  const handleResolveTicket = async (ticketId: string) => {
+    if (!ticketResolveText.trim()) return;
+    setTicketActionLoading(true);
+    await api(`/support/admin/tickets/${ticketId}/resolve`, {
+      method: "POST",
+      body: { resolution: ticketResolveText.trim() },
+    });
+    setTicketResolveText("");
+    setTicketActionLoading(false);
+    if (selectedUserId) fetchUserDetail(selectedUserId);
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: string) => {
+    setTicketActionLoading(true);
+    await api(`/support/admin/tickets/${ticketId}/status`, {
+      method: "POST",
+      body: { status },
+    });
+    setTicketStatusSelect("");
+    setTicketActionLoading(false);
+    if (selectedUserId) fetchUserDetail(selectedUserId);
+  };
 
   const VerificationBadge = ({
     verified,
@@ -566,6 +731,1471 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
+              {/* === KYC VERIFICATIONS (Service Providers only) === */}
+              {userDetails.user.role === "JOB_SEEKER" && (
+                <div
+                  style={{
+                    border: "3px solid #a855f7",
+                    borderRadius: 12,
+                    padding: 20,
+                    marginBottom: 12,
+                    background: "rgba(168,85,247,0.08)",
+                  }}
+                >
+                  <h3
+                    style={{
+                      color: "#a855f7",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                      marginBottom: 8,
+                    }}
+                  >
+                    KYC VERIFICATIONS (
+                    {userDetails.kycVerifications?.length ?? 0})
+                  </h3>
+                  {(userDetails.kycVerifications ?? []).length > 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      {(userDetails.kycVerifications ?? []).map((v: any) => {
+                        const isExpanded = expandedKycId === v.id;
+                        const ext = v.extractedData || {};
+                        return (
+                          <div
+                            key={v.id}
+                            style={{
+                              background: "rgba(0,0,0,0.2)",
+                              borderRadius: 8,
+                              overflow: "hidden",
+                            }}
+                          >
+                            {/* Header row - clickable */}
+                            <div
+                              onClick={() =>
+                                setExpandedKycId(isExpanded ? null : v.id)
+                              }
+                              style={{
+                                padding: 12,
+                                cursor: "pointer",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    color: "var(--foreground)",
+                                  }}
+                                >
+                                  {v.verificationType?.replace(/_/g, " ") ||
+                                    "ID Verification"}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color:
+                                      v.status === "VERIFIED"
+                                        ? "#4ade80"
+                                        : v.status === "PENDING" ||
+                                            v.status === "MANUAL_REVIEW"
+                                          ? "#facc15"
+                                          : "#f87171",
+                                  }}
+                                >
+                                  {v.status?.replace(/_/g, " ")}
+                                </span>
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--muted-text)",
+                                }}
+                              >
+                                {isExpanded ? "▲" : "▼"}
+                              </span>
+                            </div>
+
+                            {/* Summary row */}
+                            <div
+                              style={{
+                                padding: "0 12px 8px",
+                                fontSize: 10,
+                                color: "var(--muted-text)",
+                                display: "flex",
+                                gap: 12,
+                              }}
+                            >
+                              {v.documentCountry && (
+                                <span>🌍 {v.documentCountry}</span>
+                              )}
+                              {v.documentNumber && (
+                                <span>📄 {v.documentNumber}</span>
+                              )}
+                              {v.documentExpiry && (
+                                <span>
+                                  📅 Expires{" "}
+                                  {new Date(
+                                    v.documentExpiry,
+                                  ).toLocaleDateString()}
+                                </span>
+                              )}
+                              <span>Submitted {formatDate(v.createdAt)}</span>
+                            </div>
+
+                            {/* Expanded details */}
+                            {isExpanded && (
+                              <div
+                                style={{
+                                  padding: "0 12px 16px",
+                                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                                }}
+                              >
+                                {/* Document Images */}
+                                {(v.documentFrontUrl ||
+                                  v.documentBackUrl ||
+                                  v.selfieUrl) && (
+                                  <div style={{ marginTop: 12 }}>
+                                    <p
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#a855f7",
+                                        marginBottom: 8,
+                                      }}
+                                    >
+                                      Document Images
+                                    </p>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      {[
+                                        {
+                                          url: v.documentFrontUrl,
+                                          label: "Front",
+                                        },
+                                        {
+                                          url: v.documentBackUrl,
+                                          label: "Back",
+                                        },
+                                        { url: v.selfieUrl, label: "Selfie" },
+                                      ]
+                                        .filter((d) => d.url)
+                                        .map((d) => (
+                                          <div
+                                            key={d.label}
+                                            onClick={() =>
+                                              setImageModal(resolveUrl(d.url))
+                                            }
+                                            style={{
+                                              cursor: "pointer",
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            <img
+                                              src={resolveUrl(d.url)}
+                                              alt={d.label}
+                                              style={{
+                                                width: 120,
+                                                height: 80,
+                                                objectFit: "cover",
+                                                borderRadius: 6,
+                                                border:
+                                                  "1px solid rgba(255,255,255,0.1)",
+                                              }}
+                                            />
+                                            <span
+                                              style={{
+                                                fontSize: 9,
+                                                color: "var(--muted-text)",
+                                              }}
+                                            >
+                                              {d.label}
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Verification Metrics */}
+                                <div
+                                  style={{
+                                    marginTop: 12,
+                                    display: "flex",
+                                    gap: 16,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {v.confidence != null && (
+                                    <div>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          color: "var(--muted-text)",
+                                          display: "block",
+                                        }}
+                                      >
+                                        Confidence
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 13,
+                                          fontWeight: 700,
+                                          color:
+                                            v.confidence > 0.8
+                                              ? "#4ade80"
+                                              : "#facc15",
+                                        }}
+                                      >
+                                        {(v.confidence * 100).toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  )}
+                                  {v.faceMatch != null && (
+                                    <div>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          color: "var(--muted-text)",
+                                          display: "block",
+                                        }}
+                                      >
+                                        Face Match
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 13,
+                                          fontWeight: 700,
+                                          color:
+                                            v.faceMatch > 0.8
+                                              ? "#4ade80"
+                                              : "#facc15",
+                                        }}
+                                      >
+                                        {(v.faceMatch * 100).toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  )}
+                                  {v.livenessCheck != null && (
+                                    <div>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          color: "var(--muted-text)",
+                                          display: "block",
+                                        }}
+                                      >
+                                        Liveness
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 13,
+                                          fontWeight: 700,
+                                          color: v.livenessCheck
+                                            ? "#4ade80"
+                                            : "#f87171",
+                                        }}
+                                      >
+                                        {v.livenessCheck ? "Pass" : "Fail"}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Extracted Data */}
+                                {Object.keys(ext).length > 0 && (
+                                  <div style={{ marginTop: 12 }}>
+                                    <p
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#a855f7",
+                                        marginBottom: 8,
+                                      }}
+                                    >
+                                      Extracted / Scanned Data
+                                    </p>
+                                    <div
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: "6px 16px",
+                                      }}
+                                    >
+                                      {[
+                                        {
+                                          label: "Legal Name",
+                                          val: [
+                                            ext.legalFirstName,
+                                            ext.legalLastName,
+                                          ]
+                                            .filter(Boolean)
+                                            .join(" "),
+                                        },
+                                        {
+                                          label: "Date of Birth",
+                                          val: ext.dateOfBirth,
+                                        },
+                                        { label: "Gender", val: ext.gender },
+                                        {
+                                          label: "Nationality",
+                                          val: ext.nationality,
+                                        },
+                                        {
+                                          label: "Place of Birth",
+                                          val: ext.placeOfBirth,
+                                        },
+                                        {
+                                          label: "Document Type",
+                                          val:
+                                            v.documentType || ext.documentType,
+                                        },
+                                        {
+                                          label: "Document Number",
+                                          val:
+                                            v.documentNumber ||
+                                            ext.documentNumber,
+                                        },
+                                        {
+                                          label: "Issue Date",
+                                          val: ext.issueDate,
+                                        },
+                                        {
+                                          label: "Expiry Date",
+                                          val: ext.expiryDate,
+                                        },
+                                        {
+                                          label: "Issuing Country",
+                                          val: ext.issuingCountry,
+                                        },
+                                        {
+                                          label: "Issuing Authority",
+                                          val: ext.issuingAuthority,
+                                        },
+                                        {
+                                          label: "Citizenship",
+                                          val: ext.citizenshipCountry,
+                                        },
+                                        {
+                                          label: "EU Citizen",
+                                          val:
+                                            ext.isEuCitizen != null
+                                              ? ext.isEuCitizen
+                                                ? "Yes"
+                                                : "No"
+                                              : undefined,
+                                        },
+                                        {
+                                          label: "Work Authorization",
+                                          val: ext.workAuthorization,
+                                        },
+                                        {
+                                          label: "BSN / Tax Number",
+                                          val: ext.bsnNumber,
+                                        },
+                                        { label: "Address", val: ext.address },
+                                      ]
+                                        .filter((f) => f.val)
+                                        .map((f) => (
+                                          <div key={f.label}>
+                                            <span
+                                              style={{
+                                                fontSize: 9,
+                                                color: "var(--muted-text)",
+                                              }}
+                                            >
+                                              {f.label}
+                                            </span>
+                                            <p
+                                              style={{
+                                                fontSize: 11,
+                                                color: "var(--foreground)",
+                                                fontWeight: 500,
+                                              }}
+                                            >
+                                              {String(f.val)}
+                                            </p>
+                                          </div>
+                                        ))}
+                                    </div>
+                                    {ext.adminNotes && (
+                                      <p
+                                        style={{
+                                          marginTop: 8,
+                                          fontSize: 10,
+                                          color: "#fbbf24",
+                                        }}
+                                      >
+                                        Admin Notes: {String(ext.adminNotes)}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Certifications */}
+                                {v.certifications &&
+                                  (v.certifications as any[]).length > 0 && (
+                                    <div style={{ marginTop: 12 }}>
+                                      <p
+                                        style={{
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          color: "#a855f7",
+                                          marginBottom: 6,
+                                        }}
+                                      >
+                                        Certifications (
+                                        {(v.certifications as any[]).length})
+                                      </p>
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          gap: 6,
+                                          flexWrap: "wrap",
+                                        }}
+                                      >
+                                        {(v.certifications as any[]).map(
+                                          (c: any, i: number) => (
+                                            <a
+                                              key={i}
+                                              href={resolveUrl(c.url)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              style={{
+                                                fontSize: 10,
+                                                padding: "4px 10px",
+                                                borderRadius: 6,
+                                                background:
+                                                  "rgba(168,85,247,0.15)",
+                                                color: "#c084fc",
+                                                textDecoration: "none",
+                                              }}
+                                            >
+                                              📎 Cert #{i + 1} ({c.status})
+                                            </a>
+                                          ),
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {/* CV Documents */}
+                                {v.cvDocuments &&
+                                  (v.cvDocuments as any[]).length > 0 && (
+                                    <div style={{ marginTop: 12 }}>
+                                      <p
+                                        style={{
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          color: "#a855f7",
+                                          marginBottom: 6,
+                                        }}
+                                      >
+                                        CV Documents (
+                                        {(v.cvDocuments as any[]).length})
+                                      </p>
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          gap: 6,
+                                          flexWrap: "wrap",
+                                        }}
+                                      >
+                                        {(v.cvDocuments as any[]).map(
+                                          (c: any, i: number) => (
+                                            <a
+                                              key={i}
+                                              href={resolveUrl(c.url)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              style={{
+                                                fontSize: 10,
+                                                padding: "4px 10px",
+                                                borderRadius: 6,
+                                                background:
+                                                  "rgba(168,85,247,0.15)",
+                                                color: "#c084fc",
+                                                textDecoration: "none",
+                                              }}
+                                            >
+                                              📄 CV #{i + 1} ({c.status})
+                                            </a>
+                                          ),
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {/* Link to full review */}
+                                <a
+                                  href={`/dashboard/admin/kyc/${v.id}`}
+                                  style={{
+                                    display: "inline-block",
+                                    marginTop: 14,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: "#a855f7",
+                                    textDecoration: "underline",
+                                  }}
+                                >
+                                  Open Full KYC Review →
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: "var(--muted-text)" }}>
+                      No KYC verifications found
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* === VEHICLES === */}
+              <div
+                style={{
+                  border: "3px solid #3b82f6",
+                  borderRadius: 12,
+                  padding: 20,
+                  marginBottom: 12,
+                  background: "rgba(59,130,246,0.08)",
+                }}
+              >
+                <h3
+                  style={{
+                    color: "#3b82f6",
+                    fontWeight: "bold",
+                    fontSize: 14,
+                    marginBottom: 8,
+                  }}
+                >
+                  VEHICLES ({userDetails.vehicles?.length ?? 0})
+                </h3>
+                {(userDetails.vehicles ?? []).length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    {(userDetails.vehicles ?? []).map((v: any) => {
+                      const isExpanded = expandedVehicleId === v.id;
+                      const photos = [
+                        { url: v.photoFrontUrl, label: "Front" },
+                        { url: v.photoBackUrl, label: "Back" },
+                        { url: v.photoLeftUrl, label: "Left" },
+                        { url: v.photoRightUrl, label: "Right" },
+                        { url: v.vehicleLicenseUrl, label: "License" },
+                      ].filter((p) => p.url);
+                      return (
+                        <div
+                          key={v.id}
+                          style={{
+                            background: "rgba(0,0,0,0.2)",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                          }}
+                        >
+                          {/* Header row - clickable */}
+                          <div
+                            onClick={() =>
+                              setExpandedVehicleId(isExpanded ? null : v.id)
+                            }
+                            style={{
+                              padding: 12,
+                              cursor: "pointer",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: "var(--foreground)",
+                                }}
+                              >
+                                {v.year} {v.make} {v.model}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color:
+                                    v.status === "VERIFIED"
+                                      ? "#4ade80"
+                                      : v.status === "PENDING"
+                                        ? "#facc15"
+                                        : "#f87171",
+                                }}
+                              >
+                                {v.status}
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "var(--muted-text)",
+                              }}
+                            >
+                              {isExpanded ? "▲" : "▼"}
+                            </span>
+                          </div>
+
+                          {/* Summary row */}
+                          <div
+                            style={{
+                              padding: "0 12px 8px",
+                              fontSize: 10,
+                              color: "var(--muted-text)",
+                              display: "flex",
+                              gap: 12,
+                            }}
+                          >
+                            <span>🚗 {v.vehicleType}</span>
+                            <span>🔢 {v.licensePlate}</span>
+                            {v.color && <span>🎨 {v.color}</span>}
+                            <span>Added {formatDate(v.createdAt)}</span>
+                          </div>
+
+                          {/* Expanded details */}
+                          {isExpanded && (
+                            <div
+                              style={{
+                                padding: "0 12px 16px",
+                                borderTop: "1px solid rgba(255,255,255,0.05)",
+                              }}
+                            >
+                              {/* Vehicle Details Grid */}
+                              <div
+                                style={{
+                                  marginTop: 12,
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr 1fr",
+                                  gap: "8px 16px",
+                                }}
+                              >
+                                {[
+                                  {
+                                    label: "Type",
+                                    val:
+                                      v.vehicleType === "OTHER"
+                                        ? v.otherTypeSpecification || "Other"
+                                        : v.vehicleType,
+                                  },
+                                  {
+                                    label: "Make",
+                                    val: v.make,
+                                  },
+                                  {
+                                    label: "Model",
+                                    val: v.model,
+                                  },
+                                  {
+                                    label: "Year",
+                                    val: v.year,
+                                  },
+                                  {
+                                    label: "Color",
+                                    val: v.color,
+                                  },
+                                  {
+                                    label: "License Plate",
+                                    val: v.licensePlate,
+                                  },
+                                  {
+                                    label: "Capacity",
+                                    val: v.capacity,
+                                  },
+                                  {
+                                    label: "Status",
+                                    val: v.status,
+                                  },
+                                  {
+                                    label: "Reviewed",
+                                    val: v.reviewedAt
+                                      ? formatDate(v.reviewedAt)
+                                      : "Not yet",
+                                  },
+                                ]
+                                  .filter((f) => f.val != null)
+                                  .map((f) => (
+                                    <div key={f.label}>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          color: "var(--muted-text)",
+                                        }}
+                                      >
+                                        {f.label}
+                                      </span>
+                                      <p
+                                        style={{
+                                          fontSize: 11,
+                                          color: "var(--foreground)",
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {String(f.val)}
+                                      </p>
+                                    </div>
+                                  ))}
+                              </div>
+
+                              {v.adminNotes && (
+                                <p
+                                  style={{
+                                    marginTop: 10,
+                                    fontSize: 10,
+                                    color: "#fbbf24",
+                                  }}
+                                >
+                                  Admin Notes: {v.adminNotes}
+                                </p>
+                              )}
+
+                              {/* Photo Gallery */}
+                              {photos.length > 0 && (
+                                <div style={{ marginTop: 12 }}>
+                                  <p
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      color: "#3b82f6",
+                                      marginBottom: 8,
+                                    }}
+                                  >
+                                    Photos ({photos.length})
+                                  </p>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 8,
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    {photos.map((p) => (
+                                      <div
+                                        key={p.label}
+                                        onClick={() =>
+                                          setImageModal(resolveUrl(p.url))
+                                        }
+                                        style={{
+                                          cursor: "pointer",
+                                          textAlign: "center",
+                                        }}
+                                      >
+                                        <img
+                                          src={resolveUrl(p.url)}
+                                          alt={p.label}
+                                          style={{
+                                            width: 140,
+                                            height: 100,
+                                            objectFit: "cover",
+                                            borderRadius: 6,
+                                            border:
+                                              "1px solid rgba(255,255,255,0.1)",
+                                          }}
+                                        />
+                                        <span
+                                          style={{
+                                            fontSize: 9,
+                                            color: "var(--muted-text)",
+                                          }}
+                                        >
+                                          {p.label}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 12, color: "var(--muted-text)" }}>
+                    No vehicles found
+                  </p>
+                )}
+              </div>
+
+              {/* === SUPPORT TICKETS === */}
+              <div
+                style={{
+                  border: "3px solid #10b981",
+                  borderRadius: 12,
+                  padding: 20,
+                  marginBottom: 12,
+                  background: "rgba(16,185,129,0.08)",
+                }}
+              >
+                <h3
+                  style={{
+                    color: "#10b981",
+                    fontWeight: "bold",
+                    fontSize: 14,
+                    marginBottom: 8,
+                  }}
+                >
+                  SUPPORT TICKETS ({userDetails.supportTickets?.length ?? 0})
+                </h3>
+                {(userDetails.supportTickets ?? []).length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    {(userDetails.supportTickets ?? []).map((t: any) => {
+                      const isExpanded = expandedTicketId === t.id;
+                      const isAssigned = !!t.assignedTo;
+                      const statusColor =
+                        t.status === "RESOLVED" || t.status === "CLOSED"
+                          ? "#4ade80"
+                          : t.status === "IN_PROGRESS"
+                            ? "#93c5fd"
+                            : t.status === "WAITING_USER_RESPONSE"
+                              ? "#c084fc"
+                              : "#facc15";
+                      return (
+                        <div
+                          key={t.id}
+                          style={{
+                            background: "rgba(0,0,0,0.2)",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                          }}
+                        >
+                          {/* Header row - clickable */}
+                          <div
+                            onClick={() =>
+                              setExpandedTicketId(isExpanded ? null : t.id)
+                            }
+                            style={{
+                              padding: 12,
+                              cursor: "pointer",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                flex: 1,
+                                minWidth: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: "var(--foreground)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {t.subject}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: statusColor,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {t.status?.replace(/_/g, " ")}
+                              </span>
+                              {isAssigned && (
+                                <span
+                                  style={{
+                                    fontSize: 9,
+                                    padding: "2px 6px",
+                                    borderRadius: 4,
+                                    background: "rgba(59,130,246,0.2)",
+                                    color: "#93c5fd",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  Assigned
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "var(--muted-text)",
+                                marginLeft: 8,
+                              }}
+                            >
+                              {isExpanded ? "▲" : "▼"}
+                            </span>
+                          </div>
+
+                          {/* Summary row */}
+                          <div
+                            style={{
+                              padding: "0 12px 8px",
+                              fontSize: 10,
+                              color: "var(--muted-text)",
+                              display: "flex",
+                              gap: 12,
+                            }}
+                          >
+                            {t.ticketNumber && <span>#{t.ticketNumber}</span>}
+                            <span>{t.category}</span>
+                            <span>Priority: {t.priority}</span>
+                            <span>{formatDate(t.createdAt)}</span>
+                          </div>
+
+                          {/* Expanded details */}
+                          {isExpanded && (
+                            <div
+                              style={{
+                                padding: "0 12px 16px",
+                                borderTop: "1px solid rgba(255,255,255,0.05)",
+                              }}
+                            >
+                              {/* Ticket Details */}
+                              <div
+                                style={{
+                                  marginTop: 12,
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr 1fr",
+                                  gap: "8px 16px",
+                                }}
+                              >
+                                {[
+                                  {
+                                    label: "Ticket #",
+                                    val: t.ticketNumber,
+                                  },
+                                  { label: "Category", val: t.category },
+                                  { label: "Priority", val: t.priority },
+                                  {
+                                    label: "Status",
+                                    val: t.status?.replace(/_/g, " "),
+                                  },
+                                  {
+                                    label: "Assigned",
+                                    val: t.assignedTo
+                                      ? `Yes (${t.assignedAt ? formatDate(t.assignedAt) : ""})`
+                                      : "No",
+                                  },
+                                  {
+                                    label: "Created",
+                                    val: formatDate(t.createdAt),
+                                  },
+                                ]
+                                  .filter((f) => f.val)
+                                  .map((f) => (
+                                    <div key={f.label}>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          color: "var(--muted-text)",
+                                        }}
+                                      >
+                                        {f.label}
+                                      </span>
+                                      <p
+                                        style={{
+                                          fontSize: 11,
+                                          color: "var(--foreground)",
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {String(f.val)}
+                                      </p>
+                                    </div>
+                                  ))}
+                              </div>
+
+                              {/* User Message */}
+                              <div
+                                style={{
+                                  marginTop: 12,
+                                  background: "rgba(255,255,255,0.03)",
+                                  borderRadius: 6,
+                                  padding: 10,
+                                }}
+                              >
+                                <p
+                                  style={{
+                                    fontSize: 9,
+                                    color: "var(--muted-text)",
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  User Message
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--foreground)",
+                                    lineHeight: 1.5,
+                                    whiteSpace: "pre-wrap",
+                                  }}
+                                >
+                                  {t.message}
+                                </p>
+                              </div>
+
+                              {/* Resolution */}
+                              {t.resolution && (
+                                <div
+                                  style={{
+                                    marginTop: 10,
+                                    background: "rgba(74,222,128,0.08)",
+                                    borderRadius: 6,
+                                    padding: 10,
+                                    borderLeft: "3px solid #4ade80",
+                                  }}
+                                >
+                                  <p
+                                    style={{
+                                      fontSize: 9,
+                                      color: "#4ade80",
+                                      marginBottom: 4,
+                                    }}
+                                  >
+                                    Resolution
+                                    {t.resolvedAt
+                                      ? ` — ${formatDate(t.resolvedAt)}`
+                                      : ""}
+                                  </p>
+                                  <p
+                                    style={{
+                                      fontSize: 11,
+                                      color: "var(--foreground)",
+                                    }}
+                                  >
+                                    {t.resolution}
+                                  </p>
+                                </div>
+                              )}
+
+                              {t.adminNotes && (
+                                <p
+                                  style={{
+                                    marginTop: 8,
+                                    fontSize: 10,
+                                    color: "#fbbf24",
+                                  }}
+                                >
+                                  Admin Notes: {t.adminNotes}
+                                </p>
+                              )}
+
+                              {/* Response History */}
+                              {t.responses && t.responses.length > 0 && (
+                                <div style={{ marginTop: 12 }}>
+                                  <p
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      color: "#10b981",
+                                      marginBottom: 8,
+                                    }}
+                                  >
+                                    Responses ({t.responses.length})
+                                  </p>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 6,
+                                    }}
+                                  >
+                                    {t.responses.map((r: any) => (
+                                      <div
+                                        key={r.id}
+                                        style={{
+                                          background: "rgba(255,255,255,0.03)",
+                                          borderRadius: 6,
+                                          padding: 8,
+                                          borderLeft:
+                                            "2px solid rgba(16,185,129,0.4)",
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            marginBottom: 4,
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              fontSize: 9,
+                                              color: "#10b981",
+                                              fontWeight: 600,
+                                            }}
+                                          >
+                                            Admin Response via{" "}
+                                            {r.channel || "EMAIL"}
+                                          </span>
+                                          <span
+                                            style={{
+                                              fontSize: 9,
+                                              color: "var(--muted-text)",
+                                            }}
+                                          >
+                                            {formatDate(r.createdAt)}
+                                          </span>
+                                        </div>
+                                        <p
+                                          style={{
+                                            fontSize: 11,
+                                            color: "var(--foreground)",
+                                            whiteSpace: "pre-wrap",
+                                          }}
+                                        >
+                                          {r.message}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Actions — must assign first */}
+                              {t.status !== "RESOLVED" &&
+                                t.status !== "CLOSED" && (
+                                  <div
+                                    style={{
+                                      marginTop: 14,
+                                      borderTop:
+                                        "1px solid rgba(255,255,255,0.05)",
+                                      paddingTop: 14,
+                                    }}
+                                  >
+                                    {!isAssigned ? (
+                                      <div>
+                                        <p
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#facc15",
+                                            marginBottom: 8,
+                                          }}
+                                        >
+                                          ⚠️ You must assign this ticket to
+                                          yourself before taking any action.
+                                        </p>
+                                        <button
+                                          onClick={() =>
+                                            handleAssignTicket(t.id)
+                                          }
+                                          disabled={ticketActionLoading}
+                                          style={{
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            padding: "6px 16px",
+                                            borderRadius: 6,
+                                            border: "none",
+                                            background: "#3b82f6",
+                                            color: "white",
+                                            cursor: ticketActionLoading
+                                              ? "not-allowed"
+                                              : "pointer",
+                                            opacity: ticketActionLoading
+                                              ? 0.5
+                                              : 1,
+                                          }}
+                                        >
+                                          {ticketActionLoading
+                                            ? "Assigning..."
+                                            : "Assign to Me"}
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: 10,
+                                        }}
+                                      >
+                                        {/* Update Status */}
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            alignItems: "center",
+                                          }}
+                                        >
+                                          <select
+                                            value={ticketStatusSelect}
+                                            onChange={(e) =>
+                                              setTicketStatusSelect(
+                                                e.target.value,
+                                              )
+                                            }
+                                            style={{
+                                              fontSize: 11,
+                                              padding: "5px 8px",
+                                              borderRadius: 6,
+                                              border:
+                                                "1px solid rgba(255,255,255,0.1)",
+                                              background:
+                                                "rgba(255,255,255,0.05)",
+                                              color: "var(--foreground)",
+                                              flex: 1,
+                                            }}
+                                          >
+                                            <option value="">
+                                              Change status...
+                                            </option>
+                                            <option value="IN_PROGRESS">
+                                              In Progress
+                                            </option>
+                                            <option value="WAITING_USER_RESPONSE">
+                                              Waiting User Response
+                                            </option>
+                                            <option value="ESCALATED_KYC">
+                                              Escalate to KYC
+                                            </option>
+                                            <option value="ESCALATED_ADMIN">
+                                              Escalate to Admin
+                                            </option>
+                                            <option value="ESCALATED_BUG_TEAM">
+                                              Escalate to Bug Team
+                                            </option>
+                                          </select>
+                                          <button
+                                            onClick={() =>
+                                              ticketStatusSelect &&
+                                              handleUpdateTicketStatus(
+                                                t.id,
+                                                ticketStatusSelect,
+                                              )
+                                            }
+                                            disabled={
+                                              !ticketStatusSelect ||
+                                              ticketActionLoading
+                                            }
+                                            style={{
+                                              fontSize: 10,
+                                              fontWeight: 600,
+                                              padding: "5px 12px",
+                                              borderRadius: 6,
+                                              border: "none",
+                                              background:
+                                                "rgba(59,130,246,0.2)",
+                                              color: "#93c5fd",
+                                              cursor:
+                                                !ticketStatusSelect ||
+                                                ticketActionLoading
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              opacity:
+                                                !ticketStatusSelect ||
+                                                ticketActionLoading
+                                                  ? 0.5
+                                                  : 1,
+                                            }}
+                                          >
+                                            Update
+                                          </button>
+                                        </div>
+
+                                        {/* Respond */}
+                                        <div>
+                                          <textarea
+                                            value={ticketResponseText}
+                                            onChange={(e) =>
+                                              setTicketResponseText(
+                                                e.target.value,
+                                              )
+                                            }
+                                            placeholder="Type your response to the user..."
+                                            rows={2}
+                                            style={{
+                                              width: "100%",
+                                              fontSize: 11,
+                                              padding: 8,
+                                              borderRadius: 6,
+                                              border:
+                                                "1px solid rgba(255,255,255,0.1)",
+                                              background:
+                                                "rgba(255,255,255,0.05)",
+                                              color: "var(--foreground)",
+                                              resize: "vertical",
+                                            }}
+                                          />
+                                          <button
+                                            onClick={() =>
+                                              handleRespondTicket(t.id)
+                                            }
+                                            disabled={
+                                              !ticketResponseText.trim() ||
+                                              ticketActionLoading
+                                            }
+                                            style={{
+                                              marginTop: 6,
+                                              fontSize: 10,
+                                              fontWeight: 600,
+                                              padding: "5px 14px",
+                                              borderRadius: 6,
+                                              border: "none",
+                                              background:
+                                                "rgba(16,185,129,0.2)",
+                                              color: "#4ade80",
+                                              cursor:
+                                                !ticketResponseText.trim() ||
+                                                ticketActionLoading
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              opacity:
+                                                !ticketResponseText.trim() ||
+                                                ticketActionLoading
+                                                  ? 0.5
+                                                  : 1,
+                                            }}
+                                          >
+                                            {ticketActionLoading
+                                              ? "Sending..."
+                                              : "Send Response (Email)"}
+                                          </button>
+                                        </div>
+
+                                        {/* Resolve */}
+                                        <div
+                                          style={{
+                                            borderTop:
+                                              "1px solid rgba(255,255,255,0.05)",
+                                            paddingTop: 10,
+                                          }}
+                                        >
+                                          <textarea
+                                            value={ticketResolveText}
+                                            onChange={(e) =>
+                                              setTicketResolveText(
+                                                e.target.value,
+                                              )
+                                            }
+                                            placeholder="Resolution summary..."
+                                            rows={2}
+                                            style={{
+                                              width: "100%",
+                                              fontSize: 11,
+                                              padding: 8,
+                                              borderRadius: 6,
+                                              border:
+                                                "1px solid rgba(255,255,255,0.1)",
+                                              background:
+                                                "rgba(255,255,255,0.05)",
+                                              color: "var(--foreground)",
+                                              resize: "vertical",
+                                            }}
+                                          />
+                                          <button
+                                            onClick={() =>
+                                              handleResolveTicket(t.id)
+                                            }
+                                            disabled={
+                                              !ticketResolveText.trim() ||
+                                              ticketActionLoading
+                                            }
+                                            style={{
+                                              marginTop: 6,
+                                              fontSize: 10,
+                                              fontWeight: 700,
+                                              padding: "6px 16px",
+                                              borderRadius: 6,
+                                              border: "none",
+                                              background: "#10b981",
+                                              color: "white",
+                                              cursor:
+                                                !ticketResolveText.trim() ||
+                                                ticketActionLoading
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              opacity:
+                                                !ticketResolveText.trim() ||
+                                                ticketActionLoading
+                                                  ? 0.5
+                                                  : 1,
+                                            }}
+                                          >
+                                            {ticketActionLoading
+                                              ? "Resolving..."
+                                              : "Resolve Ticket"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                              {/* Chat link */}
+                              {t.conversationId && (
+                                <a
+                                  href={`/dashboard/admin/chat?conversationId=${t.conversationId}`}
+                                  style={{
+                                    display: "inline-block",
+                                    marginTop: 10,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: "#10b981",
+                                    textDecoration: "underline",
+                                  }}
+                                >
+                                  Open Linked Chat →
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 12, color: "var(--muted-text)" }}>
+                    No support tickets found
+                  </p>
+                )}
+              </div>
+
               {/* Statistics */}
               <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface)] p-5">
                 <h3 className="text-sm font-bold text-[var(--foreground)] mb-3">
@@ -667,6 +2297,16 @@ export default function AdminUsersPage() {
                     className="flex items-center gap-2 rounded-lg bg-emerald-500/20 px-3 py-2.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors"
                   >
                     📋 Action Form
+                  </button>
+                  <button
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/admin/chat?startChat=${selectedUserId}`,
+                      )
+                    }
+                    className="flex items-center gap-2 rounded-lg bg-blue-500/20 px-3 py-2.5 text-xs font-medium text-blue-300 hover:bg-blue-500/30 transition-colors"
+                  >
+                    💬 Chat with User
                   </button>
                   <button
                     onClick={() => isSuperAdmin && setActiveModal("delete")}
@@ -1112,6 +2752,35 @@ export default function AdminUsersPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {imageModal && (
+        <div
+          onClick={() => setImageModal(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.8)",
+            backdropFilter: "blur(4px)",
+            cursor: "pointer",
+          }}
+        >
+          <img
+            src={imageModal}
+            alt="Document"
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              borderRadius: 8,
+              objectFit: "contain",
+            }}
+          />
+        </div>
       )}
     </div>
   );

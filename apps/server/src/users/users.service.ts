@@ -1339,7 +1339,96 @@ export class UsersService {
           }
         : null;
 
-    return {
+    // KYC: ID verifications for this user
+    const kycVerifications = await this.prisma.idVerification.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        status: true,
+        verificationType: true,
+        documentType: true,
+        documentNumber: true,
+        documentCountry: true,
+        documentExpiry: true,
+        documentFrontUrl: true,
+        documentBackUrl: true,
+        selfieUrl: true,
+        confidence: true,
+        faceMatch: true,
+        livenessCheck: true,
+        extractedData: true,
+        extractedBy: true,
+        extractedAt: true,
+        certifications: true,
+        cvDocuments: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Vehicles for this user
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        vehicleType: true,
+        otherTypeSpecification: true,
+        make: true,
+        model: true,
+        year: true,
+        color: true,
+        licensePlate: true,
+        capacity: true,
+        photoFrontUrl: true,
+        photoBackUrl: true,
+        photoLeftUrl: true,
+        photoRightUrl: true,
+        vehicleLicenseUrl: true,
+        status: true,
+        adminNotes: true,
+        reviewedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // All support tickets BY this user
+    const supportTickets = await this.prisma.supportTicket.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        ticketNumber: true,
+        subject: true,
+        message: true,
+        category: true,
+        status: true,
+        priority: true,
+        assignedTo: true,
+        assignedAt: true,
+        resolvedBy: true,
+        resolvedAt: true,
+        resolution: true,
+        adminNotes: true,
+        conversationId: true,
+        createdAt: true,
+        updatedAt: true,
+        responses: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            message: true,
+            channel: true,
+            createdAt: true,
+            adminId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const result = {
       user,
       stats: {
         rating: Math.round(avgRating * 10) / 10,
@@ -1352,8 +1441,22 @@ export class UsersService {
       bookings: bookings.slice(0, 5),
       jobs: jobs.slice(0, 5),
       reportedIssues: reportedIssues.slice(0, 5),
+      kycVerifications,
+      vehicles,
+      supportTickets,
       accountStats,
     };
+    console.log(
+      '[getUserDetailsForAdmin] Returning keys:',
+      Object.keys(result),
+      'kyc:',
+      kycVerifications.length,
+      'veh:',
+      vehicles.length,
+      'tix:',
+      supportTickets.length,
+    );
+    return result;
   }
 
   /**
@@ -2337,7 +2440,17 @@ export class UsersService {
       }
       data.email = dto.email;
     }
-    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.phone !== undefined) {
+      data.phone = dto.phone;
+      // Reset phone verification when phone number changes
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { phone: true },
+      });
+      if (currentUser && currentUser.phone !== dto.phone) {
+        data.phoneVerifiedAt = null;
+      }
+    }
     if (dto.language) data.language = dto.language;
 
     if (Object.keys(data).length === 0) {
@@ -2430,9 +2543,28 @@ export class UsersService {
     scope: 'all' | 'mine' | 'unassigned',
     status?: 'PENDING' | 'APPROVED' | 'DENIED',
   ) {
-    const where: Prisma.DeletionRequestWhereInput = {
-      assignedCapability: 'DELETION_REQUEST_REVIEWER',
-    };
+    // First, clean up orphaned deletion requests (userId references deleted users)
+    const allRequests = await this.prisma.deletionRequest.findMany({
+      select: { id: true, userId: true },
+    });
+    if (allRequests.length > 0) {
+      const userIds = [...new Set(allRequests.map((r) => r.userId))];
+      const existingUsers = await this.prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true },
+      });
+      const existingSet = new Set(existingUsers.map((u) => u.id));
+      const orphanIds = allRequests
+        .filter((r) => !existingSet.has(r.userId))
+        .map((r) => r.id);
+      if (orphanIds.length > 0) {
+        await this.prisma.deletionRequest.deleteMany({
+          where: { id: { in: orphanIds } },
+        });
+      }
+    }
+
+    const where: Prisma.DeletionRequestWhereInput = {};
     if (status) where.status = status;
     if (scope === 'mine') where.assignedTo = adminId;
     if (scope === 'unassigned') where.assignedTo = null;

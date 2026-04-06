@@ -62,4 +62,10 @@ export class NotificationsController {
       body.platform,
     );
   }
+
+  @Post('unregister-token')
+  async unregisterToken(@Req() req: Request) {
+    const user = req.user as { id: string };
+    return await this.notifications.unregisterPushToken(user.id);
+  }
 }
