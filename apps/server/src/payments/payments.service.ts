@@ -1762,79 +1762,77 @@ export class PaymentsService {
         });
         break;
       }
-      case 'transfer.paid': {
-        // A transfer to a Connected Account has been paid out to their bank
-        const transfer = event.data.object as Stripe.Transfer;
-        const transferId = transfer.id;
-        this.logger.log(
-          `🏦 Transfer paid: ${transferId}, amount: ${transfer.amount}, destination: ${transfer.destination}`,
-        );
+      default: {
+        // Handle event types not in Stripe's TypeScript discriminated union
+        const eventType = event.type as string;
+        const rawData = (event as any).data?.object;
 
-        // Find the booking with this transfer ID and update payout status
-        const booking = await this.prisma.booking.findFirst({
-          where: { stripeTransferId: transferId },
-        });
-
-        if (booking) {
-          await this.prisma.booking.update({
-            where: { id: booking.id },
-            data: {
-              payoutStatus: 'paid',
-              payoutDate: new Date(),
-            },
-          });
+        if (eventType === 'transfer.paid' && rawData) {
+          // A transfer to a Connected Account has been paid out to their bank
+          const transfer = rawData as Stripe.Transfer;
+          const transferId = transfer.id;
           this.logger.log(
-            `✅ Updated booking ${booking.id} payoutStatus to 'paid' for transfer ${transferId}`,
+            `🏦 Transfer paid: ${transferId}, amount: ${transfer.amount}, destination: ${transfer.destination}`,
           );
-        } else {
-          this.logger.warn(
-            `⚠️ Transfer ${transferId} paid but no matching booking found`,
-          );
-        }
-        break;
-      }
-      case 'payout.paid': {
-        // A payout to a Connected Account's bank has been completed
-        // This fires at the payout level (aggregated), so we update all
-        // pending bookings for this connected account
-        const payout = event.data.object as Stripe.Payout;
-        const connectedAccountId = event.account;
-        this.logger.log(
-          `🏦 Payout paid: ${payout.id}, amount: ${payout.amount}, account: ${connectedAccountId}`,
-        );
 
-        if (connectedAccountId) {
-          // Find the user with this connected account
-          const user = await this.prisma.user.findFirst({
-            where: { connectedAccountId },
+          // Find the booking with this transfer ID and update payout status
+          const booking = await this.prisma.booking.findFirst({
+            where: { stripeTransferId: transferId },
           });
 
-          if (user) {
-            // Update all pending bookings for this service provider
-            const result = await this.prisma.booking.updateMany({
-              where: {
-                jobSeekerId: user.id,
-                payoutStatus: 'pending',
-                stripeTransferId: { not: null },
-              },
+          if (booking) {
+            await this.prisma.booking.update({
+              where: { id: booking.id },
               data: {
                 payoutStatus: 'paid',
-                payoutDate: new Date(payout.arrival_date * 1000),
+                payoutDate: new Date(),
               },
             });
             this.logger.log(
-              `✅ Updated ${result.count} bookings to 'paid' for user ${user.id} (payout ${payout.id})`,
+              `✅ Updated booking ${booking.id} payoutStatus to 'paid' for transfer ${transferId}`,
+            );
+          } else {
+            this.logger.warn(
+              `⚠️ Transfer ${transferId} paid but no matching booking found`,
             );
           }
+        } else if (eventType === 'payout.paid' && rawData) {
+          // A payout to a Connected Account's bank has been completed
+          const payout = rawData as Stripe.Payout;
+          const connectedAccountId = (event as any).account as string | undefined;
+          this.logger.log(
+            `🏦 Payout paid: ${payout.id}, amount: ${payout.amount}, account: ${connectedAccountId}`,
+          );
+
+          if (connectedAccountId) {
+            const user = await this.prisma.user.findFirst({
+              where: { connectedAccountId },
+            });
+
+            if (user) {
+              const result = await this.prisma.booking.updateMany({
+                where: {
+                  jobSeekerId: user.id,
+                  payoutStatus: 'pending',
+                  stripeTransferId: { not: null },
+                },
+                data: {
+                  payoutStatus: 'paid',
+                  payoutDate: new Date(payout.arrival_date * 1000),
+                },
+              });
+              this.logger.log(
+                `✅ Updated ${result.count} bookings to 'paid' for user ${user.id} (payout ${payout.id})`,
+              );
+            }
+          }
+        } else {
+          this.logger.debug(
+            `Unhandled webhook event type: ${event.type} (ID: ${event.id})`,
+          );
         }
         break;
       }
-      default:
-        // Log unhandled event types for visibility
-        this.logger.debug(
-          `Unhandled webhook event type: ${event.type} (ID: ${event.id})`,
-        );
-        break;
     }
 
     this.logger.log(
