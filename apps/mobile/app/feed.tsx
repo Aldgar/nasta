@@ -429,6 +429,7 @@ export default function Feed() {
   const { t } = useLanguage();
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [balance, setBalance] = useState<number>(0);
+  const [paidToBank, setPaidToBank] = useState<number>(0);
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [userName, setUserName] = useState<string>("");
   const [emailVerified, setEmailVerified] = useState<boolean>(true);
@@ -790,6 +791,7 @@ export default function Feed() {
       const token = await SecureStore.getItemAsync("auth_token");
       if (!token) {
         setBalance(0);
+        setPaidToBank(0);
         return;
       }
       const base = getApiBase();
@@ -802,8 +804,11 @@ export default function Feed() {
         // estimatedNet is in cents (smallest currency unit), convert to euros
         const balanceInEuros = (data.estimatedNet || 0) / 100;
         setBalance(balanceInEuros);
+        const paidInEuros = (data.paidToBank || 0) / 100;
+        setPaidToBank(paidInEuros);
       } else {
         setBalance(0);
+        setPaidToBank(0);
       }
     } catch (err: any) {
       // Only log non-network errors to avoid noise when backend is unavailable
@@ -811,6 +816,7 @@ export default function Feed() {
         console.log("Error fetching balance", err);
       }
       setBalance(0);
+      setPaidToBank(0);
     } finally {
       setLoadingBalance(false);
     }
@@ -1173,6 +1179,38 @@ export default function Feed() {
             <Text style={[styles.balanceValue, themeStyles.textPrimary]}>
               €{(balance ?? 0).toFixed(2)}
             </Text>
+
+            <View style={styles.paidToBankRow}>
+              <Feather
+                name="check-circle"
+                size={13}
+                color={isDark ? "rgba(76,175,80,0.7)" : "rgba(56,142,60,0.7)"}
+              />
+              <Text
+                style={[
+                  styles.paidToBankLabel,
+                  {
+                    color: isDark
+                      ? "rgba(255,255,255,0.45)"
+                      : "rgba(0,0,0,0.45)",
+                  },
+                ]}
+              >
+                {t("home.paidToBank")}
+              </Text>
+              <Text
+                style={[
+                  styles.paidToBankValue,
+                  {
+                    color: isDark
+                      ? "rgba(76,175,80,0.8)"
+                      : "rgba(56,142,60,0.8)",
+                  },
+                ]}
+              >
+                €{(paidToBank ?? 0).toFixed(2)}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.quickActions}>
@@ -1570,6 +1608,20 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "900",
     marginTop: 4,
+  },
+  paidToBankRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    marginTop: 8,
+    gap: 6,
+  },
+  paidToBankLabel: {
+    fontSize: 12,
+    fontWeight: "500" as const,
+  },
+  paidToBankValue: {
+    fontSize: 13,
+    fontWeight: "700" as const,
   },
   headerSummary: { paddingHorizontal: 20, paddingVertical: 20 },
   quickActions: {

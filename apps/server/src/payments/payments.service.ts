@@ -1762,6 +1762,73 @@ export class PaymentsService {
         });
         break;
       }
+      case 'transfer.paid': {
+        // A transfer to a Connected Account has been paid out to their bank
+        const transfer = event.data.object as Stripe.Transfer;
+        const transferId = transfer.id;
+        this.logger.log(
+          `🏦 Transfer paid: ${transferId}, amount: ${transfer.amount}, destination: ${transfer.destination}`,
+        );
+
+        // Find the booking with this transfer ID and update payout status
+        const booking = await this.prisma.booking.findFirst({
+          where: { stripeTransferId: transferId },
+        });
+
+        if (booking) {
+          await this.prisma.booking.update({
+            where: { id: booking.id },
+            data: {
+              payoutStatus: 'paid',
+              payoutDate: new Date(),
+            },
+          });
+          this.logger.log(
+            `✅ Updated booking ${booking.id} payoutStatus to 'paid' for transfer ${transferId}`,
+          );
+        } else {
+          this.logger.warn(
+            `⚠️ Transfer ${transferId} paid but no matching booking found`,
+          );
+        }
+        break;
+      }
+      case 'payout.paid': {
+        // A payout to a Connected Account's bank has been completed
+        // This fires at the payout level (aggregated), so we update all
+        // pending bookings for this connected account
+        const payout = event.data.object as Stripe.Payout;
+        const connectedAccountId = event.account;
+        this.logger.log(
+          `🏦 Payout paid: ${payout.id}, amount: ${payout.amount}, account: ${connectedAccountId}`,
+        );
+
+        if (connectedAccountId) {
+          // Find the user with this connected account
+          const user = await this.prisma.user.findFirst({
+            where: { connectedAccountId },
+          });
+
+          if (user) {
+            // Update all pending bookings for this service provider
+            const result = await this.prisma.booking.updateMany({
+              where: {
+                jobSeekerId: user.id,
+                payoutStatus: 'pending',
+                stripeTransferId: { not: null },
+              },
+              data: {
+                payoutStatus: 'paid',
+                payoutDate: new Date(payout.arrival_date * 1000),
+              },
+            });
+            this.logger.log(
+              `✅ Updated ${result.count} bookings to 'paid' for user ${user.id} (payout ${payout.id})`,
+            );
+          }
+        }
+        break;
+      }
       default:
         // Log unhandled event types for visibility
         this.logger.debug(
@@ -1793,10 +1860,16 @@ export class PaymentsService {
     });
     let pendingHolds = 0;
     let capturedTotal = 0;
+    let paidToBank = 0;
     for (const b of bookings) {
-      if (b.capturedAmount && b.capturedAmount > 0)
+      if (b.capturedAmount && b.capturedAmount > 0) {
         capturedTotal += b.capturedAmount;
-      else if (b.holdAmount && b.holdAmount > 0) pendingHolds += b.holdAmount;
+        if (b.payoutStatus === 'paid') {
+          paidToBank += b.capturedAmount;
+        }
+      } else if (b.holdAmount && b.holdAmount > 0) {
+        pendingHolds += b.holdAmount;
+      }
     }
     const recent = bookings.slice(0, 10).map((b) => ({
       id: b.id,
@@ -1813,6 +1886,7 @@ export class PaymentsService {
       pendingHolds,
       capturedTotal,
       estimatedNet,
+      paidToBank,
       recent,
     };
   }
