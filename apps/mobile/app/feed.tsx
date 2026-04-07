@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -430,6 +431,7 @@ export default function Feed() {
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [balance, setBalance] = useState<number>(0);
   const [paidToBank, setPaidToBank] = useState<number>(0);
+  const [hasConnectedAccount, setHasConnectedAccount] = useState<boolean>(true);
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [userName, setUserName] = useState<string>("");
   const [emailVerified, setEmailVerified] = useState<boolean>(true);
@@ -806,6 +808,7 @@ export default function Feed() {
         setBalance(balanceInEuros);
         const paidInEuros = (data.paidToBank || 0) / 100;
         setPaidToBank(paidInEuros);
+        setHasConnectedAccount(data.hasConnectedAccount !== false);
       } else {
         setBalance(0);
         setPaidToBank(0);
@@ -1211,6 +1214,19 @@ export default function Feed() {
                 €{(paidToBank ?? 0).toFixed(2)}
               </Text>
             </View>
+
+            {!hasConnectedAccount && (
+              <TouchableOpacity
+                style={styles.bankWarningRow}
+                onPress={() => router.push("/kyc-start" as any)}
+                activeOpacity={0.7}
+              >
+                <Feather name="alert-circle" size={12} color="#E6A817" />
+                <Text style={styles.bankWarningText}>
+                  {t("home.addBankDetails")}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.quickActions}>
@@ -1622,6 +1638,17 @@ const styles = StyleSheet.create({
   paidToBankValue: {
     fontSize: 13,
     fontWeight: "700" as const,
+  },
+  bankWarningRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    marginTop: 6,
+    gap: 5,
+  },
+  bankWarningText: {
+    fontSize: 11,
+    fontWeight: "500" as const,
+    color: "#E6A817",
   },
   headerSummary: { paddingHorizontal: 20, paddingVertical: 20 },
   quickActions: {

@@ -418,6 +418,7 @@
     "greeting": "👋 Hello, {{name}}!",
     "yourAvailableBalance": "Your available balance",
     "paidToBank": "Paid to bank",
+    "addBankDetails": "Add bank details to receive payouts",
     "earnings": "Earnings",
     "yourActivities": "Your Activities",
     "updatesLatestJobs": "Updates - Latest Jobs",

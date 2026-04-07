@@ -1851,11 +1851,17 @@ export class PaymentsService {
 
   // -- Dashboards --
   async getJobSeekerDashboard(userId: string) {
-    const bookings = await this.prisma.booking.findMany({
-      where: { jobSeekerId: userId },
-      orderBy: { updatedAt: 'desc' },
-      take: 50,
-    });
+    const [bookings, user] = await Promise.all([
+      this.prisma.booking.findMany({
+        where: { jobSeekerId: userId },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { connectedAccountId: true },
+      }),
+    ]);
     let pendingHolds = 0;
     let capturedTotal = 0;
     let paidToBank = 0;
@@ -1885,6 +1891,7 @@ export class PaymentsService {
       capturedTotal,
       estimatedNet,
       paidToBank,
+      hasConnectedAccount: !!user?.connectedAccountId,
       recent,
     };
   }
