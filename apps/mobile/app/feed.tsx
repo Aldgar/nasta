@@ -704,9 +704,7 @@ export default function Feed() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          coverLetter: coverLetter.trim() || undefined,
-        }),
+        body: JSON.stringify({}),
       });
 
       if (res.ok) {
@@ -1469,76 +1467,6 @@ export default function Feed() {
                     />
                   </TouchableButton>
                 </View>
-
-                <ScrollView
-                  style={styles.modalScrollView}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {/* Cover Letter Section */}
-                  <View style={styles.modalSection}>
-                    <View style={styles.modalSectionHeader}>
-                      <Feather name="file-text" size={18} color={colors.tint} />
-                      <Text
-                        style={[
-                          styles.modalLabel,
-                          { color: colors.text, marginLeft: 8 },
-                        ]}
-                      >
-                        {t("jobs.moreAboutMe")}
-                      </Text>
-                      <View
-                        style={[
-                          styles.optionalBadge,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(148, 163, 184, 0.2)"
-                              : "#f1f5f9",
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.optionalBadgeText,
-                            { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                          ]}
-                        >
-                          {t("jobs.optional")}
-                        </Text>
-                      </View>
-                    </View>
-                    <TextInput
-                      style={[
-                        styles.modalTextArea,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(255,250,240,0.10)"
-                            : "#f9fafb",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#E8D8B8",
-                        },
-                      ]}
-                      placeholder={t("jobs.moreAboutYouPlaceholder")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      multiline
-                      numberOfLines={6}
-                      value={coverLetter}
-                      onChangeText={setCoverLetter}
-                      textAlignVertical="top"
-                    />
-                    <Text
-                      style={[
-                        styles.modalHint,
-                        { color: isDark ? "#8A7B68" : "#9A8E7A" },
-                      ]}
-                    >
-                      {t("jobs.shareMoreAboutYourself")}
-                    </Text>
-                  </View>
-                </ScrollView>
 
                 <View
                   style={[

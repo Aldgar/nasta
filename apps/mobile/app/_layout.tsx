@@ -375,9 +375,9 @@ function RootLayoutNav() {
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="verify-email" options={{ headerShown: false }} />
-        <Stack.Screen name="kyc-start" options={{ headerShown: false }} />
-        <Stack.Screen name="kyc-capture" options={{ headerShown: false }} />
-        <Stack.Screen name="kyc-details" options={{ headerShown: false }} />
+        <Stack.Screen name="kyc-start" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="kyc-capture" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="kyc-details" options={{ headerShown: false, gestureEnabled: false }} />
         {/* Hide header for the tabs group to avoid breadcrumb chips */}
         <Stack.Screen
           name="(tabs)"

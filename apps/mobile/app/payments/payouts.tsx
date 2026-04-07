@@ -552,6 +552,11 @@ const formatIban = (iban: string): string => {
                     onRequestClose={() => setShowForm(false)}
                 >
                     <View style={styles.modalOverlay}>
+                      <KeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+                        style={{ width: '100%' }}
+                      >
                         <View style={[styles.modalContent, { backgroundColor: isDark ? 'rgba(12, 22, 42, 0.90)' : '#ffffff' }]}>
                             <View style={styles.modalHeader}>
                                 <Text style={[styles.modalTitle, { color: colors.text }]}>{t("payments.addBankAccount")}</Text>
@@ -760,6 +765,7 @@ const formatIban = (iban: string): string => {
                                 </TouchableOpacity>
                             </ScrollView>
                         </View>
+                      </KeyboardAvoidingView>
                     </View>
                 </Modal>
             </>
