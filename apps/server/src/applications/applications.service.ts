@@ -43,7 +43,9 @@ export class ApplicationsService {
   ) {}
 
   private get clientBaseUrl(): string {
-    return this.configService.get<string>('CLIENT_BASE_URL') || 'https://nasta.app';
+    return (
+      this.configService.get<string>('CLIENT_BASE_URL') || 'https://nasta.app'
+    );
   }
 
   private generate4DigitVerificationCode(exclude?: string | null): string {
@@ -420,10 +422,7 @@ export class ApplicationsService {
       // For ACCEPTED jobs, hide completed ones after 24 hours
       if (opts.status === 'ACCEPTED') {
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        where.OR = [
-          { completedAt: null },
-          { completedAt: { gt: oneDayAgo } },
-        ];
+        where.OR = [{ completedAt: null }, { completedAt: { gt: oneDayAgo } }];
       }
     }
     return this.prisma.application.findMany({
@@ -1644,13 +1643,11 @@ export class ApplicationsService {
 
         await this.notifications.sendPushNotification(
           employerId,
-          tEmployer(
-            'notifications.templates.instantJobRequestAcceptedTitle',
-          ),
-          tEmployer(
-            'notifications.templates.instantJobRequestAcceptedBody',
-            { providerName, jobTitle },
-          ),
+          tEmployer('notifications.templates.instantJobRequestAcceptedTitle'),
+          tEmployer('notifications.templates.instantJobRequestAcceptedBody', {
+            providerName,
+            jobTitle,
+          }),
           {
             type: 'APPLICATION_UPDATE',
             applicationId: app.id,
@@ -1660,26 +1657,48 @@ export class ApplicationsService {
 
         const employerEmail = app.job.employer?.email;
         if (employerEmail) {
-          const lang = (await this.emailTranslations.getUserLanguage(employerId))?.toLowerCase().startsWith('pt') ? 'pt' : 'en' as 'en' | 'pt';
+          const lang = (
+            await this.emailTranslations.getUserLanguage(employerId)
+          )
+            ?.toLowerCase()
+            .startsWith('pt')
+            ? 'pt'
+            : ('en' as 'en' | 'pt');
           const locale = lang === 'pt' ? 'pt-PT' : 'en-GB';
 
           const paymentParts: string[] = [];
           if (app.job.rateAmount) {
-            paymentParts.push(`${app.job.currency} ${(app.job.rateAmount / 100).toFixed(2)}`);
+            paymentParts.push(
+              `${app.job.currency} ${(app.job.rateAmount / 100).toFixed(2)}`,
+            );
           } else if (app.job.salaryMin) {
             paymentParts.push(`${app.job.currency} ${app.job.salaryMin}`);
           }
           if (app.job.paymentType) {
-            paymentParts.push(app.job.paymentType.toLowerCase().replace('_', ' '));
+            paymentParts.push(
+              app.job.paymentType.toLowerCase().replace('_', ' '),
+            );
           }
           const paymentStr = paymentParts.join(' / ') || 'TBD';
 
           const startDateStr = app.job.startDate
-            ? new Date(app.job.startDate).toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            ? new Date(app.job.startDate).toLocaleDateString(locale, {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
             : 'TBD';
 
-          const subject = tEmployer('email.instantJobRequest.acceptedSubject', { jobTitle });
-          const text = tEmployer('notifications.templates.instantJobRequestAcceptedBody', { providerName, jobTitle });
+          const subject = tEmployer('email.instantJobRequest.acceptedSubject', {
+            jobTitle,
+          });
+          const text = tEmployer(
+            'notifications.templates.instantJobRequestAcceptedBody',
+            { providerName, jobTitle },
+          );
           const html = this.notifications.getInstantJobRequestAcceptedHtml(
             {
               employerName: app.job.employer?.firstName || 'there',
@@ -1689,12 +1708,17 @@ export class ApplicationsService {
               location: app.job.location || '',
               startDate: startDateStr,
               payment: paymentStr,
-              ctaUrl: `${this.clientBaseUrl}/dashboard/employer/applications/${app.id}`,
+              ctaUrl: `${this.clientBaseUrl}/jobs/${app.job.id}`,
             },
             tEmployer,
             lang,
           );
-          await this.notifications.sendEmail(employerEmail, subject, text, html);
+          await this.notifications.sendEmail(
+            employerEmail,
+            subject,
+            text,
+            html,
+          );
         }
       } catch (err) {
         this.logger.error(
@@ -1742,13 +1766,12 @@ export class ApplicationsService {
 
         await this.notifications.sendPushNotification(
           employerId,
-          tEmployer(
-            'notifications.templates.instantJobRequestRejectedTitle',
-          ),
-          tEmployer(
-            'notifications.templates.instantJobRequestRejectedBody',
-            { providerName, jobTitle, reason: rejectionReason },
-          ),
+          tEmployer('notifications.templates.instantJobRequestRejectedTitle'),
+          tEmployer('notifications.templates.instantJobRequestRejectedBody', {
+            providerName,
+            jobTitle,
+            reason: rejectionReason,
+          }),
           {
             type: 'APPLICATION_UPDATE',
             applicationId: app.id,
@@ -1758,10 +1781,21 @@ export class ApplicationsService {
 
         const employerEmail = app.job.employer?.email;
         if (employerEmail) {
-          const lang = (await this.emailTranslations.getUserLanguage(employerId))?.toLowerCase().startsWith('pt') ? 'pt' : 'en' as 'en' | 'pt';
+          const lang = (
+            await this.emailTranslations.getUserLanguage(employerId)
+          )
+            ?.toLowerCase()
+            .startsWith('pt')
+            ? 'pt'
+            : ('en' as 'en' | 'pt');
 
-          const subject = tEmployer('email.instantJobRequest.rejectedSubject', { jobTitle });
-          const text = tEmployer('notifications.templates.instantJobRequestRejectedBody', { providerName, jobTitle, reason: rejectionReason });
+          const subject = tEmployer('email.instantJobRequest.rejectedSubject', {
+            jobTitle,
+          });
+          const text = tEmployer(
+            'notifications.templates.instantJobRequestRejectedBody',
+            { providerName, jobTitle, reason: rejectionReason },
+          );
           const html = this.notifications.getInstantJobRequestRejectedHtml(
             {
               employerName: app.job.employer?.firstName || 'there',
@@ -1770,12 +1804,17 @@ export class ApplicationsService {
               category: (app.job as any).category?.name || '',
               location: app.job.location || '',
               reason: rejectionReason || '',
-              ctaUrl: `${this.clientBaseUrl}/dashboard/employer/service-providers`,
+              ctaUrl: `${this.clientBaseUrl}/jobs/${app.job.id}`,
             },
             tEmployer,
             lang,
           );
-          await this.notifications.sendEmail(employerEmail, subject, text, html);
+          await this.notifications.sendEmail(
+            employerEmail,
+            subject,
+            text,
+            html,
+          );
         }
       } catch (err) {
         this.logger.error(
@@ -4134,13 +4173,20 @@ export class ApplicationsService {
 
       // Send email notification
       if (candidate.email) {
-        const tForCandidate = await this.emailTranslations.getTranslatorForUser(candidateId);
-        const lang = (await this.emailTranslations.getUserLanguage(candidateId))?.toLowerCase().startsWith('pt') ? 'pt' : 'en' as 'en' | 'pt';
+        const tForCandidate =
+          await this.emailTranslations.getTranslatorForUser(candidateId);
+        const lang = (await this.emailTranslations.getUserLanguage(candidateId))
+          ?.toLowerCase()
+          .startsWith('pt')
+          ? 'pt'
+          : ('en' as 'en' | 'pt');
 
         // Format payment string
         const paymentParts: string[] = [];
         if (job.rateAmount) {
-          paymentParts.push(`${job.currency} ${(job.rateAmount / 100).toFixed(2)}`);
+          paymentParts.push(
+            `${job.currency} ${(job.rateAmount / 100).toFixed(2)}`,
+          );
         } else if (job.salaryMin) {
           paymentParts.push(`${job.currency} ${job.salaryMin}`);
         }
@@ -4152,11 +4198,24 @@ export class ApplicationsService {
         // Format start date
         const locale = lang === 'pt' ? 'pt-PT' : 'en-GB';
         const startDateStr = job.startDate
-          ? new Date(job.startDate).toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          ? new Date(job.startDate).toLocaleDateString(locale, {
+              weekday: 'short',
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
           : 'TBD';
 
-        const subject = tForCandidate('email.instantJobRequest.newRequestSubject', { jobTitle: job.title });
-        const text = tForCandidate('notifications.templates.newJobOpportunityBody', { jobTitle: job.title });
+        const subject = tForCandidate(
+          'email.instantJobRequest.newRequestSubject',
+          { jobTitle: job.title },
+        );
+        const text = tForCandidate(
+          'notifications.templates.newJobOpportunityBody',
+          { jobTitle: job.title },
+        );
         const html = this.notifications.getInstantJobRequestHtml(
           {
             providerName: candidate.firstName || 'there',
@@ -4165,13 +4224,20 @@ export class ApplicationsService {
             location: job.location || '',
             startDate: startDateStr,
             payment: paymentStr,
-            employerName: `${(job as any).employer?.firstName || ''} ${(job as any).employer?.lastName || ''}`.trim() || 'Employer',
-            ctaUrl: `${this.clientBaseUrl}/dashboard/applications`,
+            employerName:
+              `${(job as any).employer?.firstName || ''} ${(job as any).employer?.lastName || ''}`.trim() ||
+              'Employer',
+            ctaUrl: `${this.clientBaseUrl}/jobs/${job.id}`,
           },
           tForCandidate,
           lang,
         );
-        await this.notifications.sendEmail(candidate.email, subject, text, html);
+        await this.notifications.sendEmail(
+          candidate.email,
+          subject,
+          text,
+          html,
+        );
       }
     } catch (err) {
       this.logger.error(

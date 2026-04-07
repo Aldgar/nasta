@@ -37,7 +37,8 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
         {
@@ -48,6 +49,21 @@
               "scheme": "https",
               "host": "nasta.app",
               "pathPrefix": "/verify-email"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "nasta.app",
+              "pathPrefix": "/jobs"
             }
           ],
           "category": [
@@ -135,7 +151,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/aa642c82-df86-4eb0-b7f0-2ae78e15b855"
+      "url": "https://u.expo.dev/5ded41ee-3c4b-4612-8ac7-17c3aebc2356"
     },
     "owner": "aldgar"
   }

@@ -131,7 +131,7 @@ export default function SupportScreen() {
       if (attachedFiles.length >= MAX_ATTACHMENTS) {
         Alert.alert(
           t("common.error"),
-          t("support.maximumAttachmentsReached", { count: MAX_ATTACHMENTS })
+          t("support.maximumAttachmentsReached", { count: MAX_ATTACHMENTS }),
         );
         return;
       }
@@ -140,13 +140,13 @@ export default function SupportScreen() {
       if (status !== "granted") {
         Alert.alert(
           t("support.permissionRequired"),
-          t("support.pleaseAllowCameraAccess")
+          t("support.pleaseAllowCameraAccess"),
         );
         return;
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -173,7 +173,7 @@ export default function SupportScreen() {
       if (attachedFiles.length >= MAX_ATTACHMENTS) {
         Alert.alert(
           t("common.error"),
-          t("support.maximumAttachmentsReached", { count: MAX_ATTACHMENTS })
+          t("support.maximumAttachmentsReached", { count: MAX_ATTACHMENTS }),
         );
         return;
       }
@@ -183,14 +183,14 @@ export default function SupportScreen() {
       if (status !== "granted") {
         Alert.alert(
           t("support.permissionRequired"),
-          t("support.pleaseAllowPhotosAccess")
+          t("support.pleaseAllowPhotosAccess"),
         );
         return;
       }
 
       const remainingSlots = Math.max(
         0,
-        MAX_ATTACHMENTS - attachedFiles.length
+        MAX_ATTACHMENTS - attachedFiles.length,
       );
 
       const tryPick = async (opts: any) =>
@@ -208,7 +208,7 @@ export default function SupportScreen() {
           result = await tryPick({
             allowsMultipleSelection: false,
             selectionLimit: 1,
-            allowsEditing: true,
+            allowsEditing: false,
             preferredAssetRepresentationMode: "compatible",
           });
         } else {
@@ -228,7 +228,7 @@ export default function SupportScreen() {
           result = await tryPick({
             allowsMultipleSelection: false,
             selectionLimit: 1,
-            allowsEditing: true,
+            allowsEditing: false,
             preferredAssetRepresentationMode: "current",
           });
         } else {
@@ -260,7 +260,7 @@ export default function SupportScreen() {
       if (attachedFiles.length >= MAX_ATTACHMENTS) {
         Alert.alert(
           t("common.error"),
-          t("support.maximumAttachmentsReached", { count: MAX_ATTACHMENTS })
+          t("support.maximumAttachmentsReached", { count: MAX_ATTACHMENTS }),
         );
         return;
       }
@@ -274,7 +274,7 @@ export default function SupportScreen() {
       if (!result.canceled && result.assets) {
         const remainingSlots = Math.max(
           0,
-          MAX_ATTACHMENTS - attachedFiles.length
+          MAX_ATTACHMENTS - attachedFiles.length,
         );
         const newFiles: AttachedFile[] = result.assets
           .slice(0, remainingSlots)
@@ -315,7 +315,7 @@ export default function SupportScreen() {
       if (!formData.stepsToReproduce?.trim()) {
         Alert.alert(
           t("common.required"),
-          t("support.pleaseProvideStepsToReproduce")
+          t("support.pleaseProvideStepsToReproduce"),
         );
         return;
       }
@@ -377,7 +377,7 @@ export default function SupportScreen() {
         const formData = new FormData();
         formData.append(
           "subject",
-          `${ISSUE_TYPES.find((type) => type.value === issueType)?.label || t("support.supportRequest")}`
+          `${ISSUE_TYPES.find((type) => type.value === issueType)?.label || t("support.supportRequest")}`,
         );
         formData.append("message", message);
         formData.append("category", issueType || "GENERAL");
@@ -446,7 +446,7 @@ export default function SupportScreen() {
             ticketNumber,
             email: userEmail || t("support.yourEmailAddress"),
           }),
-          [{ text: t("common.ok"), onPress: () => router.back() }]
+          [{ text: t("common.ok"), onPress: () => router.back() }],
         );
       } else {
         const errorMessage =
@@ -669,11 +669,11 @@ export default function SupportScreen() {
                       (type) => ({
                         text: type,
                         onPress: () => updateFormData("verificationType", type),
-                      })
+                      }),
                     );
                     buttons.push({ text: t("common.cancel"), style: "cancel" });
                     return buttons;
-                  })()
+                  })(),
                 );
               }}
             >
@@ -713,331 +713,334 @@ export default function SupportScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={{ flex: 1 }}
         >
-        <View style={styles.header}>
-          <TouchableButton onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color={colors.text} />
-          </TouchableButton>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {t("legal.support")}
-          </Text>
-          <View style={{ width: 24 }} />
-        </View>
+          <View style={styles.header}>
+            <TouchableButton onPress={() => router.back()}>
+              <Feather name="arrow-left" size={24} color={colors.text} />
+            </TouchableButton>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {t("legal.support")}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={true}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={[styles.label, { color: colors.text }]}>
-            {t("support.howCanWeHelpYou")}
-          </Text>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={[styles.label, { color: colors.text }]}>
+              {t("support.howCanWeHelpYou")}
+            </Text>
 
-          {/* Issue Type Picker */}
-          <Text
-            style={[styles.fieldLabel, { color: colors.text, marginTop: 0 }]}
-          >
-            {t("support.issueType")} *
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.pickerButton,
-              {
-                backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
-                borderColor: isDark
-                  ? "rgba(201,150,63,0.12)"
-                  : "rgba(184,130,42,0.2)",
-              },
-            ]}
-            onPress={() => setShowIssueTypePicker(true)}
-          >
+            {/* Issue Type Picker */}
             <Text
+              style={[styles.fieldLabel, { color: colors.text, marginTop: 0 }]}
+            >
+              {t("support.issueType")} *
+            </Text>
+            <TouchableOpacity
               style={[
-                styles.pickerButtonText,
+                styles.pickerButton,
                 {
-                  color: issueType
-                    ? colors.text
-                    : isDark
-                      ? "#9A8E7A"
-                      : "#9A8E7A",
+                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.12)"
+                    : "rgba(184,130,42,0.2)",
                 },
               ]}
+              onPress={() => setShowIssueTypePicker(true)}
             >
-              {issueType
-                ? getIssueTypes(t).find((type) => type.value === issueType)
-                    ?.label
-                : t("support.selectIssueTypePlaceholder")}
-            </Text>
-            <Feather
-              name="chevron-down"
-              size={20}
-              color={isDark ? "#9A8E7A" : "#9A8E7A"}
-            />
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.pickerButtonText,
+                  {
+                    color: issueType
+                      ? colors.text
+                      : isDark
+                        ? "#9A8E7A"
+                        : "#9A8E7A",
+                  },
+                ]}
+              >
+                {issueType
+                  ? getIssueTypes(t).find((type) => type.value === issueType)
+                      ?.label
+                  : t("support.selectIssueTypePlaceholder")}
+              </Text>
+              <Feather
+                name="chevron-down"
+                size={20}
+                color={isDark ? "#9A8E7A" : "#9A8E7A"}
+              />
+            </TouchableOpacity>
 
-          {/* Description Field */}
-          <Text
-            style={[styles.fieldLabel, { color: colors.text, marginTop: 16 }]}
-          >
-            {t("support.describeYourIssue")} *
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              styles.textArea,
-              {
-                backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
-                color: colors.text,
-                borderColor: isDark
-                  ? "rgba(201,150,63,0.12)"
-                  : "rgba(184,130,42,0.2)",
-              },
-            ]}
-            multiline
-            numberOfLines={6}
-            placeholder={t("support.provideDetailsAboutIssue")}
-            placeholderTextColor={isDark ? "#9A8E7A" : "#9A8E7A"}
-            textAlignVertical="top"
-            value={formData.description}
-            onChangeText={(text) => updateFormData("description", text)}
-          />
-
-          {/* Dynamic Form Fields Based on Issue Type */}
-          {renderIssueForm()}
-
-          {/* File Attachments Section */}
-          <View style={styles.attachmentsSection}>
+            {/* Description Field */}
             <Text
               style={[styles.fieldLabel, { color: colors.text, marginTop: 16 }]}
             >
-              {t("support.attachments")} ({t("common.optional")})
+              {t("support.describeYourIssue")} *
             </Text>
-            <Text
+            <TextInput
               style={[
-                styles.hintText,
-                { color: isDark ? "#9A8E7A" : "#8A7B68", marginBottom: 12 },
+                styles.input,
+                styles.textArea,
+                {
+                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#FFFAF0",
+                  color: colors.text,
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.12)"
+                    : "rgba(184,130,42,0.2)",
+                },
               ]}
-            >
-              {t("support.attachmentsHint")}
-            </Text>
+              multiline
+              numberOfLines={6}
+              placeholder={t("support.provideDetailsAboutIssue")}
+              placeholderTextColor={isDark ? "#9A8E7A" : "#9A8E7A"}
+              textAlignVertical="top"
+              value={formData.description}
+              onChangeText={(text) => updateFormData("description", text)}
+            />
 
-            {/* File Selection Buttons */}
-            <View style={styles.fileButtonsContainer}>
-              <TouchableButton
+            {/* Dynamic Form Fields Based on Issue Type */}
+            {renderIssueForm()}
+
+            {/* File Attachments Section */}
+            <View style={styles.attachmentsSection}>
+              <Text
                 style={[
-                  styles.fileButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(255,250,240,0.95)",
-                    borderColor: isDark
-                      ? "rgba(201,150,63,0.2)"
-                      : "rgba(0,0,0,0.08)",
-                    shadowColor: isDark ? "#000" : "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: 0,
-                  },
+                  styles.fieldLabel,
+                  { color: colors.text, marginTop: 16 },
                 ]}
-                onPress={takePhoto}
               >
-                <View
+                {t("support.attachments")} ({t("common.optional")})
+              </Text>
+              <Text
+                style={[
+                  styles.hintText,
+                  { color: isDark ? "#9A8E7A" : "#8A7B68", marginBottom: 12 },
+                ]}
+              >
+                {t("support.attachmentsHint")}
+              </Text>
+
+              {/* File Selection Buttons */}
+              <View style={styles.fileButtonsContainer}>
+                <TouchableButton
                   style={[
-                    styles.fileButtonIconContainer,
+                    styles.fileButton,
                     {
                       backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.2)"
-                        : "rgba(201, 150, 63, 0.1)",
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.2)"
+                        : "rgba(0,0,0,0.08)",
+                      shadowColor: isDark ? "#000" : "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: 0,
                     },
                   ]}
+                  onPress={takePhoto}
                 >
-                  <Feather name="camera" size={22} color={colors.tint} />
-                </View>
-                <Text
-                  style={[styles.fileButtonText, { color: colors.text }]}
-                  numberOfLines={2}
-                >
-                  {t("support.takePhotoShort")}
-                </Text>
-              </TouchableButton>
-
-              <TouchableButton
-                style={[
-                  styles.fileButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(255,250,240,0.95)",
-                    borderColor: isDark
-                      ? "rgba(201,150,63,0.2)"
-                      : "rgba(0,0,0,0.08)",
-                    shadowColor: isDark ? "#000" : "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: 0,
-                  },
-                ]}
-                onPress={pickImage}
-              >
-                <View
-                  style={[
-                    styles.fileButtonIconContainer,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.2)"
-                        : "rgba(201, 150, 63, 0.1)",
-                    },
-                  ]}
-                >
-                  <Feather name="image" size={22} color={colors.tint} />
-                </View>
-                <Text
-                  style={[styles.fileButtonText, { color: colors.text }]}
-                  numberOfLines={2}
-                >
-                  {t("support.selectImageShort")}
-                </Text>
-              </TouchableButton>
-
-              <TouchableButton
-                style={[
-                  styles.fileButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "rgba(255,250,240,0.95)",
-                    borderColor: isDark
-                      ? "rgba(201,150,63,0.2)"
-                      : "rgba(0,0,0,0.08)",
-                    shadowColor: isDark ? "#000" : "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: 0,
-                  },
-                ]}
-                onPress={pickDocument}
-              >
-                <View
-                  style={[
-                    styles.fileButtonIconContainer,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(201, 150, 63, 0.2)"
-                        : "rgba(201, 150, 63, 0.1)",
-                    },
-                  ]}
-                >
-                  <Feather name="file" size={22} color={colors.tint} />
-                </View>
-                <Text
-                  style={[styles.fileButtonText, { color: colors.text }]}
-                  numberOfLines={2}
-                >
-                  {t("support.selectFileShort")}
-                </Text>
-              </TouchableButton>
-            </View>
-
-            {/* Display Attached Files */}
-            {attachedFiles.length > 0 && (
-              <View style={styles.attachedFilesContainer}>
-                {attachedFiles.map((file, index) => (
                   <View
-                    key={index}
                     style={[
-                      styles.attachedFileItem,
+                      styles.fileButtonIconContainer,
                       {
                         backgroundColor: isDark
-                          ? "rgba(201,150,63,0.12)"
-                          : "rgba(184,130,42,0.06)",
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.15)"
-                          : "rgba(184,130,42,0.2)",
+                          ? "rgba(201, 150, 63, 0.2)"
+                          : "rgba(201, 150, 63, 0.1)",
                       },
                     ]}
                   >
-                    {file.type === "image" ? (
-                      <Image
-                        source={{ uri: file.uri }}
-                        style={styles.attachedFileThumbnail}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.attachedFileIcon,
-                          { backgroundColor: colors.tint },
-                        ]}
-                      >
-                        <Feather name="file" size={24} color="#FFFAF0" />
-                      </View>
-                    )}
-                    <View style={styles.attachedFileInfo}>
-                      <Text
-                        style={[
-                          styles.attachedFileName,
-                          { color: colors.text },
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="middle"
-                      >
-                        {file.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.attachedFileType,
-                          { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                        ]}
-                      >
-                        {file.type === "image"
-                          ? t("support.image")
-                          : t("support.document")}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => removeFile(index)}
-                      style={styles.removeFileButton}
-                    >
-                      <Feather
-                        name="x"
-                        size={20}
-                        color={isDark ? "#ef4444" : "#dc2626"}
-                      />
-                    </TouchableOpacity>
+                    <Feather name="camera" size={22} color={colors.tint} />
                   </View>
-                ))}
-              </View>
-            )}
-          </View>
+                  <Text
+                    style={[styles.fileButtonText, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
+                    {t("support.takePhotoShort")}
+                  </Text>
+                </TouchableButton>
 
-          <TouchableButton
-            style={[
-              styles.btn,
-              {
-                backgroundColor: isDark ? "#FB7185" : "#E11D48",
-                opacity: submitting ? 0.6 : 1,
-              },
-            ]}
-            onPress={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color={isDark ? "#F0E8D5" : "#FFFAF0"} />
-            ) : (
-              <Text
-                style={[
-                  styles.btnText,
-                  { color: isDark ? "#F0E8D5" : "#FFFAF0" },
-                ]}
-              >
-                {t("support.submitTicket")}
-              </Text>
-            )}
-          </TouchableButton>
-        </ScrollView>
+                <TouchableButton
+                  style={[
+                    styles.fileButton,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.2)"
+                        : "rgba(0,0,0,0.08)",
+                      shadowColor: isDark ? "#000" : "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: 0,
+                    },
+                  ]}
+                  onPress={pickImage}
+                >
+                  <View
+                    style={[
+                      styles.fileButtonIconContainer,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(201, 150, 63, 0.2)"
+                          : "rgba(201, 150, 63, 0.1)",
+                      },
+                    ]}
+                  >
+                    <Feather name="image" size={22} color={colors.tint} />
+                  </View>
+                  <Text
+                    style={[styles.fileButtonText, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
+                    {t("support.selectImageShort")}
+                  </Text>
+                </TouchableButton>
+
+                <TouchableButton
+                  style={[
+                    styles.fileButton,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(255,250,240,0.95)",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.2)"
+                        : "rgba(0,0,0,0.08)",
+                      shadowColor: isDark ? "#000" : "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.3 : 0.1,
+                      shadowRadius: 4,
+                      elevation: 0,
+                    },
+                  ]}
+                  onPress={pickDocument}
+                >
+                  <View
+                    style={[
+                      styles.fileButtonIconContainer,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(201, 150, 63, 0.2)"
+                          : "rgba(201, 150, 63, 0.1)",
+                      },
+                    ]}
+                  >
+                    <Feather name="file" size={22} color={colors.tint} />
+                  </View>
+                  <Text
+                    style={[styles.fileButtonText, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
+                    {t("support.selectFileShort")}
+                  </Text>
+                </TouchableButton>
+              </View>
+
+              {/* Display Attached Files */}
+              {attachedFiles.length > 0 && (
+                <View style={styles.attachedFilesContainer}>
+                  {attachedFiles.map((file, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.attachedFileItem,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.06)",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "rgba(184,130,42,0.2)",
+                        },
+                      ]}
+                    >
+                      {file.type === "image" ? (
+                        <Image
+                          source={{ uri: file.uri }}
+                          style={styles.attachedFileThumbnail}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.attachedFileIcon,
+                            { backgroundColor: colors.tint },
+                          ]}
+                        >
+                          <Feather name="file" size={24} color="#FFFAF0" />
+                        </View>
+                      )}
+                      <View style={styles.attachedFileInfo}>
+                        <Text
+                          style={[
+                            styles.attachedFileName,
+                            { color: colors.text },
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="middle"
+                        >
+                          {file.name}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.attachedFileType,
+                            { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                          ]}
+                        >
+                          {file.type === "image"
+                            ? t("support.image")
+                            : t("support.document")}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeFile(index)}
+                        style={styles.removeFileButton}
+                      >
+                        <Feather
+                          name="x"
+                          size={20}
+                          color={isDark ? "#ef4444" : "#dc2626"}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <TouchableButton
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: isDark ? "#FB7185" : "#E11D48",
+                  opacity: submitting ? 0.6 : 1,
+                },
+              ]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color={isDark ? "#F0E8D5" : "#FFFAF0"} />
+              ) : (
+                <Text
+                  style={[
+                    styles.btnText,
+                    { color: isDark ? "#F0E8D5" : "#FFFAF0" },
+                  ]}
+                >
+                  {t("support.submitTicket")}
+                </Text>
+              )}
+            </TouchableButton>
+          </ScrollView>
         </KeyboardAvoidingView>
 
         {/* Issue Type Picker Modal */}
@@ -1067,7 +1070,10 @@ export default function SupportScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                style={styles.modalList}
+                keyboardShouldPersistTaps="handled"
+              >
                 {getIssueTypes(t).map((type) => (
                   <TouchableOpacity
                     key={type.value}

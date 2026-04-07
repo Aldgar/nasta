@@ -290,6 +290,18 @@ function RootLayoutNav() {
           console.warn("Email verification link missing token");
         }
       }
+
+      // Handle job deep links
+      // Supports: nasta://jobs/JOBID and https://nasta.app/jobs/JOBID
+      if (path?.startsWith("jobs/")) {
+        const jobId = path.split("/")[1];
+        if (jobId) {
+          router.push({
+            pathname: "/jobs/[id]",
+            params: { id: jobId },
+          } as never);
+        }
+      }
     } catch (error) {
       console.warn("Error handling deep link:", error);
     }
@@ -375,9 +387,18 @@ function RootLayoutNav() {
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="verify-email" options={{ headerShown: false }} />
-        <Stack.Screen name="kyc-start" options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="kyc-capture" options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="kyc-details" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen
+          name="kyc-start"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="kyc-capture"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="kyc-details"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
         {/* Hide header for the tabs group to avoid breadcrumb chips */}
         <Stack.Screen
           name="(tabs)"
@@ -387,7 +408,10 @@ function RootLayoutNav() {
           name="user-home"
           options={{ headerShown: false, gestureEnabled: false }}
         />
-        <Stack.Screen name="employer-tabs" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="employer-tabs"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
         <Stack.Screen
           name="employer-home"
           options={{ headerShown: false, gestureEnabled: false }}
@@ -502,6 +526,11 @@ function RootLayoutNav() {
         />
         <Stack.Screen name="schedule" options={{ headerShown: false }} />
         <Stack.Screen name="candidate" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="instant-job-request"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen name="applicant" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style={isDark ? "light" : "dark"} />
     </NavThemeProvider>

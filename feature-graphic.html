@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1024px;
+        height: 500px;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .container {
+        width: 1024px;
+        height: 500px;
+        background: linear-gradient(
+          135deg,
+          #0a1628 0%,
+          #0d1a30 40%,
+          #112240 100%
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Subtle decorative elements */
+      .container::before {
+        content: "";
+        position: absolute;
+        top: -100px;
+        right: -100px;
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(201, 150, 63, 0.08) 0%,
+          transparent 70%
+        );
+      }
+      .container::after {
+        content: "";
+        position: absolute;
+        bottom: -150px;
+        left: -80px;
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(201, 150, 63, 0.05) 0%,
+          transparent 70%
+        );
+      }
+
+      /* Gold border accent */
+      .border-accent {
+        position: absolute;
+        inset: 12px;
+        border: 1px solid rgba(201, 150, 63, 0.15);
+        border-radius: 8px;
+        pointer-events: none;
+      }
+
+      .content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        z-index: 1;
+      }
+
+      /* Logo box mimicking the actual Nasta logo */
+      .logo-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 24px 36px;
+        border: 2px solid #c9963f;
+        border-radius: 4px;
+      }
+
+      .meroitic {
+        font-size: 52px;
+        font-weight: 700;
+        color: #c9963f;
+        letter-spacing: 6px;
+        line-height: 1;
+      }
+
+      .divider {
+        width: 60px;
+        height: 1.5px;
+        background: rgba(201, 150, 63, 0.4);
+      }
+
+      .brand-name {
+        font-size: 32px;
+        font-weight: 300;
+        color: #c9963f;
+        letter-spacing: 14px;
+        text-indent: 14px;
+        line-height: 1;
+      }
+
+      .tagline {
+        font-size: 16px;
+        font-weight: 400;
+        color: rgba(240, 232, 213, 0.6);
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="border-accent"></div>
+      <div class="content">
+        <div class="logo-box">
+          <div class="meroitic">𐦠𐦴𐦯𐦡</div>
+          <div class="divider"></div>
+          <div class="brand-name">NASTA</div>
+        </div>
+        <div class="tagline">Book trusted home services, instantly</div>
+      </div>
+    </div>
+  </body>
+</html>
