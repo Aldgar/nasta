@@ -42,7 +42,7 @@ interface Job {
 // Helper function to translate category names
 const translateCategoryName = (
   categoryName: string | undefined,
-  t: (key: string) => string
+  t: (key: string) => string,
 ): string => {
   if (!categoryName) return "";
   const categoryMap: Record<string, string> = {
@@ -76,13 +76,16 @@ export default function SearchJobs() {
     lng: number;
   } | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(
-    []
+    [],
   );
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
     getCurrentLocation();
     fetchCategories();
+    // Load all available jobs on mount (no filters)
+    loadAllJobs();
   }, []);
 
   const fetchCategories = async () => {
@@ -152,7 +155,51 @@ export default function SearchJobs() {
     }
   };
 
+  const loadAllJobs = async () => {
+    try {
+      setLoading(true);
+      const token = await SecureStore.getItemAsync("auth_token");
+      if (!token) {
+        router.replace("/login" as never);
+        return;
+      }
+
+      const base = getApiBase();
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const jobsRes = await fetch(`${base}/jobs?limit=200`, {
+        method: "GET",
+        headers,
+      });
+
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json();
+        const allJobs: Job[] = Array.isArray(jobsData)
+          ? jobsData
+          : jobsData.jobs || jobsData.items || [];
+        setJobs(allJobs);
+      } else {
+        setJobs([]);
+      }
+    } catch (err) {
+      console.error("Error loading jobs:", err);
+      setJobs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const searchJobs = useCallback(async () => {
+    // If no filters applied, just load all jobs
+    if (!category && !location?.trim()) {
+      setHasSearched(false);
+      await loadAllJobs();
+      return;
+    }
+    setHasSearched(true);
     try {
       setLoading(true);
       const token = await SecureStore.getItemAsync("auth_token");
@@ -164,20 +211,17 @@ export default function SearchJobs() {
       const base = getApiBase();
 
       const params = new URLSearchParams();
-      if (userLocation) {
-        params.append("lat", userLocation.lat.toString());
-        params.append("lng", userLocation.lng.toString());
-        params.append("radiusKm", "50");
-      }
-      params.append("limit", "100");
+      params.append("limit", "200");
 
-      // Jobs endpoint is public (@Public decorator), but we can send token if available
+      // Use server-side category filtering
+      if (category && category !== "") {
+        params.append("category", category);
+      }
+
       const headers: HeadersInit = {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
 
       const jobsRes = await fetch(`${base}/jobs?${params.toString()}`, {
         method: "GET",
@@ -186,41 +230,30 @@ export default function SearchJobs() {
 
       if (jobsRes.ok) {
         const jobsData = await jobsRes.json();
-        // The endpoint returns an array directly
         let allJobs: Job[] = Array.isArray(jobsData)
           ? jobsData
           : jobsData.jobs || jobsData.items || [];
 
-        // Filter by category if selected
-        if (category && category !== "") {
-          allJobs = allJobs.filter(
-            (job: Job) =>
-              job.category?.name
-                ?.toLowerCase()
-                .includes(category.toLowerCase()) ||
-              job.title?.toLowerCase().includes(category.toLowerCase()) ||
-              job.description?.toLowerCase().includes(category.toLowerCase())
-          );
-        }
-
-        // Filter by location text if provided
+        // Filter by location text if provided (client-side)
         if (location && location.trim() !== "") {
           const locationLower = location.toLowerCase().trim();
           allJobs = allJobs.filter(
             (job: Job) =>
               job.city?.toLowerCase().includes(locationLower) ||
               job.location?.toLowerCase().includes(locationLower) ||
-              job.country?.toLowerCase().includes(locationLower)
+              job.country?.toLowerCase().includes(locationLower),
           );
         }
 
-        // Sort by distance if available, otherwise by creation date
-        allJobs.sort((a, b) => {
-          if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
-            return a.distanceKm - b.distanceKm;
-          }
-          return 0;
-        });
+        // Sort by distance if available, otherwise keep server order
+        if (userLocation) {
+          allJobs.sort((a, b) => {
+            if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
+              return a.distanceKm - b.distanceKm;
+            }
+            return 0;
+          });
+        }
 
         setJobs(allJobs);
       } else {
@@ -236,10 +269,7 @@ export default function SearchJobs() {
     }
   }, [category, location, userLocation, router]);
 
-  useEffect(() => {
-    // Load initial jobs and reload when filters or location change
-    searchJobs();
-  }, [searchJobs]);
+  // searchJobs is only called when user taps the Search button
 
   const renderJobItem = ({ item }: { item: Job }) => (
     <TouchableOpacity
@@ -247,7 +277,9 @@ export default function SearchJobs() {
         styles.jobCard,
         {
           backgroundColor: isDark ? "rgba(12, 22, 42, 0.75)" : "#FFFAF0",
-          borderColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)",
+          borderColor: isDark
+            ? "rgba(201,150,63,0.12)"
+            : "rgba(184,130,42,0.2)",
         },
       ]}
       onPress={() => {
@@ -347,7 +379,7 @@ export default function SearchJobs() {
               <Text style={[styles.tagText, { color: colors.tint }]}>
                 {item.type
                   ? t(
-                      `jobs.type.${item.type.toLowerCase().replace(/_/g, "")}`
+                      `jobs.type.${item.type.toLowerCase().replace(/_/g, "")}`,
                     ) || item.type.replace("_", " ")
                   : ""}
               </Text>
@@ -367,7 +399,7 @@ export default function SearchJobs() {
               <Text style={[styles.tagText, { color: "#22c55e" }]}>
                 {item.workMode
                   ? t(
-                      `jobs.workModeOptions.${item.workMode.toLowerCase().replace(/_/g, "")}`
+                      `jobs.workModeOptions.${item.workMode.toLowerCase().replace(/_/g, "")}`,
                     ) || item.workMode.replace("_", " ")
                   : ""}
               </Text>
@@ -396,81 +428,39 @@ export default function SearchJobs() {
 
   return (
     <GradientBackground>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.container}>
-          <View style={styles.handle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          <View style={styles.container}>
+            <View style={styles.handle} />
 
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {t("searchJobs.title")}
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.closeBtn}
-            >
-              <Feather name="x" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {t("searchJobs.title")}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.closeBtn}
+              >
+                <Feather name="x" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.searchSection}>
-            <Text
-              style={[styles.label, { color: isDark ? "#B8A88A" : "#6B6355" }]}
-            >
-              {t("searchJobs.jobCategory")}
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                styles.categoryInput,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.55)"
-                    : "rgba(255,250,240,0.92)",
-                  borderColor: isDark
-                    ? "rgba(201,150,63,0.12)"
-                    : "rgba(184,130,42,0.2)",
-                },
-              ]}
-              onPress={() => setShowCategoryModal(true)}
-            >
+            <View style={styles.searchSection}>
               <Text
                 style={[
-                  styles.categoryText,
-                  {
-                    color: category
-                      ? colors.text
-                      : isDark
-                        ? "#8A7B68"
-                        : "#9A8E7A",
-                  },
+                  styles.label,
+                  { color: isDark ? "#B8A88A" : "#6B6355" },
                 ]}
               >
-                {category || t("searchJobs.selectCategory")}
+                {t("searchJobs.jobCategory")}
               </Text>
-              <Feather
-                name="chevron-down"
-                size={20}
-                color={isDark ? "#9A8E7A" : "#8A7B68"}
-              />
-            </TouchableOpacity>
-
-            <Text
-              style={[styles.label, { color: isDark ? "#B8A88A" : "#6B6355" }]}
-            >
-              {t("searchJobs.location")}
-            </Text>
-            <View style={styles.inputRow}>
-              <Feather
-                name="map-pin"
-                size={18}
-                color={isDark ? "#9A8E7A" : "#8A7B68"}
-                style={styles.inputIcon}
-              />
-              <TextInput
+              <TouchableOpacity
                 style={[
                   styles.input,
-                  styles.inputWithIcon,
+                  styles.categoryInput,
                   {
                     backgroundColor: isDark
                       ? "rgba(12, 22, 42, 0.55)"
@@ -478,287 +468,342 @@ export default function SearchJobs() {
                     borderColor: isDark
                       ? "rgba(201,150,63,0.12)"
                       : "rgba(184,130,42,0.2)",
-                    color: colors.text,
                   },
                 ]}
-                placeholder={t("searchJobs.enterCityOrZipCode")}
-                placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                value={location}
-                onChangeText={setLocation}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.button,
-                { backgroundColor: isDark ? "#C9963F" : colors.tint },
-              ]}
-              onPress={searchJobs}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFAF0" />
-              ) : (
-                <Text style={styles.buttonText}>{t("common.search")}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {jobs.length > 0 && (
-            <View style={styles.viewToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === "list" && styles.toggleButtonActive,
-                  {
-                    backgroundColor:
-                      viewMode === "list"
-                        ? isDark
-                          ? "#C9963F"
-                          : colors.tint
-                        : "transparent",
-                  },
-                ]}
-                onPress={() => setViewMode("list")}
+                onPress={() => setShowCategoryModal(true)}
               >
-                <Feather
-                  name="list"
-                  size={18}
-                  color={viewMode === "list" ? "#FFFAF0" : colors.text}
-                />
                 <Text
                   style={[
-                    styles.toggleText,
-                    { color: viewMode === "list" ? "#FFFAF0" : colors.text },
-                  ]}
-                >
-                  {t("searchJobs.list")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === "map" && styles.toggleButtonActive,
-                  {
-                    backgroundColor:
-                      viewMode === "map"
-                        ? isDark
-                          ? "#C9963F"
-                          : colors.tint
-                        : "transparent",
-                  },
-                ]}
-                onPress={() => setViewMode("map")}
-              >
-                <Feather
-                  name="map"
-                  size={18}
-                  color={viewMode === "map" ? "#FFFAF0" : colors.text}
-                />
-                <Text
-                  style={[
-                    styles.toggleText,
-                    { color: viewMode === "map" ? "#FFFAF0" : colors.text },
-                  ]}
-                >
-                  {t("searchJobs.map")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {viewMode === "map" && jobs.length > 0 && (
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: userLocation?.lat || 37.78825,
-                  longitude: userLocation?.lng || -122.4324,
-                  latitudeDelta: 0.0922,
-                  longitudeDelta: 0.0421,
-                }}
-              >
-                {userLocation && (
-                  <Marker
-                    coordinate={{
-                      latitude: userLocation.lat,
-                      longitude: userLocation.lng,
-                    }}
-                    title={t("searchJobs.yourLocation")}
-                    pinColor="blue"
-                  />
-                )}
-                {jobs
-                  .filter(
-                    (job) => job.coordinates && job.coordinates.length === 2
-                  )
-                  .map((job) => (
-                    <Marker
-                      key={job.id}
-                      coordinate={{
-                        latitude: job.coordinates![0],
-                        longitude: job.coordinates![1],
-                      }}
-                      title={job.title}
-                      description={job.company?.name || job.location}
-                    />
-                  ))}
-              </MapView>
-            </View>
-          )}
-
-          {viewMode === "list" && (
-            <FlatList
-              data={jobs}
-              keyExtractor={(item) => item.id}
-              renderItem={renderJobItem}
-              contentContainerStyle={styles.listContent}
-              refreshing={loading}
-              onRefresh={searchJobs}
-              ListEmptyComponent={
-                !loading ? (
-                  <View style={styles.emptyContainer}>
-                    <Feather
-                      name="briefcase"
-                      size={48}
-                      color={isDark ? "#6B6355" : "#B8A88A"}
-                    />
-                    <Text
-                      style={[
-                        styles.emptyText,
-                        { color: isDark ? "#9A8E7A" : "#8A7B68" },
-                      ]}
-                    >
-                      {t("searchJobs.noJobsFound")}
-                    </Text>
-                  </View>
-                ) : null
-              }
-            />
-          )}
-        </View>
-
-        <Modal
-          visible={showCategoryModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowCategoryModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.90)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {t("searchJobs.selectCategory")}
-                </Text>
-                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                  <Feather name="x" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView keyboardShouldPersistTaps="handled">
-                <TouchableOpacity
-                  style={[
-                    styles.categoryOption,
-                    category === "" && styles.categoryOptionSelected,
+                    styles.categoryText,
                     {
-                      backgroundColor:
-                        category === ""
-                          ? isDark
-                            ? "#C9963F"
-                            : "#C9963F"
-                          : isDark
-                            ? "rgba(255,250,240,0.06)"
-                            : "rgba(184,130,42,0.06)",
-                      borderWidth: category === "" ? 0 : 1,
-                      borderColor:
-                        category === ""
-                          ? "transparent"
-                          : isDark
-                            ? "rgba(201,150,63,0.12)"
-                            : "rgba(184,130,42,0.2)",
+                      color: category
+                        ? colors.text
+                        : isDark
+                          ? "#8A7B68"
+                          : "#9A8E7A",
                     },
                   ]}
-                  onPress={() => {
-                    setCategory("");
-                    setShowCategoryModal(false);
-                  }}
                 >
+                  {category || t("searchJobs.selectCategory")}
+                </Text>
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                />
+              </TouchableOpacity>
+
+              <Text
+                style={[
+                  styles.label,
+                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                ]}
+              >
+                {t("searchJobs.location")}
+              </Text>
+              <View style={styles.inputRow}>
+                <Feather
+                  name="map-pin"
+                  size={18}
+                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.inputWithIcon,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.55)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                      color: colors.text,
+                    },
+                  ]}
+                  placeholder={t("searchJobs.enterCityOrZipCode")}
+                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                  value={location}
+                  onChangeText={setLocation}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  { backgroundColor: isDark ? "#C9963F" : colors.tint },
+                ]}
+                onPress={searchJobs}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFAF0" />
+                ) : (
+                  <Text style={styles.buttonText}>{t("common.search")}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {jobs.length > 0 && (
+              <View style={styles.viewToggle}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    viewMode === "list" && styles.toggleButtonActive,
+                    {
+                      backgroundColor:
+                        viewMode === "list"
+                          ? isDark
+                            ? "#C9963F"
+                            : colors.tint
+                          : "transparent",
+                    },
+                  ]}
+                  onPress={() => setViewMode("list")}
+                >
+                  <Feather
+                    name="list"
+                    size={18}
+                    color={viewMode === "list" ? "#FFFAF0" : colors.text}
+                  />
                   <Text
                     style={[
-                      styles.categoryOptionText,
-                      {
-                        color: category === "" ? "#FFFAF0" : colors.text,
-                        fontWeight: category === "" ? "600" : "500",
-                      },
+                      styles.toggleText,
+                      { color: viewMode === "list" ? "#FFFAF0" : colors.text },
                     ]}
                   >
-                    {t("searchJobs.allCategories")}
+                    {t("searchJobs.list")}
                   </Text>
                 </TouchableOpacity>
-                {loadingCategories ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator color={colors.tint} />
-                    <Text style={[styles.loadingText, { color: colors.text }]}>
-                      {t("searchJobs.loadingCategories")}
-                    </Text>
-                  </View>
-                ) : (
-                  categories.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.id || cat.name}
-                      style={[
-                        styles.categoryOption,
-                        category === cat.name && styles.categoryOptionSelected,
-                        {
-                          backgroundColor:
-                            category === cat.name
-                              ? isDark
-                                ? "#C9963F"
-                                : "#C9963F"
-                              : isDark
-                                ? "rgba(255,250,240,0.06)"
-                                : "rgba(184,130,42,0.06)",
-                          borderWidth: category === cat.name ? 0 : 1,
-                          borderColor:
-                            category === cat.name
-                              ? "transparent"
-                              : isDark
-                                ? "rgba(201,150,63,0.12)"
-                                : "rgba(184,130,42,0.2)",
-                        },
-                      ]}
-                      onPress={() => {
-                        setCategory(cat.name);
-                        setShowCategoryModal(false);
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    viewMode === "map" && styles.toggleButtonActive,
+                    {
+                      backgroundColor:
+                        viewMode === "map"
+                          ? isDark
+                            ? "#C9963F"
+                            : colors.tint
+                          : "transparent",
+                    },
+                  ]}
+                  onPress={() => setViewMode("map")}
+                >
+                  <Feather
+                    name="map"
+                    size={18}
+                    color={viewMode === "map" ? "#FFFAF0" : colors.text}
+                  />
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      { color: viewMode === "map" ? "#FFFAF0" : colors.text },
+                    ]}
+                  >
+                    {t("searchJobs.map")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {viewMode === "map" && jobs.length > 0 && (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: userLocation?.lat || 37.78825,
+                    longitude: userLocation?.lng || -122.4324,
+                    latitudeDelta: 0.0922,
+                    longitudeDelta: 0.0421,
+                  }}
+                >
+                  {userLocation && (
+                    <Marker
+                      coordinate={{
+                        latitude: userLocation.lat,
+                        longitude: userLocation.lng,
                       }}
-                    >
+                      title={t("searchJobs.yourLocation")}
+                      pinColor="blue"
+                    />
+                  )}
+                  {jobs
+                    .filter(
+                      (job) => job.coordinates && job.coordinates.length === 2,
+                    )
+                    .map((job) => (
+                      <Marker
+                        key={job.id}
+                        coordinate={{
+                          latitude: job.coordinates![0],
+                          longitude: job.coordinates![1],
+                        }}
+                        title={job.title}
+                        description={job.company?.name || job.location}
+                      />
+                    ))}
+                </MapView>
+              </View>
+            )}
+
+            {viewMode === "list" && (
+              <FlatList
+                data={jobs}
+                keyExtractor={(item) => item.id}
+                renderItem={renderJobItem}
+                contentContainerStyle={styles.listContent}
+                refreshing={loading}
+                onRefresh={searchJobs}
+                ListEmptyComponent={
+                  !loading ? (
+                    <View style={styles.emptyContainer}>
+                      <Feather
+                        name="briefcase"
+                        size={48}
+                        color={isDark ? "#6B6355" : "#B8A88A"}
+                      />
                       <Text
                         style={[
-                          styles.categoryOptionText,
-                          {
-                            color: category === cat.name ? "#FFFAF0" : colors.text,
-                            fontWeight: category === cat.name ? "600" : "500",
-                          },
+                          styles.emptyText,
+                          { color: isDark ? "#9A8E7A" : "#8A7B68" },
                         ]}
                       >
-                        {cat.name}
+                        {t("searchJobs.noJobsFound")}
                       </Text>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            </View>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
           </View>
-        </Modal>
-      </SafeAreaView>
+
+          <Modal
+            visible={showCategoryModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCategoryModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.modalContent,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.90)"
+                      : "#FFFAF0",
+                  },
+                ]}
+              >
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    {t("searchJobs.selectCategory")}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                    <Feather name="x" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView keyboardShouldPersistTaps="handled">
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryOption,
+                      category === "" && styles.categoryOptionSelected,
+                      {
+                        backgroundColor:
+                          category === ""
+                            ? isDark
+                              ? "#C9963F"
+                              : "#C9963F"
+                            : isDark
+                              ? "rgba(255,250,240,0.06)"
+                              : "rgba(184,130,42,0.06)",
+                        borderWidth: category === "" ? 0 : 1,
+                        borderColor:
+                          category === ""
+                            ? "transparent"
+                            : isDark
+                              ? "rgba(201,150,63,0.12)"
+                              : "rgba(184,130,42,0.2)",
+                      },
+                    ]}
+                    onPress={() => {
+                      setCategory("");
+                      setShowCategoryModal(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryOptionText,
+                        {
+                          color: category === "" ? "#FFFAF0" : colors.text,
+                          fontWeight: category === "" ? "600" : "500",
+                        },
+                      ]}
+                    >
+                      {t("searchJobs.allCategories")}
+                    </Text>
+                  </TouchableOpacity>
+                  {loadingCategories ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color={colors.tint} />
+                      <Text
+                        style={[styles.loadingText, { color: colors.text }]}
+                      >
+                        {t("searchJobs.loadingCategories")}
+                      </Text>
+                    </View>
+                  ) : (
+                    categories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id || cat.name}
+                        style={[
+                          styles.categoryOption,
+                          category === cat.name &&
+                            styles.categoryOptionSelected,
+                          {
+                            backgroundColor:
+                              category === cat.name
+                                ? isDark
+                                  ? "#C9963F"
+                                  : "#C9963F"
+                                : isDark
+                                  ? "rgba(255,250,240,0.06)"
+                                  : "rgba(184,130,42,0.06)",
+                            borderWidth: category === cat.name ? 0 : 1,
+                            borderColor:
+                              category === cat.name
+                                ? "transparent"
+                                : isDark
+                                  ? "rgba(201,150,63,0.12)"
+                                  : "rgba(184,130,42,0.2)",
+                          },
+                        ]}
+                        onPress={() => {
+                          setCategory(cat.name);
+                          setShowCategoryModal(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            {
+                              color:
+                                category === cat.name ? "#FFFAF0" : colors.text,
+                              fontWeight: category === cat.name ? "600" : "500",
+                            },
+                          ]}
+                        >
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     </GradientBackground>
   );

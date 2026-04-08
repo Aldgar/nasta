@@ -35,6 +35,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<"user" | "employer">("user");
 
   // Animation values for logo
   const logoOpacity = useSharedValue(0);
@@ -482,50 +483,106 @@ export default function LoginScreen() {
 
               <View style={styles.roleButtonsRow}>
                 <TouchableWithoutFeedback
-                  onPress={() => !loading && loginWith("user")}
+                  onPress={() => !loading && setRole("user")}
                   disabled={loading}
                 >
                   <View
                     style={[
-                      styles.button,
-                      styles.buttonSmall,
+                      styles.toggle,
                       {
-                        backgroundColor: isDark ? "#C9963F" : colors.tint,
-                        borderColor: isDark ? "#C9963F" : colors.tint,
+                        backgroundColor:
+                          role === "user"
+                            ? isDark
+                              ? "#C9963F"
+                              : colors.tint
+                            : isDark
+                              ? "transparent"
+                              : "rgba(184,130,42,0.06)",
+                        borderColor:
+                          role === "user"
+                            ? isDark
+                              ? "#C9963F"
+                              : colors.tint
+                            : isDark
+                              ? "rgba(201,150,63,0.3)"
+                              : "rgba(184,130,42,0.3)",
                       },
-                      loading && styles.buttonLoading,
                     ]}
                   >
-                    {loading ? (
-                      <ActivityIndicator color="#FFFAF0" />
-                    ) : (
-                      <Text style={styles.buttonLabel}>Service Provider</Text>
-                    )}
+                    <Text
+                      style={[
+                        styles.toggleLabel,
+                        {
+                          color: role === "user" ? "#FFFAF0" : colors.text,
+                        },
+                      ]}
+                    >
+                      {t("auth.serviceProvider")}
+                    </Text>
                   </View>
                 </TouchableWithoutFeedback>
                 <TouchableWithoutFeedback
-                  onPress={() => !loading && loginWith("employer")}
+                  onPress={() => !loading && setRole("employer")}
                   disabled={loading}
                 >
                   <View
                     style={[
-                      styles.button,
-                      styles.buttonSmall,
+                      styles.toggle,
                       {
-                        backgroundColor: isDark ? "#C9963F" : colors.tint,
-                        borderColor: isDark ? "#C9963F" : colors.tint,
+                        backgroundColor:
+                          role === "employer"
+                            ? isDark
+                              ? "#C9963F"
+                              : colors.tint
+                            : isDark
+                              ? "transparent"
+                              : "rgba(184,130,42,0.06)",
+                        borderColor:
+                          role === "employer"
+                            ? isDark
+                              ? "#C9963F"
+                              : colors.tint
+                            : isDark
+                              ? "rgba(201,150,63,0.3)"
+                              : "rgba(184,130,42,0.3)",
                       },
-                      loading && styles.buttonLoading,
                     ]}
                   >
-                    {loading ? (
-                      <ActivityIndicator color="#FFFAF0" />
-                    ) : (
-                      <Text style={styles.buttonLabel}>Employer</Text>
-                    )}
+                    <Text
+                      style={[
+                        styles.toggleLabel,
+                        {
+                          color: role === "employer" ? "#FFFAF0" : colors.text,
+                        },
+                      ]}
+                    >
+                      {t("auth.employer")}
+                    </Text>
                   </View>
                 </TouchableWithoutFeedback>
               </View>
+
+              <TouchableWithoutFeedback
+                onPress={() => !loading && loginWith(role)}
+                disabled={loading}
+              >
+                <View
+                  style={[
+                    styles.button,
+                    {
+                      backgroundColor: isDark ? "#C9963F" : colors.tint,
+                      borderColor: isDark ? "#C9963F" : colors.tint,
+                    },
+                    loading && styles.buttonLoading,
+                  ]}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFAF0" />
+                  ) : (
+                    <Text style={styles.buttonLabel}>{t("auth.signIn")}</Text>
+                  )}
+                </View>
+              </TouchableWithoutFeedback>
 
               <TouchableWithoutFeedback
                 onPress={() => router.push("/forgot-password" as never)}
@@ -686,6 +743,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginBottom: 16,
+  },
+  toggle: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toggleLabel: {
+    fontWeight: "700",
+    fontSize: 14,
   },
   buttonLoading: {
     opacity: 0.7,

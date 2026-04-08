@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "QXS8594VCR.com.mohamedibrahim.nasta",
+        "paths": ["/jobs/*", "/verify-email*"]
+      }
+    ]
+  }
+}

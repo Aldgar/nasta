@@ -106,7 +106,7 @@ export class AppController {
           ? [
               {
                 appID: appId,
-                paths: ['/verify-email*'],
+                paths: ['/jobs/*', '/verify-email*'],
               },
             ]
           : [],

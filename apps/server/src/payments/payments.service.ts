@@ -1799,7 +1799,9 @@ export class PaymentsService {
         } else if (eventType === 'payout.paid' && rawData) {
           // A payout to a Connected Account's bank has been completed
           const payout = rawData as Stripe.Payout;
-          const connectedAccountId = (event as any).account as string | undefined;
+          const connectedAccountId = (event as any).account as
+            | string
+            | undefined;
           this.logger.log(
             `🏦 Payout paid: ${payout.id}, amount: ${payout.amount}, account: ${connectedAccountId}`,
           );
