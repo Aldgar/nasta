@@ -11,6 +11,7 @@ import {
   Modal,
   Image,
   Linking,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Stack, useLocalSearchParams } from "expo-router";
@@ -24,7 +25,7 @@ import { getApiBase } from "../../lib/api";
 interface TicketAttachment {
   url: string;
   name: string;
-  type?: 'image' | 'document';
+  type?: "image" | "document";
   mimeType?: string;
 }
 
@@ -113,16 +114,19 @@ export default function SupportTicketDetailScreen() {
       if (!token) return;
 
       const base = getApiBase();
-      const res = await fetch(`${base}/support/admin/tickets/${ticketId}/respond`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const res = await fetch(
+        `${base}/support/admin/tickets/${ticketId}/respond`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            response: responseText.trim(),
+          }),
         },
-        body: JSON.stringify({
-          response: responseText.trim(),
-        }),
-      });
+      );
 
       if (res.ok) {
         Alert.alert(t("common.success"), t("admin.responseSentSuccessfully"), [
@@ -136,7 +140,10 @@ export default function SupportTicketDetailScreen() {
         ]);
       } else {
         const error = await res.json();
-        Alert.alert(t("common.error"), error.message || t("admin.failedToSendResponse"));
+        Alert.alert(
+          t("common.error"),
+          error.message || t("admin.failedToSendResponse"),
+        );
       }
     } catch (error) {
       console.error("Error sending response:", error);
@@ -203,7 +210,9 @@ export default function SupportTicketDetailScreen() {
   }
 
   const userName = ticket.user
-    ? `${ticket.user.firstName || ''} ${ticket.user.lastName || ''}`.trim() || ticket.user.email || t("admin.user")
+    ? `${ticket.user.firstName || ""} ${ticket.user.lastName || ""}`.trim() ||
+      ticket.user.email ||
+      t("admin.user")
     : ticket.name || t("admin.anonymous");
   const userEmail = ticket.user?.email || ticket.email || t("admin.noEmail");
   const userPhone = ticket.user?.phone || null;
@@ -218,13 +227,17 @@ export default function SupportTicketDetailScreen() {
             style={[
               styles.backButton,
               {
-                backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)",
+                backgroundColor: isDark
+                  ? "rgba(201,150,63,0.12)"
+                  : "rgba(184,130,42,0.2)",
               },
             ]}
           >
             <Feather name="arrow-left" size={20} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>{t("admin.ticketDetails")}</Text>
+          <Text style={[styles.pageTitle, { color: colors.text }]}>
+            {t("admin.ticketDetails")}
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -242,14 +255,26 @@ export default function SupportTicketDetailScreen() {
                   backgroundColor: isDark
                     ? "rgba(12, 22, 42, 0.90)"
                     : "rgba(255,250,240,0.92)",
-                  borderColor: isDark ? "rgba(201,150,63,0.25)" : "rgba(184,130,42,0.2)",
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.25)"
+                    : "rgba(184,130,42,0.2)",
                 },
               ]}
             >
-              <Text style={[styles.ticketNumberLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+              <Text
+                style={[
+                  styles.ticketNumberLabel,
+                  { color: isDark ? "#B8A88A" : "#8A7B68" },
+                ]}
+              >
                 {t("admin.ticketNumber")}
               </Text>
-              <Text style={[styles.ticketNumber, { color: isDark ? "#A78BFA" : "#7C3AED" }]}>
+              <Text
+                style={[
+                  styles.ticketNumber,
+                  { color: isDark ? "#A78BFA" : "#7C3AED" },
+                ]}
+              >
                 {ticket.ticketNumber}
               </Text>
             </View>
@@ -263,37 +288,69 @@ export default function SupportTicketDetailScreen() {
                 backgroundColor: isDark
                   ? "rgba(12, 22, 42, 0.90)"
                   : "rgba(255,250,240,0.92)",
-                borderColor: isDark ? "rgba(201,150,63,0.25)" : "rgba(184,130,42,0.2)",
+                borderColor: isDark
+                  ? "rgba(201,150,63,0.25)"
+                  : "rgba(184,130,42,0.2)",
               },
             ]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("admin.contactInformation")}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              {t("admin.contactInformation")}
+            </Text>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+              <Text
+                style={[
+                  styles.infoLabel,
+                  { color: isDark ? "#B8A88A" : "#8A7B68" },
+                ]}
+              >
                 {t("admin.name")}:
               </Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{userName}</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userName}
+              </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+              <Text
+                style={[
+                  styles.infoLabel,
+                  { color: isDark ? "#B8A88A" : "#8A7B68" },
+                ]}
+              >
                 {t("settings.email")}:
               </Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{userEmail}</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {userEmail}
+              </Text>
             </View>
             {userPhone && (
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+                <Text
+                  style={[
+                    styles.infoLabel,
+                    { color: isDark ? "#B8A88A" : "#8A7B68" },
+                  ]}
+                >
                   {t("settings.phone")}:
                 </Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{userPhone}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
+                  {userPhone}
+                </Text>
               </View>
             )}
             {ticket.userId && (
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+                <Text
+                  style={[
+                    styles.infoLabel,
+                    { color: isDark ? "#B8A88A" : "#8A7B68" },
+                  ]}
+                >
                   {t("admin.userId")}:
                 </Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{ticket.userId}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
+                  {ticket.userId}
+                </Text>
               </View>
             )}
           </View>
@@ -306,18 +363,31 @@ export default function SupportTicketDetailScreen() {
                 backgroundColor: isDark
                   ? "rgba(12, 22, 42, 0.90)"
                   : "rgba(255,250,240,0.92)",
-                borderColor: isDark ? "rgba(201,150,63,0.25)" : "rgba(184,130,42,0.2)",
+                borderColor: isDark
+                  ? "rgba(201,150,63,0.25)"
+                  : "rgba(184,130,42,0.2)",
               },
             ]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("admin.ticketDetails")}</Text>
-            <Text style={[styles.ticketSubject, { color: colors.text }]}>{ticket.subject}</Text>
-            <Text style={[styles.ticketMessage, { color: colors.text }]}>{ticket.message}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              {t("admin.ticketDetails")}
+            </Text>
+            <Text style={[styles.ticketSubject, { color: colors.text }]}>
+              {ticket.subject}
+            </Text>
+            <Text style={[styles.ticketMessage, { color: colors.text }]}>
+              {ticket.message}
+            </Text>
 
             {/* Attachments */}
             {ticket.attachments && ticket.attachments.length > 0 && (
               <View style={styles.attachmentsContainer}>
-                <Text style={[styles.attachmentsLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+                <Text
+                  style={[
+                    styles.attachmentsLabel,
+                    { color: isDark ? "#B8A88A" : "#8A7B68" },
+                  ]}
+                >
                   {t("admin.attachments")} ({ticket.attachments.length})
                 </Text>
                 <View style={styles.attachmentsGrid}>
@@ -327,26 +397,38 @@ export default function SupportTicketDetailScreen() {
                       style={[
                         styles.attachmentItem,
                         {
-                          backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)",
-                          borderColor: isDark ? "rgba(255,250,240,0.15)" : "rgba(184,130,42,0.2)",
+                          backgroundColor: isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.06)",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "rgba(184,130,42,0.2)",
                         },
                       ]}
                       onPress={() => {
                         if (attachment.url) {
-                          Linking.openURL(attachment.url).catch(err => {
-                            Alert.alert(t("common.error"), t("admin.failedToOpenAttachment"));
+                          Linking.openURL(attachment.url).catch((err) => {
+                            Alert.alert(
+                              t("common.error"),
+                              t("admin.failedToOpenAttachment"),
+                            );
                           });
                         }
                       }}
                     >
-                      {attachment.type === 'image' ? (
+                      {attachment.type === "image" ? (
                         <Image
                           source={{ uri: attachment.url }}
                           style={styles.attachmentThumbnail}
                           resizeMode="cover"
                         />
                       ) : (
-                        <View style={[styles.attachmentIcon, { backgroundColor: colors.tint }]}>
+                        <View
+                          style={[
+                            styles.attachmentIcon,
+                            { backgroundColor: colors.tint },
+                          ]}
+                        >
                           <Feather name="file" size={24} color="#FFFAF0" />
                         </View>
                       )}
@@ -406,7 +488,12 @@ export default function SupportTicketDetailScreen() {
               </View>
             </View>
 
-            <Text style={[styles.dateText, { color: isDark ? "#B8A88A" : "#8A7B68" }]}>
+            <Text
+              style={[
+                styles.dateText,
+                { color: isDark ? "#B8A88A" : "#8A7B68" },
+              ]}
+            >
               Created: {new Date(ticket.createdAt).toLocaleString()}
             </Text>
           </View>
@@ -420,11 +507,15 @@ export default function SupportTicketDetailScreen() {
                   backgroundColor: isDark
                     ? "rgba(12, 22, 42, 0.90)"
                     : "rgba(255,250,240,0.92)",
-                  borderColor: isDark ? "rgba(201,150,63,0.25)" : "rgba(184,130,42,0.2)",
+                  borderColor: isDark
+                    ? "rgba(201,150,63,0.25)"
+                    : "rgba(184,130,42,0.2)",
                 },
               ]}
             >
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Resolution</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Resolution
+              </Text>
               <Text style={[styles.ticketMessage, { color: colors.text }]}>
                 {ticket.resolution}
               </Text>
@@ -453,7 +544,9 @@ export default function SupportTicketDetailScreen() {
                 }}
               >
                 <Feather name="message-circle" size={18} color="#FFFAF0" />
-                <Text style={styles.actionButtonText}>{t("admin.startChat")}</Text>
+                <Text style={styles.actionButtonText}>
+                  {t("admin.startChat")}
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -466,7 +559,9 @@ export default function SupportTicketDetailScreen() {
               onPress={() => setShowResponseModal(true)}
             >
               <Feather name="mail" size={18} color="#FFFAF0" />
-              <Text style={styles.responseButtonText}>{t("admin.respondToUser")}</Text>
+              <Text style={styles.responseButtonText}>
+                {t("admin.respondToUser")}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -483,7 +578,9 @@ export default function SupportTicketDetailScreen() {
               style={[
                 styles.modalContent,
                 {
-                  backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "#FFFAF0",
                 },
               ]}
             >
@@ -503,13 +600,19 @@ export default function SupportTicketDetailScreen() {
                 style={[
                   styles.modalTextArea,
                   {
-                    backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)",
+                    backgroundColor: isDark
+                      ? "rgba(201,150,63,0.12)"
+                      : "rgba(184,130,42,0.06)",
                     color: colors.text,
-                    borderColor: isDark ? "rgba(255,250,240,0.15)" : "rgba(184,130,42,0.2)",
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "rgba(184,130,42,0.2)",
                   },
                 ]}
                 placeholder={t("admin.enterResponseToUser")}
-                placeholderTextColor={isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"}
+                placeholderTextColor={
+                  isDark ? "rgba(255,250,240,0.5)" : "#9A8E7A"
+                }
                 value={responseText}
                 onChangeText={setResponseText}
                 multiline
@@ -523,7 +626,9 @@ export default function SupportTicketDetailScreen() {
                     styles.modalButton,
                     styles.modalButtonCancel,
                     {
-                      borderColor: isDark ? "rgba(201,150,63,0.25)" : "rgba(184,130,42,0.3)",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.25)"
+                        : "rgba(184,130,42,0.3)",
                     },
                   ]}
                   onPress={() => {
@@ -531,7 +636,11 @@ export default function SupportTicketDetailScreen() {
                     setResponseText("");
                   }}
                 >
-                  <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
+                  <Text
+                    style={[styles.modalButtonText, { color: colors.text }]}
+                  >
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonSubmit]}
@@ -541,7 +650,9 @@ export default function SupportTicketDetailScreen() {
                   {sendingResponse ? (
                     <ActivityIndicator color="#FFFAF0" />
                   ) : (
-                    <Text style={styles.modalButtonTextSubmit}>{t("admin.sendResponse")}</Text>
+                    <Text style={styles.modalButtonTextSubmit}>
+                      {t("admin.sendResponse")}
+                    </Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -600,7 +711,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   sectionTitle: {
-    fontSize: 16, letterSpacing: 1.2, textTransform: "uppercase" as const,
+    fontSize: 16,
+    letterSpacing: 1.2,
+    textTransform: "uppercase" as const,
     fontWeight: "700",
     marginBottom: 12,
   },
@@ -684,6 +797,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    paddingBottom: Platform.OS === "android" ? 56 : 20,
     maxHeight: "90%",
   },
   modalHeader: {
@@ -777,4 +891,3 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 });
-

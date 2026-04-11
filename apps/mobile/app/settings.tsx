@@ -1856,11 +1856,62 @@ export default function Settings() {
                 />
               </Row>
               <Row>
-                <Label text={t("settings.darkMode")} />
-                <Switch
-                  value={isDark}
-                  onValueChange={(val) => setTheme(val ? "dark" : "light")}
-                />
+                <Label text={t("settings.appearance")} />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.80)"
+                      : "#E8D8B8",
+                    borderRadius: 8,
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "transparent",
+                    overflow: "hidden",
+                  }}
+                >
+                  {(
+                    [
+                      { key: "system", label: t("settings.themeSystem") },
+                      { key: "light", label: t("settings.themeLight") },
+                      { key: "dark", label: t("settings.themeDark") },
+                    ] as const
+                  ).map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      onPress={() => setTheme(opt.key)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        backgroundColor:
+                          theme === opt.key
+                            ? isDark
+                              ? "rgba(201,150,63,0.35)"
+                              : "rgba(184,130,42,0.25)"
+                            : "transparent",
+                        borderRadius: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: theme === opt.key ? "700" : "500",
+                          color:
+                            theme === opt.key
+                              ? isDark
+                                ? "#F0E8D5"
+                                : "#5C5548"
+                              : isDark
+                                ? "rgba(240,232,213,0.5)"
+                                : "rgba(92,85,72,0.5)",
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </Row>
               <Row>
                 <Label text={t("settings.location")} />
@@ -1943,7 +1994,7 @@ export default function Settings() {
             onRequestClose={() => setEditModal(null)}
           >
             <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={{ flex: 1 }}
             >
               <View style={styles.modalOverlay} pointerEvents="box-none">
@@ -1987,549 +2038,139 @@ export default function Settings() {
                   </View>
 
                   {/* Country Picker Overlay - Shows inside edit modal when phone editing */}
-                  {showCountryPicker && editModal === "phone" ? (
-                    <ScrollView style={{ maxHeight: 500 }}>
-                      {COUNTRIES && COUNTRIES.length > 0 ? (
-                        COUNTRIES.map((country) => (
+                  <ScrollView
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                    bounces={false}
+                  >
+                    {showCountryPicker && editModal === "phone" ? (
+                      <ScrollView style={{ maxHeight: 500 }}>
+                        {COUNTRIES && COUNTRIES.length > 0 ? (
+                          COUNTRIES.map((country) => (
+                            <TouchableButton
+                              key={country.code}
+                              style={[
+                                {
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  paddingVertical: 16,
+                                  paddingHorizontal: 16,
+                                  borderBottomWidth: 1,
+                                  borderBottomColor: isDark
+                                    ? "rgba(201,150,63,0.12)"
+                                    : "rgba(184,130,42,0.06)",
+                                },
+                                phoneForm.countryCode === country.dialCode && {
+                                  backgroundColor: isDark
+                                    ? "rgba(201, 150, 63, 0.2)"
+                                    : "rgba(201, 150, 63, 0.1)",
+                                },
+                              ]}
+                              onPress={() => {
+                                setPhoneForm({
+                                  ...phoneForm,
+                                  countryCode: country.dialCode,
+                                  countryFlag: country.flag,
+                                  countryName: country.name,
+                                });
+                                setShowCountryPicker(false);
+                              }}
+                            >
+                              <Text style={{ fontSize: 28, marginRight: 12 }}>
+                                {country.flag}
+                              </Text>
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={[
+                                    styles.modalOptionText,
+                                    { color: colors.text, fontWeight: "700" },
+                                  ]}
+                                >
+                                  {country.name}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.modalOptionText,
+                                    {
+                                      color: isDark ? "#9A8E7A" : "#8A7B68",
+                                      fontSize: 14,
+                                      marginTop: 2,
+                                    },
+                                  ]}
+                                >
+                                  {country.dialCode}
+                                </Text>
+                              </View>
+                              {phoneForm.countryCode === country.dialCode && (
+                                <Feather
+                                  name="check"
+                                  size={20}
+                                  color={colors.tint}
+                                />
+                              )}
+                            </TouchableButton>
+                          ))
+                        ) : (
+                          <View />
+                        )}
+                      </ScrollView>
+                    ) : editModal === "address" ? (
+                      <ScrollView style={{ maxHeight: 400 }}>
+                        {(profile.role === "JOB_SEEKER" ||
+                          profile.role === "EMPLOYER") && (
                           <TouchableButton
-                            key={country.code}
-                            style={[
-                              {
-                                flexDirection: "row",
-                                alignItems: "center",
-                                paddingVertical: 16,
-                                paddingHorizontal: 16,
-                                borderBottomWidth: 1,
-                                borderBottomColor: isDark
-                                  ? "rgba(201,150,63,0.12)"
-                                  : "rgba(184,130,42,0.06)",
-                              },
-                              phoneForm.countryCode === country.dialCode && {
-                                backgroundColor: isDark
-                                  ? "rgba(201, 150, 63, 0.2)"
-                                  : "rgba(201, 150, 63, 0.1)",
-                              },
-                            ]}
-                            onPress={() => {
-                              setPhoneForm({
-                                ...phoneForm,
-                                countryCode: country.dialCode,
-                                countryFlag: country.flag,
-                                countryName: country.name,
-                              });
-                              setShowCountryPicker(false);
+                            onPress={handleUseCurrentLocation}
+                            disabled={isGettingLocation}
+                            style={{
+                              marginBottom: 16,
+                              backgroundColor: isDark
+                                ? "rgba(201, 150, 63, 0.3)"
+                                : "rgba(201, 150, 63, 0.1)",
+                              borderColor: isDark ? "#C9963F" : "#C9963F",
+                              borderWidth: 1,
+                              paddingVertical: 12,
+                              paddingHorizontal: 16,
+                              borderRadius: 8,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 8,
                             }}
                           >
-                            <Text style={{ fontSize: 28, marginRight: 12 }}>
-                              {country.flag}
-                            </Text>
-                            <View style={{ flex: 1 }}>
-                              <Text
-                                style={[
-                                  styles.modalOptionText,
-                                  { color: colors.text, fontWeight: "700" },
-                                ]}
-                              >
-                                {country.name}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.modalOptionText,
-                                  {
-                                    color: isDark ? "#9A8E7A" : "#8A7B68",
-                                    fontSize: 14,
-                                    marginTop: 2,
-                                  },
-                                ]}
-                              >
-                                {country.dialCode}
-                              </Text>
-                            </View>
-                            {phoneForm.countryCode === country.dialCode && (
-                              <Feather
-                                name="check"
-                                size={20}
-                                color={colors.tint}
-                              />
+                            {isGettingLocation ? (
+                              <>
+                                <ActivityIndicator
+                                  size="small"
+                                  color={isDark ? "#C9963F" : "#C9963F"}
+                                />
+                                <Text
+                                  style={{
+                                    color: isDark ? "#C9963F" : "#C9963F",
+                                    fontSize: 16,
+                                  }}
+                                >
+                                  {t("settings.gettingLocation")}
+                                </Text>
+                              </>
+                            ) : (
+                              <>
+                                <Feather
+                                  name="map-pin"
+                                  size={18}
+                                  color={isDark ? "#C9963F" : "#C9963F"}
+                                />
+                                <Text
+                                  style={{
+                                    color: isDark ? "#C9963F" : "#C9963F",
+                                    fontSize: 16,
+                                  }}
+                                >
+                                  {t("settings.useCurrentLocation")}
+                                </Text>
+                              </>
                             )}
                           </TouchableButton>
-                        ))
-                      ) : (
-                        <View />
-                      )}
-                    </ScrollView>
-                  ) : editModal === "address" ? (
-                    <ScrollView style={{ maxHeight: 400 }}>
-                      {(profile.role === "JOB_SEEKER" ||
-                        profile.role === "EMPLOYER") && (
-                        <TouchableButton
-                          onPress={handleUseCurrentLocation}
-                          disabled={isGettingLocation}
-                          style={{
-                            marginBottom: 16,
-                            backgroundColor: isDark
-                              ? "rgba(201, 150, 63, 0.3)"
-                              : "rgba(201, 150, 63, 0.1)",
-                            borderColor: isDark ? "#C9963F" : "#C9963F",
-                            borderWidth: 1,
-                            paddingVertical: 12,
-                            paddingHorizontal: 16,
-                            borderRadius: 8,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 8,
-                          }}
-                        >
-                          {isGettingLocation ? (
-                            <>
-                              <ActivityIndicator
-                                size="small"
-                                color={isDark ? "#C9963F" : "#C9963F"}
-                              />
-                              <Text
-                                style={{
-                                  color: isDark ? "#C9963F" : "#C9963F",
-                                  fontSize: 16,
-                                }}
-                              >
-                                {t("settings.gettingLocation")}
-                              </Text>
-                            </>
-                          ) : (
-                            <>
-                              <Feather
-                                name="map-pin"
-                                size={18}
-                                color={isDark ? "#C9963F" : "#C9963F"}
-                              />
-                              <Text
-                                style={{
-                                  color: isDark ? "#C9963F" : "#C9963F",
-                                  fontSize: 16,
-                                }}
-                              >
-                                {t("settings.useCurrentLocation")}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableButton>
-                      )}
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={addressForm.addressLine1}
-                        onChangeText={(text) =>
-                          setAddressForm({ ...addressForm, addressLine1: text })
-                        }
-                        placeholder={t("profile.addressLine1")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        autoCapitalize="words"
-                      />
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={addressForm.addressLine2}
-                        onChangeText={(text) =>
-                          setAddressForm({ ...addressForm, addressLine2: text })
-                        }
-                        placeholder={t("profile.addressLine2Optional")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        autoCapitalize="words"
-                      />
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={addressForm.city}
-                        onChangeText={(text) =>
-                          setAddressForm({ ...addressForm, city: text })
-                        }
-                        placeholder={t("profile.city")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        autoCapitalize="words"
-                      />
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={addressForm.state}
-                        onChangeText={(text) =>
-                          setAddressForm({ ...addressForm, state: text })
-                        }
-                        placeholder={t("settings.provinceState")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        autoCapitalize="words"
-                      />
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={addressForm.postalCode}
-                        onChangeText={(text) =>
-                          setAddressForm({ ...addressForm, postalCode: text })
-                        }
-                        placeholder={t("settings.zipPostalCode")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        autoCapitalize="characters"
-                      />
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={addressForm.country}
-                        onChangeText={(text) =>
-                          setAddressForm({ ...addressForm, country: text })
-                        }
-                        placeholder={t("profile.selectCountry")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        autoCapitalize="words"
-                      />
-                    </ScrollView>
-                  ) : editModal === "dateOfBirth" ? (
-                    <View pointerEvents="auto">
-                      <Text
-                        style={[
-                          styles.modalLabel,
-                          { color: colors.text, marginBottom: 16 },
-                        ]}
-                      >
-                        {t("settings.enterDateOfBirth")}
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          gap: 12,
-                          marginBottom: 12,
-                        }}
-                        pointerEvents="auto"
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={[
-                              styles.modalLabel,
-                              {
-                                color: isDark ? "#9A8E7A" : "#8A7B68",
-                                fontSize: 12,
-                                marginBottom: 6,
-                              },
-                            ]}
-                          >
-                            {t("settings.day")}
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.modalInput,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(12, 22, 42, 0.75)"
-                                  : "#FFFAF0",
-                                color: colors.text,
-                                borderColor: isDark
-                                  ? "rgba(255,250,240,0.12)"
-                                  : "#D4C0A0",
-                                padding: 16,
-                                fontSize: 16,
-                                textAlign: "center",
-                              },
-                            ]}
-                            value={dateInput.day}
-                            onChangeText={(text) => {
-                              const num = text.replace(/[^\d]/g, "");
-                              const parsed = num === "" ? 0 : parseInt(num);
-                              const isValid =
-                                num === "" || (parsed >= 1 && parsed <= 31);
-                              if (isValid) {
-                                const newInput = {
-                                  ...dateInput,
-                                  day: num.slice(0, 2),
-                                };
-                                setDateInput(newInput);
-                                updateDateFromInputs(newInput);
-                              }
-                            }}
-                            placeholder={t("settings.dd")}
-                            placeholderTextColor={
-                              isDark ? "#8A7B68" : "#9A8E7A"
-                            }
-                            keyboardType="numeric"
-                            maxLength={2}
-                            editable={true}
-                            selectTextOnFocus={false}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }} pointerEvents="box-none">
-                          <Text
-                            style={[
-                              styles.modalLabel,
-                              {
-                                color: isDark ? "#9A8E7A" : "#8A7B68",
-                                fontSize: 12,
-                                marginBottom: 6,
-                              },
-                            ]}
-                          >
-                            {t("settings.month")}
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.modalInput,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(12, 22, 42, 0.75)"
-                                  : "#FFFAF0",
-                                color: colors.text,
-                                borderColor: isDark
-                                  ? "rgba(255,250,240,0.12)"
-                                  : "#D4C0A0",
-                                padding: 16,
-                                fontSize: 16,
-                                textAlign: "center",
-                              },
-                            ]}
-                            value={dateInput.month}
-                            onChangeText={(text) => {
-                              const num = text.replace(/[^\d]/g, "");
-                              const parsed = num === "" ? 0 : parseInt(num);
-                              const isValid =
-                                num === "" || (parsed >= 1 && parsed <= 12);
-                              if (isValid) {
-                                const newInput = {
-                                  ...dateInput,
-                                  month: num.slice(0, 2),
-                                };
-                                setDateInput(newInput);
-                                updateDateFromInputs(newInput);
-                              }
-                            }}
-                            placeholder={t("settings.mm")}
-                            placeholderTextColor={
-                              isDark ? "#8A7B68" : "#9A8E7A"
-                            }
-                            keyboardType="numeric"
-                            maxLength={2}
-                            editable={true}
-                            selectTextOnFocus={false}
-                          />
-                        </View>
-                        <View style={{ flex: 1.5 }} pointerEvents="box-none">
-                          <Text
-                            style={[
-                              styles.modalLabel,
-                              {
-                                color: isDark ? "#9A8E7A" : "#8A7B68",
-                                fontSize: 12,
-                                marginBottom: 6,
-                              },
-                            ]}
-                          >
-                            {t("settings.year")}
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.modalInput,
-                              {
-                                backgroundColor: isDark
-                                  ? "rgba(12, 22, 42, 0.75)"
-                                  : "#FFFAF0",
-                                color: colors.text,
-                                borderColor: isDark
-                                  ? "rgba(255,250,240,0.12)"
-                                  : "#D4C0A0",
-                                padding: 16,
-                                fontSize: 16,
-                                textAlign: "center",
-                              },
-                            ]}
-                            value={dateInput.year}
-                            onChangeText={(text) => {
-                              const num = text.replace(/[^\d]/g, "");
-                              const currentYear = new Date().getFullYear();
-                              // Allow partial inputs while typing (1-4 digits)
-                              // Only validate full range when we have 4 digits
-                              const isValid =
-                                num === "" ||
-                                (num.length <= 4 &&
-                                  (num.length < 4 ||
-                                    (parseInt(num) >= 1900 &&
-                                      parseInt(num) <= currentYear)));
-                              if (isValid) {
-                                const newInput = {
-                                  ...dateInput,
-                                  year: num.slice(0, 4),
-                                };
-                                setDateInput(newInput);
-                                updateDateFromInputs(newInput);
-                              }
-                            }}
-                            placeholder={t("settings.yyyy")}
-                            placeholderTextColor={
-                              isDark ? "#8A7B68" : "#9A8E7A"
-                            }
-                            keyboardType="numeric"
-                            maxLength={4}
-                            editable={true}
-                            selectTextOnFocus={false}
-                          />
-                        </View>
-                      </View>
-                      {dateOfBirth && (
-                        <Text
-                          style={[
-                            styles.modalLabel,
-                            {
-                              color: isDark ? "#6ee7b7" : "#059669",
-                              fontSize: 14,
-                              marginTop: 8,
-                              textAlign: "center",
-                            },
-                          ]}
-                        >
-                          {(() => {
-                            const month = String(
-                              dateOfBirth.getMonth() + 1,
-                            ).padStart(2, "0");
-                            const day = String(dateOfBirth.getDate()).padStart(
-                              2,
-                              "0",
-                            );
-                            const year = dateOfBirth.getFullYear();
-                            return `${month}/${day}/${year}`;
-                          })()}
-                        </Text>
-                      )}
-                    </View>
-                  ) : editModal === "phone" ? (
-                    <View>
-                      {/* Country Picker */}
-                      <TouchableOpacity
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            marginBottom: 12,
-                          },
-                        ]}
-                        onPress={() => {
-                          setShowCountryPicker(true);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <Text style={{ fontSize: 24 }}>
-                            {phoneForm.countryFlag}
-                          </Text>
-                          <Text style={{ color: colors.text, fontSize: 16 }}>
-                            {phoneForm.countryName} {phoneForm.countryCode}
-                          </Text>
-                        </View>
-                        <Feather
-                          name="chevron-down"
-                          size={20}
-                          color={colors.text}
-                        />
-                      </TouchableOpacity>
-
-                      {/* Phone Number Input */}
-                      <TextInput
-                        style={[
-                          styles.modalInput,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.75)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#D4C0A0",
-                          },
-                        ]}
-                        value={phoneForm.phoneNumber}
-                        onChangeText={(text) =>
-                          setPhoneForm({ ...phoneForm, phoneNumber: text })
-                        }
-                        placeholder={t("settings.enterPhoneNumber")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        keyboardType="phone-pad"
-                        autoCapitalize="none"
-                      />
-                    </View>
-                  ) : editModal === "password" ? (
-                    <>
-                      <Text style={[styles.modalLabel, { color: colors.text }]}>
-                        {t("settings.currentPassword")}
-                      </Text>
-                      <View style={{ position: "relative" }}>
+                        )}
                         <TextInput
                           style={[
                             styles.modalInput,
@@ -2541,51 +2182,19 @@ export default function Settings() {
                               borderColor: isDark
                                 ? "rgba(255,250,240,0.12)"
                                 : "#D4C0A0",
-                              paddingRight: 50,
                             },
                           ]}
-                          value={passwordForm.currentPassword}
+                          value={addressForm.addressLine1}
                           onChangeText={(text) =>
-                            setPasswordForm({
-                              ...passwordForm,
-                              currentPassword: text,
+                            setAddressForm({
+                              ...addressForm,
+                              addressLine1: text,
                             })
                           }
-                          placeholder={t("settings.enterCurrentPassword")}
+                          placeholder={t("profile.addressLine1")}
                           placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          secureTextEntry={!showPassword.current}
-                          autoCapitalize="none"
+                          autoCapitalize="words"
                         />
-                        <TouchableOpacity
-                          style={{
-                            position: "absolute",
-                            right: 12,
-                            top: 12,
-                            padding: 4,
-                          }}
-                          onPress={() =>
-                            setShowPassword({
-                              ...showPassword,
-                              current: !showPassword.current,
-                            })
-                          }
-                        >
-                          <Feather
-                            name={showPassword.current ? "eye" : "eye-off"}
-                            size={20}
-                            color={isDark ? "#8A7B68" : "#9A8E7A"}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                      <Text
-                        style={[
-                          styles.modalLabel,
-                          { color: colors.text, marginTop: 16 },
-                        ]}
-                      >
-                        {t("settings.newPassword")}
-                      </Text>
-                      <View style={{ position: "relative" }}>
                         <TextInput
                           style={[
                             styles.modalInput,
@@ -2594,129 +2203,365 @@ export default function Settings() {
                                 ? "rgba(12, 22, 42, 0.75)"
                                 : "#FFFAF0",
                               color: colors.text,
-                              borderColor:
-                                passwordForm.newPassword &&
-                                !validatePassword(passwordForm.newPassword)
-                                  .isValid
-                                  ? isDark
-                                    ? "#ef4444"
-                                    : "#dc2626"
-                                  : isDark
-                                    ? "rgba(255,250,240,0.12)"
-                                    : "#D4C0A0",
-                              paddingRight: 50,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
                             },
                           ]}
-                          value={passwordForm.newPassword}
-                          onChangeText={(text) => {
-                            setPasswordForm({
-                              ...passwordForm,
-                              newPassword: text,
-                            });
-                            const validation = validatePassword(text);
-                            setPasswordErrors(validation.errors);
-                          }}
-                          placeholder={t("settings.enterNewPassword")}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          secureTextEntry={!showPassword.new}
-                          autoCapitalize="none"
-                        />
-                        <TouchableOpacity
-                          style={{
-                            position: "absolute",
-                            right: 12,
-                            top: 12,
-                            padding: 4,
-                          }}
-                          onPress={() =>
-                            setShowPassword({
-                              ...showPassword,
-                              new: !showPassword.new,
+                          value={addressForm.addressLine2}
+                          onChangeText={(text) =>
+                            setAddressForm({
+                              ...addressForm,
+                              addressLine2: text,
                             })
                           }
+                          placeholder={t("profile.addressLine2Optional")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          autoCapitalize="words"
+                        />
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                            },
+                          ]}
+                          value={addressForm.city}
+                          onChangeText={(text) =>
+                            setAddressForm({ ...addressForm, city: text })
+                          }
+                          placeholder={t("profile.city")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          autoCapitalize="words"
+                        />
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                            },
+                          ]}
+                          value={addressForm.state}
+                          onChangeText={(text) =>
+                            setAddressForm({ ...addressForm, state: text })
+                          }
+                          placeholder={t("settings.provinceState")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          autoCapitalize="words"
+                        />
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                            },
+                          ]}
+                          value={addressForm.postalCode}
+                          onChangeText={(text) =>
+                            setAddressForm({ ...addressForm, postalCode: text })
+                          }
+                          placeholder={t("settings.zipPostalCode")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          autoCapitalize="characters"
+                        />
+                        <TextInput
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                            },
+                          ]}
+                          value={addressForm.country}
+                          onChangeText={(text) =>
+                            setAddressForm({ ...addressForm, country: text })
+                          }
+                          placeholder={t("profile.selectCountry")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          autoCapitalize="words"
+                        />
+                      </ScrollView>
+                    ) : editModal === "dateOfBirth" ? (
+                      <View pointerEvents="auto">
+                        <Text
+                          style={[
+                            styles.modalLabel,
+                            { color: colors.text, marginBottom: 16 },
+                          ]}
                         >
-                          <Feather
-                            name={showPassword.new ? "eye" : "eye-off"}
-                            size={20}
-                            color={isDark ? "#8A7B68" : "#9A8E7A"}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Password Requirements */}
-                      {passwordForm.newPassword.length > 0 && (
-                        <View style={{ marginTop: 8, marginBottom: 8 }}>
+                          {t("settings.enterDateOfBirth")}
+                        </Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 12,
+                            marginBottom: 12,
+                          }}
+                          pointerEvents="auto"
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.modalLabel,
+                                {
+                                  color: isDark ? "#9A8E7A" : "#8A7B68",
+                                  fontSize: 12,
+                                  marginBottom: 6,
+                                },
+                              ]}
+                            >
+                              {t("settings.day")}
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.modalInput,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(12, 22, 42, 0.75)"
+                                    : "#FFFAF0",
+                                  color: colors.text,
+                                  borderColor: isDark
+                                    ? "rgba(255,250,240,0.12)"
+                                    : "#D4C0A0",
+                                  padding: 16,
+                                  fontSize: 16,
+                                  textAlign: "center",
+                                },
+                              ]}
+                              value={dateInput.day}
+                              onChangeText={(text) => {
+                                const num = text.replace(/[^\d]/g, "");
+                                const parsed = num === "" ? 0 : parseInt(num);
+                                const isValid =
+                                  num === "" || (parsed >= 1 && parsed <= 31);
+                                if (isValid) {
+                                  const newInput = {
+                                    ...dateInput,
+                                    day: num.slice(0, 2),
+                                  };
+                                  setDateInput(newInput);
+                                  updateDateFromInputs(newInput);
+                                }
+                              }}
+                              placeholder={t("settings.dd")}
+                              placeholderTextColor={
+                                isDark ? "#8A7B68" : "#9A8E7A"
+                              }
+                              keyboardType="numeric"
+                              maxLength={2}
+                              editable={true}
+                              selectTextOnFocus={false}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }} pointerEvents="box-none">
+                            <Text
+                              style={[
+                                styles.modalLabel,
+                                {
+                                  color: isDark ? "#9A8E7A" : "#8A7B68",
+                                  fontSize: 12,
+                                  marginBottom: 6,
+                                },
+                              ]}
+                            >
+                              {t("settings.month")}
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.modalInput,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(12, 22, 42, 0.75)"
+                                    : "#FFFAF0",
+                                  color: colors.text,
+                                  borderColor: isDark
+                                    ? "rgba(255,250,240,0.12)"
+                                    : "#D4C0A0",
+                                  padding: 16,
+                                  fontSize: 16,
+                                  textAlign: "center",
+                                },
+                              ]}
+                              value={dateInput.month}
+                              onChangeText={(text) => {
+                                const num = text.replace(/[^\d]/g, "");
+                                const parsed = num === "" ? 0 : parseInt(num);
+                                const isValid =
+                                  num === "" || (parsed >= 1 && parsed <= 12);
+                                if (isValid) {
+                                  const newInput = {
+                                    ...dateInput,
+                                    month: num.slice(0, 2),
+                                  };
+                                  setDateInput(newInput);
+                                  updateDateFromInputs(newInput);
+                                }
+                              }}
+                              placeholder={t("settings.mm")}
+                              placeholderTextColor={
+                                isDark ? "#8A7B68" : "#9A8E7A"
+                              }
+                              keyboardType="numeric"
+                              maxLength={2}
+                              editable={true}
+                              selectTextOnFocus={false}
+                            />
+                          </View>
+                          <View style={{ flex: 1.5 }} pointerEvents="box-none">
+                            <Text
+                              style={[
+                                styles.modalLabel,
+                                {
+                                  color: isDark ? "#9A8E7A" : "#8A7B68",
+                                  fontSize: 12,
+                                  marginBottom: 6,
+                                },
+                              ]}
+                            >
+                              {t("settings.year")}
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.modalInput,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(12, 22, 42, 0.75)"
+                                    : "#FFFAF0",
+                                  color: colors.text,
+                                  borderColor: isDark
+                                    ? "rgba(255,250,240,0.12)"
+                                    : "#D4C0A0",
+                                  padding: 16,
+                                  fontSize: 16,
+                                  textAlign: "center",
+                                },
+                              ]}
+                              value={dateInput.year}
+                              onChangeText={(text) => {
+                                const num = text.replace(/[^\d]/g, "");
+                                const currentYear = new Date().getFullYear();
+                                // Allow partial inputs while typing (1-4 digits)
+                                // Only validate full range when we have 4 digits
+                                const isValid =
+                                  num === "" ||
+                                  (num.length <= 4 &&
+                                    (num.length < 4 ||
+                                      (parseInt(num) >= 1900 &&
+                                        parseInt(num) <= currentYear)));
+                                if (isValid) {
+                                  const newInput = {
+                                    ...dateInput,
+                                    year: num.slice(0, 4),
+                                  };
+                                  setDateInput(newInput);
+                                  updateDateFromInputs(newInput);
+                                }
+                              }}
+                              placeholder={t("settings.yyyy")}
+                              placeholderTextColor={
+                                isDark ? "#8A7B68" : "#9A8E7A"
+                              }
+                              keyboardType="numeric"
+                              maxLength={4}
+                              editable={true}
+                              selectTextOnFocus={false}
+                            />
+                          </View>
+                        </View>
+                        {dateOfBirth && (
                           <Text
                             style={[
                               styles.modalLabel,
                               {
-                                color: colors.text,
-                                fontSize: 12,
-                                marginBottom: 8,
+                                color: isDark ? "#6ee7b7" : "#059669",
+                                fontSize: 14,
+                                marginTop: 8,
+                                textAlign: "center",
                               },
                             ]}
                           >
-                            {t("settings.passwordRequirements")}:
+                            {(() => {
+                              const month = String(
+                                dateOfBirth.getMonth() + 1,
+                              ).padStart(2, "0");
+                              const day = String(
+                                dateOfBirth.getDate(),
+                              ).padStart(2, "0");
+                              const year = dateOfBirth.getFullYear();
+                              return `${month}/${day}/${year}`;
+                            })()}
                           </Text>
-                          <View style={{ gap: 6 }}>
-                            <RequirementItem
-                              met={checkPasswordRequirement(
-                                passwordForm.newPassword,
-                                "minLength",
-                              )}
-                              text={t("auth.passwordRequirements.minLength")}
-                              colors={colors}
-                              isDark={isDark}
-                            />
-                            <RequirementItem
-                              met={checkPasswordRequirement(
-                                passwordForm.newPassword,
-                                "uppercase",
-                              )}
-                              text={t("auth.passwordRequirements.uppercase")}
-                              colors={colors}
-                              isDark={isDark}
-                            />
-                            <RequirementItem
-                              met={checkPasswordRequirement(
-                                passwordForm.newPassword,
-                                "lowercase",
-                              )}
-                              text={t("auth.passwordRequirements.lowercase")}
-                              colors={colors}
-                              isDark={isDark}
-                            />
-                            <RequirementItem
-                              met={checkPasswordRequirement(
-                                passwordForm.newPassword,
-                                "number",
-                              )}
-                              text={t("auth.passwordRequirements.number")}
-                              colors={colors}
-                              isDark={isDark}
-                            />
-                            <RequirementItem
-                              met={checkPasswordRequirement(
-                                passwordForm.newPassword,
-                                "special",
-                              )}
-                              text={t("auth.passwordRequirements.special")}
-                              colors={colors}
-                              isDark={isDark}
-                            />
+                        )}
+                      </View>
+                    ) : editModal === "phone" ? (
+                      <View>
+                        {/* Country Picker */}
+                        <TouchableOpacity
+                          style={[
+                            styles.modalInput,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.75)"
+                                : "#FFFAF0",
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              marginBottom: 12,
+                            },
+                          ]}
+                          onPress={() => {
+                            setShowCountryPicker(true);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <Text style={{ fontSize: 24 }}>
+                              {phoneForm.countryFlag}
+                            </Text>
+                            <Text style={{ color: colors.text, fontSize: 16 }}>
+                              {phoneForm.countryName} {phoneForm.countryCode}
+                            </Text>
                           </View>
-                        </View>
-                      )}
+                          <Feather
+                            name="chevron-down"
+                            size={20}
+                            color={colors.text}
+                          />
+                        </TouchableOpacity>
 
-                      <Text
-                        style={[
-                          styles.modalLabel,
-                          { color: colors.text, marginTop: 16 },
-                        ]}
-                      >
-                        {t("settings.confirmPassword")}
-                      </Text>
-                      <View style={{ position: "relative" }}>
+                        {/* Phone Number Input */}
                         <TextInput
                           style={[
                             styles.modalInput,
@@ -2725,81 +2570,306 @@ export default function Settings() {
                                 ? "rgba(12, 22, 42, 0.75)"
                                 : "#FFFAF0",
                               color: colors.text,
-                              borderColor:
-                                passwordForm.confirmPassword &&
-                                passwordForm.newPassword !==
-                                  passwordForm.confirmPassword
-                                  ? isDark
-                                    ? "#ef4444"
-                                    : "#dc2626"
-                                  : passwordForm.confirmPassword &&
-                                      passwordForm.newPassword ===
-                                        passwordForm.confirmPassword
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#D4C0A0",
+                            },
+                          ]}
+                          value={phoneForm.phoneNumber}
+                          onChangeText={(text) =>
+                            setPhoneForm({ ...phoneForm, phoneNumber: text })
+                          }
+                          placeholder={t("settings.enterPhoneNumber")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          keyboardType="phone-pad"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    ) : editModal === "password" ? (
+                      <>
+                        <Text
+                          style={[styles.modalLabel, { color: colors.text }]}
+                        >
+                          {t("settings.currentPassword")}
+                        </Text>
+                        <View style={{ position: "relative" }}>
+                          <TextInput
+                            style={[
+                              styles.modalInput,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.75)"
+                                  : "#FFFAF0",
+                                color: colors.text,
+                                borderColor: isDark
+                                  ? "rgba(255,250,240,0.12)"
+                                  : "#D4C0A0",
+                                paddingRight: 50,
+                              },
+                            ]}
+                            value={passwordForm.currentPassword}
+                            onChangeText={(text) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                currentPassword: text,
+                              })
+                            }
+                            placeholder={t("settings.enterCurrentPassword")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            secureTextEntry={!showPassword.current}
+                            autoCapitalize="none"
+                          />
+                          <TouchableOpacity
+                            style={{
+                              position: "absolute",
+                              right: 12,
+                              top: 12,
+                              padding: 4,
+                            }}
+                            onPress={() =>
+                              setShowPassword({
+                                ...showPassword,
+                                current: !showPassword.current,
+                              })
+                            }
+                          >
+                            <Feather
+                              name={showPassword.current ? "eye" : "eye-off"}
+                              size={20}
+                              color={isDark ? "#8A7B68" : "#9A8E7A"}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                        <Text
+                          style={[
+                            styles.modalLabel,
+                            { color: colors.text, marginTop: 16 },
+                          ]}
+                        >
+                          {t("settings.newPassword")}
+                        </Text>
+                        <View style={{ position: "relative" }}>
+                          <TextInput
+                            style={[
+                              styles.modalInput,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.75)"
+                                  : "#FFFAF0",
+                                color: colors.text,
+                                borderColor:
+                                  passwordForm.newPassword &&
+                                  !validatePassword(passwordForm.newPassword)
+                                    .isValid
                                     ? isDark
-                                      ? "#10b981"
-                                      : "#059669"
+                                      ? "#ef4444"
+                                      : "#dc2626"
                                     : isDark
                                       ? "rgba(255,250,240,0.12)"
                                       : "#D4C0A0",
-                              paddingRight: 50,
-                            },
-                          ]}
-                          value={passwordForm.confirmPassword}
-                          onChangeText={(text) =>
-                            setPasswordForm({
-                              ...passwordForm,
-                              confirmPassword: text,
-                            })
-                          }
-                          placeholder={t("settings.enterConfirmPassword")}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          secureTextEntry={!showPassword.confirm}
-                          autoCapitalize="none"
-                        />
-                        <TouchableOpacity
-                          style={{
-                            position: "absolute",
-                            right: 12,
-                            top: 12,
-                            padding: 4,
-                          }}
-                          onPress={() =>
-                            setShowPassword({
-                              ...showPassword,
-                              confirm: !showPassword.confirm,
-                            })
-                          }
-                        >
-                          <Feather
-                            name={showPassword.confirm ? "eye" : "eye-off"}
-                            size={20}
-                            color={isDark ? "#8A7B68" : "#9A8E7A"}
+                                paddingRight: 50,
+                              },
+                            ]}
+                            value={passwordForm.newPassword}
+                            onChangeText={(text) => {
+                              setPasswordForm({
+                                ...passwordForm,
+                                newPassword: text,
+                              });
+                              const validation = validatePassword(text);
+                              setPasswordErrors(validation.errors);
+                            }}
+                            placeholder={t("settings.enterNewPassword")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            secureTextEntry={!showPassword.new}
+                            autoCapitalize="none"
                           />
-                        </TouchableOpacity>
-                      </View>
-                    </>
-                  ) : (
-                    <TextInput
-                      style={[
-                        styles.modalInput,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.75)"
-                            : "#FFFAF0",
-                          color: colors.text,
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.12)"
-                            : "#D4C0A0",
-                        },
-                      ]}
-                      value={editValue}
-                      onChangeText={setEditValue}
-                      placeholder={t("settings.enterEmailAddress")}
-                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                  )}
+                          <TouchableOpacity
+                            style={{
+                              position: "absolute",
+                              right: 12,
+                              top: 12,
+                              padding: 4,
+                            }}
+                            onPress={() =>
+                              setShowPassword({
+                                ...showPassword,
+                                new: !showPassword.new,
+                              })
+                            }
+                          >
+                            <Feather
+                              name={showPassword.new ? "eye" : "eye-off"}
+                              size={20}
+                              color={isDark ? "#8A7B68" : "#9A8E7A"}
+                            />
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Password Requirements */}
+                        {passwordForm.newPassword.length > 0 && (
+                          <View style={{ marginTop: 8, marginBottom: 8 }}>
+                            <Text
+                              style={[
+                                styles.modalLabel,
+                                {
+                                  color: colors.text,
+                                  fontSize: 12,
+                                  marginBottom: 8,
+                                },
+                              ]}
+                            >
+                              {t("settings.passwordRequirements")}:
+                            </Text>
+                            <View style={{ gap: 6 }}>
+                              <RequirementItem
+                                met={checkPasswordRequirement(
+                                  passwordForm.newPassword,
+                                  "minLength",
+                                )}
+                                text={t("auth.passwordRequirements.minLength")}
+                                colors={colors}
+                                isDark={isDark}
+                              />
+                              <RequirementItem
+                                met={checkPasswordRequirement(
+                                  passwordForm.newPassword,
+                                  "uppercase",
+                                )}
+                                text={t("auth.passwordRequirements.uppercase")}
+                                colors={colors}
+                                isDark={isDark}
+                              />
+                              <RequirementItem
+                                met={checkPasswordRequirement(
+                                  passwordForm.newPassword,
+                                  "lowercase",
+                                )}
+                                text={t("auth.passwordRequirements.lowercase")}
+                                colors={colors}
+                                isDark={isDark}
+                              />
+                              <RequirementItem
+                                met={checkPasswordRequirement(
+                                  passwordForm.newPassword,
+                                  "number",
+                                )}
+                                text={t("auth.passwordRequirements.number")}
+                                colors={colors}
+                                isDark={isDark}
+                              />
+                              <RequirementItem
+                                met={checkPasswordRequirement(
+                                  passwordForm.newPassword,
+                                  "special",
+                                )}
+                                text={t("auth.passwordRequirements.special")}
+                                colors={colors}
+                                isDark={isDark}
+                              />
+                            </View>
+                          </View>
+                        )}
+
+                        <Text
+                          style={[
+                            styles.modalLabel,
+                            { color: colors.text, marginTop: 16 },
+                          ]}
+                        >
+                          {t("settings.confirmPassword")}
+                        </Text>
+                        <View style={{ position: "relative" }}>
+                          <TextInput
+                            style={[
+                              styles.modalInput,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.75)"
+                                  : "#FFFAF0",
+                                color: colors.text,
+                                borderColor:
+                                  passwordForm.confirmPassword &&
+                                  passwordForm.newPassword !==
+                                    passwordForm.confirmPassword
+                                    ? isDark
+                                      ? "#ef4444"
+                                      : "#dc2626"
+                                    : passwordForm.confirmPassword &&
+                                        passwordForm.newPassword ===
+                                          passwordForm.confirmPassword
+                                      ? isDark
+                                        ? "#10b981"
+                                        : "#059669"
+                                      : isDark
+                                        ? "rgba(255,250,240,0.12)"
+                                        : "#D4C0A0",
+                                paddingRight: 50,
+                              },
+                            ]}
+                            value={passwordForm.confirmPassword}
+                            onChangeText={(text) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                confirmPassword: text,
+                              })
+                            }
+                            placeholder={t("settings.enterConfirmPassword")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            secureTextEntry={!showPassword.confirm}
+                            autoCapitalize="none"
+                          />
+                          <TouchableOpacity
+                            style={{
+                              position: "absolute",
+                              right: 12,
+                              top: 12,
+                              padding: 4,
+                            }}
+                            onPress={() =>
+                              setShowPassword({
+                                ...showPassword,
+                                confirm: !showPassword.confirm,
+                              })
+                            }
+                          >
+                            <Feather
+                              name={showPassword.confirm ? "eye" : "eye-off"}
+                              size={20}
+                              color={isDark ? "#8A7B68" : "#9A8E7A"}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    ) : (
+                      <TextInput
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.75)"
+                              : "#FFFAF0",
+                            color: colors.text,
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#D4C0A0",
+                          },
+                        ]}
+                        value={editValue}
+                        onChangeText={setEditValue}
+                        placeholder={t("settings.enterEmailAddress")}
+                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    )}
+                  </ScrollView>
 
                   {editModal && !showCountryPicker && (
                     <View style={styles.modalButtons}>
@@ -2874,7 +2944,7 @@ export default function Settings() {
             }}
           >
             <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={{ flex: 1 }}
             >
               <View style={styles.modalOverlay}>
@@ -3307,6 +3377,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    paddingBottom: Platform.OS === "android" ? 80 : 20,
     maxHeight: "90%",
   },
   modalHeader: {

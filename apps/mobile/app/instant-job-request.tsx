@@ -589,6 +589,9 @@ export default function InstantJobRequest() {
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [paymentType, setPaymentType] = useState("HOURLY");
   const [showPaymentTypeModal, setShowPaymentTypeModal] = useState(false);
+  const [selectedProviderRateIndices, setSelectedProviderRateIndices] =
+    useState<number[]>([]);
+  const [useCustomRate, setUseCustomRate] = useState(false);
   const [requirements, setRequirements] = useState<string[]>([]);
   const [responsibilities, setResponsibilities] = useState<string[]>([]);
   const [newReq, setNewReq] = useState("");
@@ -777,6 +780,15 @@ export default function InstantJobRequest() {
       }
     }
 
+    // Payment validation: at least one provider rate selected OR a valid custom rate
+    const hasSelectedProviderRate = selectedProviderRateIndices.length > 0;
+    const hasValidCustomRate =
+      useCustomRate && rateAmount && parseFloat(rateAmount) > 0;
+    if (!hasSelectedProviderRate && !hasValidCustomRate) {
+      Alert.alert(t("common.error"), t("instantJob.paymentRequired"));
+      return;
+    }
+
     // All validation passed — show summary page
     setShowSummary(true);
   };
@@ -840,11 +852,58 @@ export default function InstantJobRequest() {
       if (endDate) {
         payload.endDate = endDate.toISOString();
       }
-      if (rateAmount && parseFloat(rateAmount) > 0) {
-        payload.rateAmount = Math.round(parseFloat(rateAmount) * 100);
-        payload.currency = currencyVal;
-        payload.paymentType = paymentType;
+
+      // Build selectedRates from provider rate selections + custom rate
+      const builtSelectedRates: Array<{
+        rate: number;
+        paymentType: string;
+        description?: string;
+        isCustom?: boolean;
+      }> = [];
+      const providerRates = candidateData?.rates || [];
+      for (const idx of selectedProviderRateIndices) {
+        const pr = providerRates[idx];
+        if (pr) {
+          builtSelectedRates.push({
+            rate: pr.rate,
+            paymentType: pr.paymentType,
+            description: pr.description || pr.otherSpecification,
+          });
+        }
       }
+      if (useCustomRate && rateAmount && parseFloat(rateAmount) > 0) {
+        builtSelectedRates.push({
+          rate: parseFloat(rateAmount),
+          paymentType: paymentType,
+          isCustom: true,
+        });
+      }
+
+      // Map profile rate paymentType to job DTO paymentType
+      const mapPaymentType = (pt: string): string => {
+        const map: Record<string, string> = {
+          HOUR: "HOURLY",
+          DAY: "DAILY",
+          WEEK: "WEEKLY",
+          MONTH: "MONTHLY",
+          HOURLY: "HOURLY",
+          DAILY: "DAILY",
+          WEEKLY: "WEEKLY",
+          MONTHLY: "MONTHLY",
+          FIXED: "FIXED",
+          OTHER: "OTHER",
+        };
+        return map[pt] || pt;
+      };
+
+      // Set the first rate on the job for backward compatibility
+      if (builtSelectedRates.length > 0) {
+        const primary = builtSelectedRates[0];
+        payload.rateAmount = Math.round(primary.rate * 100);
+        payload.currency = currencyVal;
+        payload.paymentType = mapPaymentType(primary.paymentType);
+      }
+
       if (requiresVehicle) payload.requiresVehicle = true;
       if (requiresDriverLicense) payload.requiresDriverLicense = true;
       const filteredReqs = requirements.filter((r) => r.trim());
@@ -893,6 +952,9 @@ export default function InstantJobRequest() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({
+              selectedRates: builtSelectedRates,
+            }),
           },
         );
 
@@ -946,7 +1008,7 @@ export default function InstantJobRequest() {
             {
               text: t("common.ok"),
               onPress: () =>
-                router.push({
+                router.replace({
                   pathname: "/applicant/[id]",
                   params: {
                     id: applicationId,
@@ -958,16 +1020,12 @@ export default function InstantJobRequest() {
         );
       } catch (appError: any) {
         console.error("Error creating application:", appError);
-        Alert.alert(
-          "Error",
-          `Failed to create application: ${appError.message || "Unknown error"}`,
-          [
-            {
-              text: "OK",
-              onPress: () => router.back(),
-            },
-          ],
-        );
+        Alert.alert(t("common.error"), t("jobs.failedToCreateInstantJob"), [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]);
       }
     } catch (err) {
       console.error("Error creating instant job:", err);
@@ -1009,7 +1067,7 @@ export default function InstantJobRequest() {
               if (showSummary) {
                 setShowSummary(false);
               } else {
-                router.back();
+                router.push(`/candidate/${candidateId}` as any);
               }
             }}
           >
@@ -1297,25 +1355,70 @@ export default function InstantJobRequest() {
                 </View>
               )}
 
-              {rateAmount && parseFloat(rateAmount) > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text
-                    style={[
-                      styles.summaryLabel,
-                      {
-                        color: isDark
-                          ? "rgba(255,250,240,0.6)"
-                          : "rgba(0,0,0,0.5)",
-                      },
-                    ]}
-                  >
-                    {t("instantJob.payment")}
-                  </Text>
-                  <Text style={[styles.summaryValue, { color: colors.text }]}>
-                    {currencyVal} {rateAmount} / {paymentType.toLowerCase()}
-                  </Text>
-                </View>
-              )}
+              {/* Selected Rates Summary */}
+              {(() => {
+                const providerRates = candidateData?.rates || [];
+                const selectedRatesList = selectedProviderRateIndices
+                  .map((idx) => providerRates[idx])
+                  .filter(Boolean);
+                const hasCustom =
+                  useCustomRate && rateAmount && parseFloat(rateAmount) > 0;
+                const paymentTypeLabel = (pt: string) =>
+                  (
+                    ({
+                      HOUR: t("jobs.paymentType.hourly"),
+                      HOURLY: t("jobs.paymentType.hourly"),
+                      DAILY: t("jobs.paymentType.daily"),
+                      WEEKLY: t("jobs.paymentType.weekly"),
+                      MONTHLY: t("jobs.paymentType.monthly"),
+                      FIXED: t("jobs.paymentType.fixed"),
+                    }) as Record<string, string>
+                  )[pt] || pt;
+
+                return (
+                  (selectedRatesList.length > 0 || hasCustom) && (
+                    <View style={{ marginTop: 8 }}>
+                      <Text
+                        style={[
+                          styles.summaryLabel,
+                          {
+                            color: isDark
+                              ? "rgba(255,250,240,0.6)"
+                              : "rgba(0,0,0,0.5)",
+                            marginBottom: 4,
+                          },
+                        ]}
+                      >
+                        {t("instantJob.payment")}
+                      </Text>
+                      {selectedRatesList.map((rate: any, i: number) => (
+                        <Text
+                          key={`pr-${i}`}
+                          style={[styles.summaryBullet, { color: colors.text }]}
+                        >
+                          • {currencyVal} {rate.rate.toFixed(2)} /{" "}
+                          {paymentTypeLabel(rate.paymentType)}
+                          {rate.description || rate.otherSpecification
+                            ? ` — ${rate.description || rate.otherSpecification}`
+                            : ""}
+                        </Text>
+                      ))}
+                      {hasCustom && (
+                        <Text
+                          style={[
+                            styles.summaryBullet,
+                            { color: isDark ? "#60A5FA" : "#3B82F6" },
+                          ]}
+                        >
+                          • {currencyVal} {rateAmount} /{" "}
+                          {paymentTypeLabel(paymentType)} (
+                          {t("instantJob.customRate")})
+                        </Text>
+                      )}
+                    </View>
+                  )
+                );
+              })()}
 
               {requirements.length > 0 && (
                 <View style={{ marginTop: 8 }}>
@@ -1818,106 +1921,310 @@ export default function InstantJobRequest() {
                 />
               </TouchableButton>
 
-              <InputLabel text={t("jobs.paymentOptional")} />
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-                <View
-                  style={[
-                    styles.input,
-                    {
-                      flex: 1,
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "rgba(255,250,240,0.95)",
-                      borderWidth: isDark ? 1 : 0,
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "transparent",
-                    },
-                  ]}
-                >
-                  <TextInput
+              <InputLabel text={t("instantJob.paymentSelection")} />
+
+              {/* Provider Rates */}
+              {candidateData?.rates && candidateData.rates.length > 0 ? (
+                <View style={{ marginBottom: 12 }}>
+                  <Text
                     style={{
-                      flex: 1,
-                      color: colors.text,
-                      fontSize: 16,
-                      padding: 0,
+                      fontSize: 13,
+                      color: isDark
+                        ? "rgba(255,250,240,0.6)"
+                        : "rgba(0,0,0,0.5)",
+                      marginBottom: 8,
                     }}
-                    placeholder="0.00"
-                    placeholderTextColor={
-                      isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
-                    }
-                    value={rateAmount}
-                    onChangeText={setRateAmount}
-                    keyboardType="decimal-pad"
-                    underlineColorAndroid="transparent"
-                  />
+                  >
+                    {t("instantJob.selectProviderRates")}
+                  </Text>
+                  {candidateData.rates.map((rate: any, idx: number) => {
+                    const isSelected =
+                      selectedProviderRateIndices.includes(idx);
+                    const ptLabel =
+                      (
+                        {
+                          HOUR: t("jobs.paymentType.hourly"),
+                          HOURLY: t("jobs.paymentType.hourly"),
+                          DAILY: t("jobs.paymentType.daily"),
+                          WEEKLY: t("jobs.paymentType.weekly"),
+                          MONTHLY: t("jobs.paymentType.monthly"),
+                          FIXED: t("jobs.paymentType.fixed"),
+                        } as Record<string, string>
+                      )[rate.paymentType] || rate.paymentType;
+                    return (
+                      <TouchableButton
+                        key={idx}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 12,
+                          borderRadius: 10,
+                          marginBottom: 6,
+                          backgroundColor: isSelected
+                            ? isDark
+                              ? "rgba(201,150,63,0.15)"
+                              : "rgba(184,130,42,0.08)"
+                            : isDark
+                              ? "rgba(255,250,240,0.06)"
+                              : "rgba(255,250,240,0.95)",
+                          borderWidth: isSelected ? 2 : 1,
+                          borderColor: isSelected
+                            ? isDark
+                              ? "#C9963F"
+                              : "#B8822A"
+                            : isDark
+                              ? "rgba(255,250,240,0.15)"
+                              : "rgba(0,0,0,0.08)",
+                        }}
+                        onPress={() => {
+                          setSelectedProviderRateIndices((prev) =>
+                            isSelected
+                              ? prev.filter((i) => i !== idx)
+                              : [...prev, idx],
+                          );
+                        }}
+                      >
+                        <Feather
+                          name={isSelected ? "check-circle" : "circle"}
+                          size={20}
+                          color={
+                            isSelected
+                              ? isDark
+                                ? "#C9963F"
+                                : "#B8822A"
+                              : isDark
+                                ? "rgba(255,250,240,0.4)"
+                                : "rgba(0,0,0,0.3)"
+                          }
+                          style={{ marginRight: 10 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "600",
+                              color: colors.text,
+                            }}
+                          >
+                            {currencyVal} {rate.rate.toFixed(2)} / {ptLabel}
+                          </Text>
+                          {(rate.description || rate.otherSpecification) && (
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                color: isDark
+                                  ? "rgba(255,250,240,0.5)"
+                                  : "rgba(0,0,0,0.45)",
+                                marginTop: 2,
+                              }}
+                            >
+                              {rate.description || rate.otherSpecification}
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableButton>
+                    );
+                  })}
                 </View>
-                <TouchableButton
-                  style={[
-                    styles.input,
-                    styles.categoryInput,
-                    {
-                      flex: 1,
-                      backgroundColor: isDark
-                        ? "rgba(255,250,240,0.12)"
-                        : "rgba(255,250,240,0.95)",
-                      borderWidth: isDark ? 1 : 0,
-                      borderColor: isDark
-                        ? "rgba(255,250,240,0.15)"
-                        : "transparent",
-                    },
-                  ]}
-                  onPress={() => setShowCurrencyModal(true)}
+              ) : (
+                <View
+                  style={{
+                    padding: 12,
+                    borderRadius: 10,
+                    marginBottom: 12,
+                    backgroundColor: isDark
+                      ? "rgba(255,250,240,0.06)"
+                      : "rgba(255,250,240,0.95)",
+                    borderWidth: 1,
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.15)"
+                      : "rgba(0,0,0,0.08)",
+                  }}
                 >
                   <Text
                     style={{
-                      color: colors.text,
-                      fontSize: 16,
-                      fontWeight: "700",
+                      fontSize: 13,
+                      color: isDark
+                        ? "rgba(255,250,240,0.5)"
+                        : "rgba(0,0,0,0.45)",
+                      textAlign: "center",
                     }}
                   >
-                    {currencyVal}
+                    {t("instantJob.noProviderRates")}
                   </Text>
-                  <Feather
-                    name="chevron-down"
-                    size={20}
-                    color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
-                  />
-                </TouchableButton>
-              </View>
+                </View>
+              )}
+
+              {/* Custom Rate Toggle */}
               <TouchableButton
-                style={[
-                  styles.input,
-                  styles.categoryInput,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.12)"
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 12,
+                  borderRadius: 10,
+                  marginBottom: useCustomRate ? 8 : 0,
+                  backgroundColor: useCustomRate
+                    ? isDark
+                      ? "rgba(59,130,246,0.1)"
+                      : "rgba(59,130,246,0.06)"
+                    : isDark
+                      ? "rgba(255,250,240,0.06)"
                       : "rgba(255,250,240,0.95)",
-                    borderWidth: isDark ? 1 : 0,
-                    borderColor: isDark
+                  borderWidth: useCustomRate ? 2 : 1,
+                  borderColor: useCustomRate
+                    ? isDark
+                      ? "#60A5FA"
+                      : "#3B82F6"
+                    : isDark
                       ? "rgba(255,250,240,0.15)"
-                      : "transparent",
-                  },
-                ]}
-                onPress={() => setShowPaymentTypeModal(true)}
+                      : "rgba(0,0,0,0.08)",
+                }}
+                onPress={() => setUseCustomRate(!useCustomRate)}
               >
-                <Text style={[styles.categoryText, { color: colors.text }]}>
-                  {(
-                    {
-                      HOURLY: t("jobs.paymentType.hourly"),
-                      DAILY: t("jobs.paymentType.daily"),
-                      WEEKLY: t("jobs.paymentType.weekly"),
-                      MONTHLY: t("jobs.paymentType.monthly"),
-                      FIXED: t("jobs.paymentType.fixed"),
-                    } as Record<string, string>
-                  )[paymentType] || paymentType}
-                </Text>
                 <Feather
-                  name="chevron-down"
+                  name={useCustomRate ? "check-square" : "plus-circle"}
                   size={20}
-                  color={isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"}
+                  color={
+                    useCustomRate
+                      ? isDark
+                        ? "#60A5FA"
+                        : "#3B82F6"
+                      : isDark
+                        ? "rgba(255,250,240,0.4)"
+                        : "rgba(0,0,0,0.3)"
+                  }
+                  style={{ marginRight: 10 }}
                 />
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: useCustomRate
+                      ? isDark
+                        ? "#60A5FA"
+                        : "#3B82F6"
+                      : colors.text,
+                  }}
+                >
+                  {t("instantJob.addCustomRate")}
+                </Text>
               </TouchableButton>
+
+              {/* Custom Rate Fields */}
+              {useCustomRate && (
+                <View style={{ marginBottom: 4 }}>
+                  <View
+                    style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}
+                  >
+                    <View
+                      style={[
+                        styles.input,
+                        {
+                          flex: 1,
+                          backgroundColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "rgba(255,250,240,0.95)",
+                          borderWidth: isDark ? 1 : 0,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "transparent",
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={{
+                          flex: 1,
+                          color: colors.text,
+                          fontSize: 16,
+                          padding: 0,
+                        }}
+                        placeholder="0.00"
+                        placeholderTextColor={
+                          isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                        }
+                        value={rateAmount}
+                        onChangeText={(text) => {
+                          const sanitized = text
+                            .replace(/[^0-9.]/g, "")
+                            .replace(/(\..*)\./g, "$1");
+                          setRateAmount(sanitized);
+                        }}
+                        keyboardType="decimal-pad"
+                        underlineColorAndroid="transparent"
+                      />
+                    </View>
+                    <TouchableButton
+                      style={[
+                        styles.input,
+                        styles.categoryInput,
+                        {
+                          flex: 1,
+                          backgroundColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "rgba(255,250,240,0.95)",
+                          borderWidth: isDark ? 1 : 0,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.15)"
+                            : "transparent",
+                        },
+                      ]}
+                      onPress={() => setShowCurrencyModal(true)}
+                    >
+                      <Text
+                        style={{
+                          color: colors.text,
+                          fontSize: 16,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {currencyVal}
+                      </Text>
+                      <Feather
+                        name="chevron-down"
+                        size={20}
+                        color={
+                          isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                        }
+                      />
+                    </TouchableButton>
+                  </View>
+                  <TouchableButton
+                    style={[
+                      styles.input,
+                      styles.categoryInput,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(255,250,240,0.12)"
+                          : "rgba(255,250,240,0.95)",
+                        borderWidth: isDark ? 1 : 0,
+                        borderColor: isDark
+                          ? "rgba(255,250,240,0.15)"
+                          : "transparent",
+                      },
+                    ]}
+                    onPress={() => setShowPaymentTypeModal(true)}
+                  >
+                    <Text style={[styles.categoryText, { color: colors.text }]}>
+                      {(
+                        {
+                          HOURLY: t("jobs.paymentType.hourly"),
+                          DAILY: t("jobs.paymentType.daily"),
+                          WEEKLY: t("jobs.paymentType.weekly"),
+                          MONTHLY: t("jobs.paymentType.monthly"),
+                          FIXED: t("jobs.paymentType.fixed"),
+                        } as Record<string, string>
+                      )[paymentType] || paymentType}
+                    </Text>
+                    <Feather
+                      name="chevron-down"
+                      size={20}
+                      color={
+                        isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
+                      }
+                    />
+                  </TouchableButton>
+                </View>
+              )}
 
               <InputLabel
                 text={(() => {
@@ -2383,6 +2690,17 @@ export default function InstantJobRequest() {
                   ]}
                 >
                   {t("jobPosting.requirements.restrictedSectorQuestion")}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: isDark ? "rgba(255,250,240,0.55)" : "#8A7B68",
+                    marginTop: 4,
+                    marginBottom: 8,
+                    lineHeight: 17,
+                  }}
+                >
+                  {t("jobPosting.requirements.restrictedSectorDisclaimer")}
                 </Text>
                 <View style={styles.requirementsToggleRow}>
                   <Switch
@@ -3110,6 +3428,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
+    paddingBottom: Platform.OS === "android" ? 56 : 24,
     maxHeight: "70%",
   },
   modalHeader: {

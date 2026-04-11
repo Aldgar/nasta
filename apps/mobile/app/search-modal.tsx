@@ -1,4 +1,16 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, FlatList, Modal, Platform, KeyboardAvoidingView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Platform,
+  KeyboardAvoidingView,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useState, useEffect, useCallback } from "react";
@@ -34,8 +46,13 @@ export default function SearchModal() {
   const [loading, setLoading] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [viewMode, setViewMode] = useState<"map" | "list">("list");
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [skills, setSkills] = useState<Array<{ id: string; name: string; category: { id: string; name: string } }>>([]);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [skills, setSkills] = useState<
+    Array<{ id: string; name: string; category: { id: string; name: string } }>
+  >([]);
   const [loadingSkills, setLoadingSkills] = useState(true);
   const [skillsError, setSkillsError] = useState<string | null>(null);
 
@@ -54,75 +71,170 @@ export default function SearchModal() {
         setLoadingSkills(false);
         // Use fallback skills if no token
         setSkills([
-          { id: '1', name: 'Cleaning', category: { id: '1', name: 'Services' } },
-          { id: '2', name: 'Plumbing', category: { id: '2', name: 'Services' } },
-          { id: '3', name: 'Electrical', category: { id: '3', name: 'Services' } },
-          { id: '4', name: 'Carpentry', category: { id: '4', name: 'Services' } },
-          { id: '5', name: 'Painting', category: { id: '5', name: 'Services' } },
-          { id: '6', name: 'Gardening', category: { id: '6', name: 'Services' } },
-          { id: '7', name: 'Moving', category: { id: '7', name: 'Services' } },
-          { id: '8', name: 'Delivery', category: { id: '8', name: 'Services' } },
+          {
+            id: "1",
+            name: "Cleaning",
+            category: { id: "1", name: "Services" },
+          },
+          {
+            id: "2",
+            name: "Plumbing",
+            category: { id: "2", name: "Services" },
+          },
+          {
+            id: "3",
+            name: "Electrical",
+            category: { id: "3", name: "Services" },
+          },
+          {
+            id: "4",
+            name: "Carpentry",
+            category: { id: "4", name: "Services" },
+          },
+          {
+            id: "5",
+            name: "Painting",
+            category: { id: "5", name: "Services" },
+          },
+          {
+            id: "6",
+            name: "Gardening",
+            category: { id: "6", name: "Services" },
+          },
+          { id: "7", name: "Moving", category: { id: "7", name: "Services" } },
+          {
+            id: "8",
+            name: "Delivery",
+            category: { id: "8", name: "Services" },
+          },
         ]);
         return;
       }
-      
+
       const base = getApiBase();
       console.log(`[SearchModal] Fetching skills from ${base}/users/skills`);
       const res = await fetch(`${base}/users/skills`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       console.log(`[SearchModal] Skills response status: ${res.status}`);
       if (res.ok) {
         const data = await res.json();
         console.log(`[SearchModal] Received skills:`, data?.length || 0, data);
         // Handle both array response and object with skills property
-        const skillsList = Array.isArray(data) ? data : (data?.skills || []);
+        const skillsList = Array.isArray(data) ? data : data?.skills || [];
         if (skillsList.length > 0) {
           setSkills(skillsList);
         } else {
           // Fallback to default skills if empty
           console.log("[SearchModal] No skills returned, using fallback");
           setSkills([
-            { id: '1', name: 'Cleaning', category: { id: '1', name: 'Services' } },
-            { id: '2', name: 'Plumbing', category: { id: '2', name: 'Services' } },
-            { id: '3', name: 'Electrical', category: { id: '3', name: 'Services' } },
-            { id: '4', name: 'Carpentry', category: { id: '4', name: 'Services' } },
-            { id: '5', name: 'Painting', category: { id: '5', name: 'Services' } },
-            { id: '6', name: 'Gardening', category: { id: '6', name: 'Services' } },
-            { id: '7', name: 'Moving', category: { id: '7', name: 'Services' } },
-            { id: '8', name: 'Delivery', category: { id: '8', name: 'Services' } },
+            {
+              id: "1",
+              name: "Cleaning",
+              category: { id: "1", name: "Services" },
+            },
+            {
+              id: "2",
+              name: "Plumbing",
+              category: { id: "2", name: "Services" },
+            },
+            {
+              id: "3",
+              name: "Electrical",
+              category: { id: "3", name: "Services" },
+            },
+            {
+              id: "4",
+              name: "Carpentry",
+              category: { id: "4", name: "Services" },
+            },
+            {
+              id: "5",
+              name: "Painting",
+              category: { id: "5", name: "Services" },
+            },
+            {
+              id: "6",
+              name: "Gardening",
+              category: { id: "6", name: "Services" },
+            },
+            {
+              id: "7",
+              name: "Moving",
+              category: { id: "7", name: "Services" },
+            },
+            {
+              id: "8",
+              name: "Delivery",
+              category: { id: "8", name: "Services" },
+            },
           ]);
         }
       } else {
-        const errorText = await res.text().catch(() => 'Unknown error');
-        console.error(`[SearchModal] Failed to fetch skills: ${res.status}`, errorText);
+        const errorText = await res.text().catch(() => "Unknown error");
+        console.error(
+          `[SearchModal] Failed to fetch skills: ${res.status}`,
+          errorText,
+        );
         setSkillsError(`Failed to load skills (${res.status})`);
         // Use fallback skills on error
         setSkills([
-          { id: '1', name: 'Cleaning', category: { id: '1', name: 'Services' } },
-          { id: '2', name: 'Plumbing', category: { id: '2', name: 'Services' } },
-          { id: '3', name: 'Electrical', category: { id: '3', name: 'Services' } },
-          { id: '4', name: 'Carpentry', category: { id: '4', name: 'Services' } },
-          { id: '5', name: 'Painting', category: { id: '5', name: 'Services' } },
-          { id: '6', name: 'Gardening', category: { id: '6', name: 'Services' } },
-          { id: '7', name: 'Moving', category: { id: '7', name: 'Services' } },
-          { id: '8', name: 'Delivery', category: { id: '8', name: 'Services' } },
+          {
+            id: "1",
+            name: "Cleaning",
+            category: { id: "1", name: "Services" },
+          },
+          {
+            id: "2",
+            name: "Plumbing",
+            category: { id: "2", name: "Services" },
+          },
+          {
+            id: "3",
+            name: "Electrical",
+            category: { id: "3", name: "Services" },
+          },
+          {
+            id: "4",
+            name: "Carpentry",
+            category: { id: "4", name: "Services" },
+          },
+          {
+            id: "5",
+            name: "Painting",
+            category: { id: "5", name: "Services" },
+          },
+          {
+            id: "6",
+            name: "Gardening",
+            category: { id: "6", name: "Services" },
+          },
+          { id: "7", name: "Moving", category: { id: "7", name: "Services" } },
+          {
+            id: "8",
+            name: "Delivery",
+            category: { id: "8", name: "Services" },
+          },
         ]);
       }
     } catch (err: any) {
       console.error("[SearchModal] Error fetching skills:", err);
-      setSkillsError(err?.message || 'Failed to load skills');
+      setSkillsError(err?.message || "Failed to load skills");
       // Use fallback skills on error
       setSkills([
-        { id: '1', name: 'Cleaning', category: { id: '1', name: 'Services' } },
-        { id: '2', name: 'Plumbing', category: { id: '2', name: 'Services' } },
-        { id: '3', name: 'Electrical', category: { id: '3', name: 'Services' } },
-        { id: '4', name: 'Carpentry', category: { id: '4', name: 'Services' } },
-        { id: '5', name: 'Painting', category: { id: '5', name: 'Services' } },
-        { id: '6', name: 'Gardening', category: { id: '6', name: 'Services' } },
-        { id: '7', name: 'Moving', category: { id: '7', name: 'Services' } },
-        { id: '8', name: 'Delivery', category: { id: '8', name: 'Services' } },
+        { id: "1", name: "Cleaning", category: { id: "1", name: "Services" } },
+        { id: "2", name: "Plumbing", category: { id: "2", name: "Services" } },
+        {
+          id: "3",
+          name: "Electrical",
+          category: { id: "3", name: "Services" },
+        },
+        { id: "4", name: "Carpentry", category: { id: "4", name: "Services" } },
+        { id: "5", name: "Painting", category: { id: "5", name: "Services" } },
+        { id: "6", name: "Gardening", category: { id: "6", name: "Services" } },
+        { id: "7", name: "Moving", category: { id: "7", name: "Services" } },
+        { id: "8", name: "Delivery", category: { id: "8", name: "Services" } },
       ]);
     } finally {
       setLoadingSkills(false);
@@ -154,7 +266,7 @@ export default function SearchModal() {
       }
 
       const base = getApiBase();
-      
+
       // Fetch candidates filtered by skill
       const params = new URLSearchParams();
       if (category) {
@@ -168,20 +280,26 @@ export default function SearchModal() {
       if (res.ok) {
         const data = await res.json();
         const candidates = data.candidates || [];
-        
+
         // Transform candidates to talents format
         const talentsList: Talent[] = candidates.map((candidate: any) => ({
           id: candidate.id,
           firstName: candidate.firstName,
           lastName: candidate.lastName,
           avatar: candidate.avatar,
-          location: candidate.location || [candidate.city, candidate.country].filter(Boolean).join(", "),
+          location:
+            candidate.location ||
+            [candidate.city, candidate.country].filter(Boolean).join(", "),
           city: candidate.city,
-          coordinates: candidate.city && candidate.country ? undefined : undefined, // TODO: Add coordinates if available
-          skills: candidate.skills?.map((s: any) => s.name) || candidate.skillsSummary || [],
+          coordinates:
+            candidate.city && candidate.country ? undefined : undefined, // TODO: Add coordinates if available
+          skills:
+            candidate.skills?.map((s: any) => s.name) ||
+            candidate.skillsSummary ||
+            [],
           hourlyRate: candidate.hourlyRate,
         }));
-        
+
         setTalents(talentsList);
       } else {
         setTalents([]);
@@ -199,8 +317,12 @@ export default function SearchModal() {
       style={[
         styles.talentCard,
         {
-          backgroundColor: isDark ? "rgba(12, 22, 42, 0.85)" : "rgba(241, 245, 249, 0.95)",
-          borderColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(184,130,42,0.2)",
+          backgroundColor: isDark
+            ? "rgba(12, 22, 42, 0.85)"
+            : "rgba(241, 245, 249, 0.95)",
+          borderColor: isDark
+            ? "rgba(255,250,240,0.12)"
+            : "rgba(184,130,42,0.2)",
           borderWidth: 1,
         },
       ]}
@@ -213,11 +335,13 @@ export default function SearchModal() {
         <View style={styles.avatarContainer}>
           {item.avatar ? (
             <Text style={styles.avatarText}>
-              {item.firstName[0]}{item.lastName[0]}
+              {item.firstName[0]}
+              {item.lastName[0]}
             </Text>
           ) : (
             <Text style={styles.avatarText}>
-              {item.firstName[0]}{item.lastName[0]}
+              {item.firstName[0]}
+              {item.lastName[0]}
             </Text>
           )}
         </View>
@@ -228,14 +352,28 @@ export default function SearchModal() {
           <View style={styles.talentMeta}>
             {item.city && (
               <View style={styles.metaItem}>
-                <Feather name="map-pin" size={12} color={isDark ? "#9A8E7A" : "#8A7B68"} />
-                <Text style={[styles.metaText, { color: isDark ? "#9A8E7A" : "#8A7B68" }]}>
+                <Feather
+                  name="map-pin"
+                  size={12}
+                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                />
+                <Text
+                  style={[
+                    styles.metaText,
+                    { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                  ]}
+                >
                   {item.city}
                 </Text>
               </View>
             )}
             {item.distanceKm && (
-              <Text style={[styles.metaText, { color: isDark ? "#9A8E7A" : "#8A7B68" }]}>
+              <Text
+                style={[
+                  styles.metaText,
+                  { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                ]}
+              >
                 {item.distanceKm.toFixed(1)} km away
               </Text>
             )}
@@ -257,11 +395,15 @@ export default function SearchModal() {
               style={[
                 styles.skillTag,
                 {
-                  backgroundColor: isDark ? "rgba(201, 150, 63, 0.2)" : "rgba(201, 150, 63, 0.1)",
+                  backgroundColor: isDark
+                    ? "rgba(201, 150, 63, 0.2)"
+                    : "rgba(201, 150, 63, 0.1)",
                 },
               ]}
             >
-              <Text style={[styles.skillText, { color: colors.tint }]}>{skill}</Text>
+              <Text style={[styles.skillText, { color: colors.tint }]}>
+                {skill}
+              </Text>
             </View>
           ))}
         </View>
@@ -271,272 +413,381 @@ export default function SearchModal() {
 
   return (
     <GradientBackground>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.container}>
-          <View style={styles.handle} />
-          
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>{t("searchJobs.searchTalent")}</Text>
-            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-              <Feather name="x" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          <View style={styles.container}>
+            <View style={styles.handle} />
 
-          <View style={styles.searchSection}>
-            <Text style={[styles.label, { color: isDark ? "#B8A88A" : "#6B6355" }]}>{t("searchJobs.jobCategory")}</Text>
-            <TouchableOpacity
-              style={[
-                styles.input,
-                styles.categoryInput,
-                {
-                  backgroundColor: isDark ? "rgba(12, 22, 42, 0.75)" : "rgba(241, 245, 249, 0.9)",
-                  borderColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(184,130,42,0.2)",
-                  borderWidth: 1,
-                },
-              ]}
-              onPress={() => setShowCategoryModal(true)}
-            >
-              <Text style={[styles.categoryText, { color: category ? colors.text : (isDark ? "#8A7B68" : "#9A8E7A") }]}>
-                {category || t("searchJobs.selectCategory")}
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {t("searchJobs.searchTalent")}
               </Text>
-              <Feather name="chevron-down" size={20} color={isDark ? "#9A8E7A" : "#8A7B68"} />
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.closeBtn}
+              >
+                <Feather name="x" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
 
-            <Text style={[styles.label, { color: isDark ? "#B8A88A" : "#6B6355" }]}>{t("searchJobs.location")}</Text>
-            <View style={styles.inputRow}>
-              <Feather name="map-pin" size={18} color={isDark ? "#9A8E7A" : "#8A7B68"} style={styles.inputIcon} />
-              <TextInput
+            <View style={styles.searchSection}>
+              <Text
+                style={[
+                  styles.label,
+                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                ]}
+              >
+                {t("searchJobs.jobCategory")}
+              </Text>
+              <TouchableOpacity
                 style={[
                   styles.input,
-                  styles.inputWithIcon,
+                  styles.categoryInput,
                   {
-                    backgroundColor: isDark ? "rgba(12, 22, 42, 0.75)" : "rgba(241, 245, 249, 0.9)",
-                    borderColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(184,130,42,0.2)",
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.75)"
+                      : "rgba(241, 245, 249, 0.9)",
+                    borderColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(184,130,42,0.2)",
                     borderWidth: 1,
-                    color: colors.text,
                   },
                 ]}
-                placeholder={t("searchJobs.enterCityOrZipCode")}
-                placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                value={location}
-                onChangeText={setLocation}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.button, 
-                { 
-                  backgroundColor: isDark ? "#E8B86D" : "#C9963F",
-                  borderWidth: 1,
-                  borderColor: isDark ? "#E8B86D" : "#C9963F",
-                }
-              ]}
-              onPress={searchTalents}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFAF0" />
-              ) : (
-                <Text style={styles.buttonText}>{t("searchJobs.search")}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {talents.length > 0 && (
-            <View style={styles.viewToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === "list" && styles.toggleButtonActive,
-                  { 
-                    backgroundColor: viewMode === "list" 
-                      ? (isDark ? "#E8B86D" : "#C9963F")
-                      : (isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)"),
-                    borderWidth: 1,
-                    borderColor: viewMode === "list"
-                      ? (isDark ? "#E8B86D" : "#C9963F")
-                      : (isDark ? "rgba(255,250,240,0.12)" : "rgba(184,130,42,0.2)"),
-                  },
-                ]}
-                onPress={() => setViewMode("list")}
+                onPress={() => setShowCategoryModal(true)}
               >
-                <Feather
-                  name="list"
-                  size={18}
-                  color={viewMode === "list" ? "#FFFAF0" : colors.text}
-                />
                 <Text
                   style={[
-                    styles.toggleText,
-                    { color: viewMode === "list" ? "#FFFAF0" : colors.text },
+                    styles.categoryText,
+                    {
+                      color: category
+                        ? colors.text
+                        : isDark
+                          ? "#8A7B68"
+                          : "#9A8E7A",
+                    },
                   ]}
                 >
-                  List
+                  {category || t("searchJobs.selectCategory")}
                 </Text>
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                />
               </TouchableOpacity>
+
+              <Text
+                style={[
+                  styles.label,
+                  { color: isDark ? "#B8A88A" : "#6B6355" },
+                ]}
+              >
+                {t("searchJobs.location")}
+              </Text>
+              <View style={styles.inputRow}>
+                <Feather
+                  name="map-pin"
+                  size={18}
+                  color={isDark ? "#9A8E7A" : "#8A7B68"}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.inputWithIcon,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(12, 22, 42, 0.75)"
+                        : "rgba(241, 245, 249, 0.9)",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "rgba(184,130,42,0.2)",
+                      borderWidth: 1,
+                      color: colors.text,
+                    },
+                  ]}
+                  placeholder={t("searchJobs.enterCityOrZipCode")}
+                  placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                  value={location}
+                  onChangeText={setLocation}
+                />
+              </View>
+
               <TouchableOpacity
                 style={[
-                  styles.toggleButton,
-                  viewMode === "map" && styles.toggleButtonActive,
-                  { 
-                    backgroundColor: viewMode === "map" 
-                      ? (isDark ? "#E8B86D" : "#C9963F")
-                      : (isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.06)"),
+                  styles.button,
+                  {
+                    backgroundColor: isDark ? "#E8B86D" : "#C9963F",
                     borderWidth: 1,
-                    borderColor: viewMode === "map"
-                      ? (isDark ? "#E8B86D" : "#C9963F")
-                      : (isDark ? "rgba(255,250,240,0.12)" : "rgba(184,130,42,0.2)"),
+                    borderColor: isDark ? "#E8B86D" : "#C9963F",
                   },
                 ]}
-                onPress={() => setViewMode("map")}
+                onPress={searchTalents}
+                disabled={loading}
               >
-                <Feather
-                  name="map"
-                  size={18}
-                  color={viewMode === "map" ? "#FFFAF0" : colors.text}
-                />
-                <Text
-                  style={[
-                    styles.toggleText,
-                    { color: viewMode === "map" ? "#FFFAF0" : colors.text },
-                  ]}
-                >
-                  Map
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {viewMode === "map" && talents.length > 0 && (
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: userLocation?.lat || 37.78825,
-                  longitude: userLocation?.lng || -122.4324,
-                  latitudeDelta: 0.0922,
-                  longitudeDelta: 0.0421,
-                }}
-              >
-                {userLocation && (
-                  <Marker
-                    coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
-                    title={t("searchJobs.yourLocation")}
-                    pinColor="blue"
-                  />
+                {loading ? (
+                  <ActivityIndicator color="#FFFAF0" />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {t("searchJobs.search")}
+                  </Text>
                 )}
-                {talents
-                  .filter((t) => t.coordinates && t.coordinates.length === 2)
-                  .map((talent) => (
-                    <Marker
-                      key={talent.id}
-                      coordinate={{
-                        latitude: talent.coordinates![0],
-                        longitude: talent.coordinates![1],
-                      }}
-                      title={`${talent.firstName} ${talent.lastName}`}
-                    />
-                  ))}
-              </MapView>
+              </TouchableOpacity>
             </View>
-          )}
 
-          {viewMode === "list" && (
-            <FlatList
-              data={talents}
-              keyExtractor={(item) => item.id}
-              renderItem={renderTalentItem}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={
-                !loading ? (
-                  <View style={styles.emptyContainer}>
-                    <Feather name="search" size={48} color={isDark ? "#6B6355" : "#B8A88A"} />
-                    <Text style={[styles.emptyText, { color: isDark ? "#9A8E7A" : "#8A7B68" }]}>
-                      No talents found. Try adjusting your search.
-                    </Text>
-                  </View>
-                ) : null
-              }
-            />
-          )}
-        </View>
-
-        <Modal
-          visible={showCategoryModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowCategoryModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                {
-                  backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "rgba(241, 245, 249, 0.98)",
-                  borderTopWidth: 1,
-                  borderTopColor: isDark ? "rgba(255,250,240,0.12)" : "rgba(184,130,42,0.2)",
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>{t("searchJobs.selectCategoryTitle")}</Text>
-                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                  <Feather name="x" size={24} color={colors.text} />
+            {talents.length > 0 && (
+              <View style={styles.viewToggle}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    viewMode === "list" && styles.toggleButtonActive,
+                    {
+                      backgroundColor:
+                        viewMode === "list"
+                          ? isDark
+                            ? "#E8B86D"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: 1,
+                      borderColor:
+                        viewMode === "list"
+                          ? isDark
+                            ? "#E8B86D"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => setViewMode("list")}
+                >
+                  <Feather
+                    name="list"
+                    size={18}
+                    color={viewMode === "list" ? "#FFFAF0" : colors.text}
+                  />
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      { color: viewMode === "list" ? "#FFFAF0" : colors.text },
+                    ]}
+                  >
+                    List
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    viewMode === "map" && styles.toggleButtonActive,
+                    {
+                      backgroundColor:
+                        viewMode === "map"
+                          ? isDark
+                            ? "#E8B86D"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(201,150,63,0.12)"
+                            : "rgba(184,130,42,0.06)",
+                      borderWidth: 1,
+                      borderColor:
+                        viewMode === "map"
+                          ? isDark
+                            ? "#E8B86D"
+                            : "#C9963F"
+                          : isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => setViewMode("map")}
+                >
+                  <Feather
+                    name="map"
+                    size={18}
+                    color={viewMode === "map" ? "#FFFAF0" : colors.text}
+                  />
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      { color: viewMode === "map" ? "#FFFAF0" : colors.text },
+                    ]}
+                  >
+                    Map
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {loadingSkills ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={colors.tint} />
-                    <Text style={[styles.loadingText, { color: colors.text }]}>{t("searchJobs.loadingSkills")}</Text>
-                  </View>
-                ) : skills.length === 0 ? (
-                  <View style={styles.loadingContainer}>
-                    <Text style={[styles.loadingText, { color: colors.text }]}>{t("searchJobs.noSkillsAvailable")}</Text>
-                  </View>
-                ) : (
-                  skills.map((skill) => (
-                    <TouchableOpacity
-                      key={skill.id}
-                      style={[
-                        styles.categoryOption,
-                        category === skill.name && styles.categoryOptionSelected,
-                        {
-                          backgroundColor:
-                            category === skill.name
-                              ? (isDark ? "#E8B86D" : "#C9963F")
-                              : isDark
-                                ? "rgba(255,250,240,0.06)"
-                                : "rgba(184,130,42,0.06)",
-                          borderWidth: category === skill.name ? 1 : 0,
-                          borderColor: category === skill.name ? (isDark ? "#E8B86D" : "#C9963F") : "transparent",
-                        },
-                      ]}
-                      onPress={() => {
-                        setCategory(skill.name);
-                        setShowCategoryModal(false);
+            )}
+
+            {viewMode === "map" && talents.length > 0 && (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: userLocation?.lat || 37.78825,
+                    longitude: userLocation?.lng || -122.4324,
+                    latitudeDelta: 0.0922,
+                    longitudeDelta: 0.0421,
+                  }}
+                >
+                  {userLocation && (
+                    <Marker
+                      coordinate={{
+                        latitude: userLocation.lat,
+                        longitude: userLocation.lng,
                       }}
-                    >
+                      title={t("searchJobs.yourLocation")}
+                      pinColor="blue"
+                    />
+                  )}
+                  {talents
+                    .filter((t) => t.coordinates && t.coordinates.length === 2)
+                    .map((talent) => (
+                      <Marker
+                        key={talent.id}
+                        coordinate={{
+                          latitude: talent.coordinates![0],
+                          longitude: talent.coordinates![1],
+                        }}
+                        title={`${talent.firstName} ${talent.lastName}`}
+                      />
+                    ))}
+                </MapView>
+              </View>
+            )}
+
+            {viewMode === "list" && (
+              <FlatList
+                data={talents}
+                keyExtractor={(item) => item.id}
+                renderItem={renderTalentItem}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={
+                  !loading ? (
+                    <View style={styles.emptyContainer}>
+                      <Feather
+                        name="search"
+                        size={48}
+                        color={isDark ? "#6B6355" : "#B8A88A"}
+                      />
                       <Text
                         style={[
-                          styles.categoryOptionText,
-                          {
-                            color: category === skill.name ? "#FFFAF0" : colors.text,
-                          },
+                          styles.emptyText,
+                          { color: isDark ? "#9A8E7A" : "#8A7B68" },
                         ]}
                       >
-                        {skill.name}
+                        No talents found. Try adjusting your search.
                       </Text>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            </View>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
           </View>
-        </Modal>
-      </SafeAreaView>
+
+          <Modal
+            visible={showCategoryModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCategoryModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.modalContent,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.90)"
+                      : "rgba(241, 245, 249, 0.98)",
+                    borderTopWidth: 1,
+                    borderTopColor: isDark
+                      ? "rgba(255,250,240,0.12)"
+                      : "rgba(184,130,42,0.2)",
+                  },
+                ]}
+              >
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    {t("searchJobs.selectCategoryTitle")}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                    <Feather name="x" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView keyboardShouldPersistTaps="handled">
+                  {loadingSkills ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color={colors.tint} />
+                      <Text
+                        style={[styles.loadingText, { color: colors.text }]}
+                      >
+                        {t("searchJobs.loadingSkills")}
+                      </Text>
+                    </View>
+                  ) : skills.length === 0 ? (
+                    <View style={styles.loadingContainer}>
+                      <Text
+                        style={[styles.loadingText, { color: colors.text }]}
+                      >
+                        {t("searchJobs.noSkillsAvailable")}
+                      </Text>
+                    </View>
+                  ) : (
+                    skills.map((skill) => (
+                      <TouchableOpacity
+                        key={skill.id}
+                        style={[
+                          styles.categoryOption,
+                          category === skill.name &&
+                            styles.categoryOptionSelected,
+                          {
+                            backgroundColor:
+                              category === skill.name
+                                ? isDark
+                                  ? "#E8B86D"
+                                  : "#C9963F"
+                                : isDark
+                                  ? "rgba(255,250,240,0.06)"
+                                  : "rgba(184,130,42,0.06)",
+                            borderWidth: category === skill.name ? 1 : 0,
+                            borderColor:
+                              category === skill.name
+                                ? isDark
+                                  ? "#E8B86D"
+                                  : "#C9963F"
+                                : "transparent",
+                          },
+                        ]}
+                        onPress={() => {
+                          setCategory(skill.name);
+                          setShowCategoryModal(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            {
+                              color:
+                                category === skill.name
+                                  ? "#FFFAF0"
+                                  : colors.text,
+                            },
+                          ]}
+                        >
+                          {skill.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     </GradientBackground>
   );
@@ -606,7 +857,12 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   toggleText: { fontWeight: "700", fontSize: 14 },
-  mapContainer: { flex: 1, borderRadius: 4, overflow: "hidden", marginBottom: 16 },
+  mapContainer: {
+    flex: 1,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
   map: { flex: 1 },
   listContent: { paddingBottom: 20 },
   talentCard: {
@@ -676,6 +932,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
+    paddingBottom: Platform.OS === "android" ? 56 : 24,
     maxHeight: "70%",
   },
   modalHeader: {

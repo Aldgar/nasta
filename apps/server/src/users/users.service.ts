@@ -521,7 +521,6 @@ export class UsersService {
         id: true,
         firstName: true,
         lastName: true,
-        email: true,
         phone: true,
         avatar: true,
         city: true,
@@ -616,7 +615,6 @@ export class UsersService {
           id: true,
           firstName: true,
           lastName: true,
-          email: true,
           phone: true,
           avatar: true,
           city: true,
@@ -704,12 +702,61 @@ export class UsersService {
       throw new NotFoundException('Candidate not found');
     }
 
-    // Calculate average rating
-    const reviews = (candidate as any).reviewsReceived || [];
+    // Get standalone reviews
+    const standaloneReviews = ((candidate as any).reviewsReceived || []).map(
+      (r: any) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        reviewer: r.reviewer,
+      }),
+    );
+
+    // Get job completion ratings where this candidate was rated by employers
+    const completionRatings = await this.prisma.jobCompletionRating.findMany({
+      where: {
+        application: {
+          applicantId: candidate.id,
+        },
+        raterId: { not: candidate.id }, // Rated by the OTHER party (employer)
+      },
+      select: {
+        id: true,
+        otherPartyRating: true,
+        otherPartyComment: true,
+        createdAt: true,
+        rater: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Merge both types of reviews into a unified format
+    const completionReviews = completionRatings.map((cr) => ({
+      id: cr.id,
+      rating: cr.otherPartyRating,
+      comment: cr.otherPartyComment || null,
+      createdAt: cr.createdAt,
+      reviewer: cr.rater,
+    }));
+
+    const allReviews = [...standaloneReviews, ...completionReviews].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+    // Calculate average rating from all reviews
     const avgRating =
-      reviews.length > 0
-        ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
-          reviews.length
+      allReviews.length > 0
+        ? allReviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+          allReviews.length
         : 0;
 
     // Get CV from most recent application
@@ -759,6 +806,7 @@ export class UsersService {
             description: string;
             url?: string;
           }>;
+          categories?: string[];
         }
       | null
       | undefined;
@@ -986,7 +1034,6 @@ export class UsersService {
       id: candidate.id,
       firstName: candidate.firstName,
       lastName: candidate.lastName,
-      email: candidate.email,
       phone: candidate.phone,
       avatar: candidate.avatar || userProfile?.avatarUrl || null,
       city: candidate.city || userProfile?.city,
@@ -1003,8 +1050,8 @@ export class UsersService {
       skillsSummary: userProfile?.skillsSummary || [],
       languages: languages,
       rating: Math.round(avgRating * 10) / 10,
-      ratingCount: reviews.length,
-      reviews: reviews,
+      ratingCount: allReviews.length,
+      reviews: allReviews,
       cvUrl: finalCvUrl,
       hourlyRate: hourlyRate,
       rates: rates,
@@ -1012,6 +1059,7 @@ export class UsersService {
       certifications: links?.certifications || [],
       education: links?.education || [],
       projects: links?.projects || [],
+      categories: links?.categories || [],
       // Verification statuses
       isIdVerified: (candidate as any).isIdVerified,
       idVerificationStatus: (candidate as any).idVerificationStatus,

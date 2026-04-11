@@ -1417,6 +1417,120 @@ export default function MyApplicationDetailScreen() {
                   </Text>
                 </View>
 
+                {/* Selected Rates from Employer */}
+                {application.selectedRates &&
+                  application.selectedRates.length > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: isDark
+                          ? "rgba(201,150,63,0.1)"
+                          : "rgba(184,130,42,0.06)",
+                        borderRadius: 8,
+                        padding: 12,
+                        marginBottom: 16,
+                        borderWidth: 1,
+                        borderColor: isDark
+                          ? "rgba(201,150,63,0.25)"
+                          : "rgba(184,130,42,0.15)",
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Feather
+                          name="dollar-sign"
+                          size={14}
+                          color={isDark ? "#C9963F" : "#B8822A"}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "700",
+                            color: isDark ? "#C9963F" : "#B8822A",
+                            marginLeft: 6,
+                          }}
+                        >
+                          {t("applications.proposedPayment")}
+                        </Text>
+                      </View>
+                      {application.selectedRates.map(
+                        (rate: any, idx: number) => {
+                          const ptLabel =
+                            (
+                              {
+                                HOUR: t("jobs.paymentType.hourly"),
+                                HOURLY: t("jobs.paymentType.hourly"),
+                                DAILY: t("jobs.paymentType.daily"),
+                                WEEKLY: t("jobs.paymentType.weekly"),
+                                MONTHLY: t("jobs.paymentType.monthly"),
+                                FIXED: t("jobs.paymentType.fixed"),
+                              } as Record<string, string>
+                            )[rate.paymentType] || rate.paymentType;
+                          return (
+                            <View
+                              key={idx}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingVertical: 4,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 15,
+                                  fontWeight: "600",
+                                  color: colors.text,
+                                }}
+                              >
+                                €{rate.rate?.toFixed(2)} / {ptLabel}
+                              </Text>
+                              {rate.isCustom && (
+                                <View
+                                  style={{
+                                    backgroundColor: isDark
+                                      ? "rgba(59,130,246,0.15)"
+                                      : "rgba(59,130,246,0.1)",
+                                    borderRadius: 4,
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 2,
+                                    marginLeft: 8,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: "600",
+                                      color: isDark ? "#60A5FA" : "#3B82F6",
+                                    }}
+                                  >
+                                    {t("applications.customRate")}
+                                  </Text>
+                                </View>
+                              )}
+                              {rate.description && (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    color: isDark
+                                      ? "rgba(255,250,240,0.5)"
+                                      : "rgba(0,0,0,0.45)",
+                                    marginLeft: 8,
+                                  }}
+                                >
+                                  {rate.description}
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        },
+                      )}
+                    </View>
+                  )}
+
                 <View
                   style={{
                     flexDirection: "row",
@@ -5405,7 +5519,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "90%",
-    paddingBottom: 20,
+    paddingBottom: Platform.OS === "android" ? 56 : 20,
   },
   modalHeader: {
     flexDirection: "row",

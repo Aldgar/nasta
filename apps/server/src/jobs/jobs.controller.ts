@@ -42,6 +42,12 @@ export class JobsController {
     return this.jobsService.getAllCategories();
   }
 
+  @Post('categories')
+  @UseGuards(JwtAuthGuard)
+  async createCategory(@Body() body: { name: string }) {
+    return this.jobsService.createCategory(body.name);
+  }
+
   @Get('my-jobs')
   @UseGuards(JwtAuthGuard)
   async getMyJobs(

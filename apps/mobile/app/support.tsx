@@ -1196,6 +1196,7 @@ const styles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === "android" ? 48 : 0,
     maxHeight: "70%",
   },
   modalHeader: {

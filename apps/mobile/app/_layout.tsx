@@ -302,6 +302,30 @@ function RootLayoutNav() {
           } as never);
         }
       }
+
+      // Handle applicant deep links (employer views application)
+      // Supports: nasta://applicant/APPID and https://nasta.app/applicant/APPID
+      if (path?.startsWith("applicant/")) {
+        const applicationId = path.split("/")[1];
+        if (applicationId) {
+          router.push({
+            pathname: "/applicant/[id]",
+            params: { id: applicationId, instantJob: "true" },
+          } as never);
+        }
+      }
+
+      // Handle my-application deep links (SP views their application)
+      // Supports: nasta://my-application/APPID and https://nasta.app/my-application/APPID
+      if (path?.startsWith("my-application/")) {
+        const applicationId = path.split("/")[1];
+        if (applicationId) {
+          router.push({
+            pathname: "/my-application/[id]",
+            params: { id: applicationId },
+          } as never);
+        }
+      }
     } catch (error) {
       console.warn("Error handling deep link:", error);
     }

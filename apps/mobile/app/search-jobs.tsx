@@ -283,10 +283,7 @@ export default function SearchJobs() {
         },
       ]}
       onPress={() => {
-        // TODO: Navigate to job details page when implemented
-        // For now, show job info and allow applying
-        router.back();
-        // You can add navigation to job details or application page here
+        router.push(`/jobs/${item.id}` as any);
       }}
     >
       <View style={styles.jobHeader}>
@@ -642,6 +639,9 @@ export default function SearchJobs() {
                         }}
                         title={job.title}
                         description={job.company?.name || job.location}
+                        onCalloutPress={() => {
+                          router.push(`/jobs/${job.id}` as any);
+                        }}
                       />
                     ))}
                 </MapView>
@@ -946,6 +946,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
+    paddingBottom: Platform.OS === "android" ? 56 : 24,
     maxHeight: "70%",
   },
   modalHeader: {

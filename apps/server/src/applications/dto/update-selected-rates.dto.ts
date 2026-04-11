@@ -1,4 +1,13 @@
-import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class SelectedRateDto {
@@ -13,6 +22,14 @@ class SelectedRateDto {
   @IsOptional()
   @IsString()
   otherSpecification?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCustom?: boolean;
 }
 
 export class UpdateSelectedRatesDto {
@@ -21,4 +38,3 @@ export class UpdateSelectedRatesDto {
   @Type(() => SelectedRateDto)
   selectedRates!: SelectedRateDto[];
 }
-

@@ -2220,6 +2220,42 @@ export default function JobDetailScreen() {
                 </View>
               )}
             </View>
+
+            {/* Payment / Offered Rate */}
+            {job.rateAmount != null && job.rateAmount > 0 && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: 10,
+                  paddingTop: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: isDark
+                    ? "rgba(201,150,63,0.12)"
+                    : "rgba(184,130,42,0.15)",
+                }}
+              >
+                <Feather
+                  name="dollar-sign"
+                  size={16}
+                  color={isDark ? "#C9963F" : "#B8822A"}
+                />
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: isDark ? "#C9963F" : "#B8822A",
+                  }}
+                >
+                  {t("jobs.offeredRate")}: {job.currency || "EUR"}{" "}
+                  {(job.rateAmount / 100).toFixed(2)} /{" "}
+                  {t(
+                    `jobs.paymentType.${(job.paymentType || "HOURLY").toLowerCase()}`,
+                  )}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Description Card */}
@@ -3601,7 +3637,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "90%",
-    paddingBottom: 0,
+    paddingBottom: Platform.OS === "android" ? 48 : 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,

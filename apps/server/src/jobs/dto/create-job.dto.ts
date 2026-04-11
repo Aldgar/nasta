@@ -176,7 +176,7 @@ export class CreateJobDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'FIXED'])
+  @IsIn(['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'FIXED', 'PROJECT', 'OTHER'])
   paymentType?: string;
 
   @IsOptional()

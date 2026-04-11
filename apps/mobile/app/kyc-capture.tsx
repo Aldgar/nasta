@@ -2412,7 +2412,8 @@ export default function KycCapture() {
                 setShowIdTypeModal(false);
               }}
             />
-            <View
+            <SafeAreaView
+              edges={["bottom"]}
               style={[
                 styles.modalContent,
                 { backgroundColor: isDark ? "#1A1710" : "#FFFAF0" },
@@ -2461,7 +2462,7 @@ export default function KycCapture() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+            </SafeAreaView>
           </View>
         </Modal>
       </KeyboardAvoidingView>
@@ -2652,6 +2653,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    paddingBottom: Platform.OS === "android" ? 56 : 20,
     maxHeight: "80%",
     minHeight: 200,
     width: "100%",

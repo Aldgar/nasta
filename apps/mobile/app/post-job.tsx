@@ -1263,7 +1263,12 @@ export default function PostJob() {
                     isDark ? "rgba(255,250,240,0.6)" : "rgba(0,0,0,0.4)"
                   }
                   value={rateAmount}
-                  onChangeText={setRateAmount}
+                  onChangeText={(text) => {
+                    const sanitized = text
+                      .replace(/[^0-9.]/g, "")
+                      .replace(/(\..*)\./g, "$1");
+                    setRateAmount(sanitized);
+                  }}
                   keyboardType="decimal-pad"
                   underlineColorAndroid="transparent"
                 />
@@ -1799,6 +1804,17 @@ export default function PostJob() {
                 ]}
               >
                 {t("jobPosting.requirements.restrictedSectorQuestion")}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? "rgba(255,250,240,0.55)" : "#8A7B68",
+                  marginTop: 4,
+                  marginBottom: 8,
+                  lineHeight: 17,
+                }}
+              >
+                {t("jobPosting.requirements.restrictedSectorDisclaimer")}
               </Text>
               <View style={styles.requirementsToggleRow}>
                 <Switch
@@ -2457,6 +2473,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
+    paddingBottom: Platform.OS === "android" ? 56 : 24,
     maxHeight: "70%",
   },
   modalHeader: {

@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Alert,
   Modal,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
@@ -79,7 +80,8 @@ export default function ManageAdminsScreen() {
           const data = await res.json();
           const admin = data.admin || data;
           const capabilities = admin.adminCapabilities || [];
-          const isSuper = Array.isArray(capabilities) && capabilities.includes("SUPER_ADMIN");
+          const isSuper =
+            Array.isArray(capabilities) && capabilities.includes("SUPER_ADMIN");
           console.log("SUPER_ADMIN check:", { capabilities, isSuper, admin });
           setIsSuperAdmin(isSuper);
         } else {
@@ -112,8 +114,13 @@ export default function ManageAdminsScreen() {
         const data = await res.json();
         setAdmins(data.admins || []);
       } else {
-        const errorData = await res.json().catch(() => ({ message: t("admin.failedToLoadAdmins") }));
-        Alert.alert(t("common.error"), errorData.message || t("admin.failedToLoadAdmins"));
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: t("admin.failedToLoadAdmins") }));
+        Alert.alert(
+          t("common.error"),
+          errorData.message || t("admin.failedToLoadAdmins"),
+        );
       }
     } catch (error) {
       console.error("Error fetching admins:", error);
@@ -127,7 +134,7 @@ export default function ManageAdminsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAdmins();
-    }, [fetchAdmins])
+    }, [fetchAdmins]),
   );
 
   const onRefresh = () => {
@@ -136,7 +143,12 @@ export default function ManageAdminsScreen() {
   };
 
   const handleCreateAdmin = async () => {
-    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+    if (
+      !formData.email ||
+      !formData.password ||
+      !formData.firstName ||
+      !formData.lastName
+    ) {
       Alert.alert(t("common.error"), t("common.fillAllRequiredFields"));
       return;
     }
@@ -149,7 +161,9 @@ export default function ManageAdminsScreen() {
     // Remove SUPER_ADMIN from capabilities if user is not SUPER_ADMIN
     let capabilitiesToSubmit = formData.adminCapabilities;
     if (!isSuperAdmin) {
-      capabilitiesToSubmit = formData.adminCapabilities.filter((cap) => cap !== "SUPER_ADMIN");
+      capabilitiesToSubmit = formData.adminCapabilities.filter(
+        (cap) => cap !== "SUPER_ADMIN",
+      );
       if (capabilitiesToSubmit.length === 0) {
         Alert.alert(t("common.error"), t("admin.selectAtLeastOneCapability"));
         return;
@@ -190,7 +204,10 @@ export default function ManageAdminsScreen() {
         fetchAdmins();
       } else {
         const error = await res.json();
-        Alert.alert(t("common.error"), error.message || t("admin.failedToCreateAdmin"));
+        Alert.alert(
+          t("common.error"),
+          error.message || t("admin.failedToCreateAdmin"),
+        );
       }
     } catch (error) {
       console.error("Error creating admin:", error);
@@ -209,20 +226,29 @@ export default function ManageAdminsScreen() {
     }));
   };
 
-  const handleDeleteAdmin = async (adminId: string, adminName: string, targetAdminCapabilities: string[]) => {
-    console.log("handleDeleteAdmin called:", { adminId, adminName, isSuperAdmin, targetAdminCapabilities });
-    
+  const handleDeleteAdmin = async (
+    adminId: string,
+    adminName: string,
+    targetAdminCapabilities: string[],
+  ) => {
+    console.log("handleDeleteAdmin called:", {
+      adminId,
+      adminName,
+      isSuperAdmin,
+      targetAdminCapabilities,
+    });
+
     // Check if target admin is SUPER_ADMIN and current user is not SUPER_ADMIN
-    const targetIsSuperAdmin = Array.isArray(targetAdminCapabilities) && targetAdminCapabilities.includes("SUPER_ADMIN");
+    const targetIsSuperAdmin =
+      Array.isArray(targetAdminCapabilities) &&
+      targetAdminCapabilities.includes("SUPER_ADMIN");
     if (targetIsSuperAdmin && !isSuperAdmin) {
-      Alert.alert(
-        t("admin.cannotDelete"),
-        t("admin.cannotDeleteSuperAdmin"),
-        [{ text: t("common.ok") }]
-      );
+      Alert.alert(t("admin.cannotDelete"), t("admin.cannotDeleteSuperAdmin"), [
+        { text: t("common.ok") },
+      ]);
       return;
     }
-    
+
     Alert.alert(
       t("admin.deleteAdmin"),
       t("admin.deleteAdminConfirm", { adminName }),
@@ -242,8 +268,11 @@ export default function ManageAdminsScreen() {
               }
 
               const base = getApiBase();
-              console.log("Deleting admin:", `${base}/auth/admin/${adminId}/delete`);
-              
+              console.log(
+                "Deleting admin:",
+                `${base}/auth/admin/${adminId}/delete`,
+              );
+
               const res = await fetch(`${base}/auth/admin/${adminId}/delete`, {
                 method: "POST",
                 headers: {
@@ -255,12 +284,20 @@ export default function ManageAdminsScreen() {
               if (res.ok) {
                 const result = await res.json();
                 console.log("Delete successful:", result);
-                Alert.alert(t("common.success"), t("admin.adminDeletedSuccessfully"));
+                Alert.alert(
+                  t("common.success"),
+                  t("admin.adminDeletedSuccessfully"),
+                );
                 fetchAdmins();
               } else {
-                const error = await res.json().catch(() => ({ message: "Unknown error" }));
+                const error = await res
+                  .json()
+                  .catch(() => ({ message: "Unknown error" }));
                 console.error("Delete failed:", error);
-                Alert.alert(t("common.error"), error.message || t("admin.failedToDeleteAdmin"));
+                Alert.alert(
+                  t("common.error"),
+                  error.message || t("admin.failedToDeleteAdmin"),
+                );
               }
             } catch (error) {
               console.error("Error deleting admin:", error);
@@ -270,7 +307,7 @@ export default function ManageAdminsScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -281,17 +318,29 @@ export default function ManageAdminsScreen() {
         <View style={styles.topBar}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={[styles.backButton, { backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "rgba(184,130,42,0.2)" }]}
+            style={[
+              styles.backButton,
+              {
+                backgroundColor: isDark
+                  ? "rgba(201,150,63,0.12)"
+                  : "rgba(184,130,42,0.2)",
+              },
+            ]}
           >
             <Feather name="arrow-left" size={20} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>Manage Admins</Text>
+          <Text style={[styles.pageTitle, { color: colors.text }]}>
+            Manage Admins
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: isDark ? "#A78BFA" : "#7C3AED" }]}
+            style={[
+              styles.addButton,
+              { backgroundColor: isDark ? "#A78BFA" : "#7C3AED" },
+            ]}
             onPress={() => {
               // Clear form and remove SUPER_ADMIN if user is not SUPER_ADMIN
               setFormData({
@@ -305,7 +354,9 @@ export default function ManageAdminsScreen() {
             }}
           >
             <Feather name="plus" size={18} color="#FFFAF0" />
-            <Text style={[styles.addButtonText, { color: "#FFFAF0" }]}>Add Admin</Text>
+            <Text style={[styles.addButtonText, { color: "#FFFAF0" }]}>
+              Add Admin
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -348,7 +399,10 @@ export default function ManageAdminsScreen() {
                         {admin.firstName} {admin.lastName}
                       </Text>
                       <Text
-                        style={[styles.adminEmail, { color: isDark ? "#B8A88A" : "#8A7B68" }]}
+                        style={[
+                          styles.adminEmail,
+                          { color: isDark ? "#B8A88A" : "#8A7B68" },
+                        ]}
                       >
                         {admin.email}
                       </Text>
@@ -376,7 +430,10 @@ export default function ManageAdminsScreen() {
 
                   <View style={styles.capabilitiesContainer}>
                     <Text
-                      style={[styles.capabilitiesLabel, { color: isDark ? "#B8A88A" : "#8A7B68" }]}
+                      style={[
+                        styles.capabilitiesLabel,
+                        { color: isDark ? "#B8A88A" : "#8A7B68" },
+                      ]}
                     >
                       Capabilities:
                     </Text>
@@ -397,7 +454,8 @@ export default function ManageAdminsScreen() {
 
                   {/* Delete Button - Visible for all admins, but SUPER_ADMIN cannot be deleted by non-SUPER_ADMIN */}
                   <View style={{ marginTop: 16 }}>
-                    {!isSuperAdmin && admin.adminCapabilities.includes("SUPER_ADMIN") ? (
+                    {!isSuperAdmin &&
+                    admin.adminCapabilities.includes("SUPER_ADMIN") ? (
                       <View
                         style={[
                           styles.deleteButton,
@@ -411,8 +469,17 @@ export default function ManageAdminsScreen() {
                           },
                         ]}
                       >
-                        <Feather name="lock" size={18} color={isDark ? "#9A8E7A" : "#8A7B68"} />
-                        <Text style={[styles.deleteButtonText, { color: isDark ? "#9A8E7A" : "#8A7B68" }]}>
+                        <Feather
+                          name="lock"
+                          size={18}
+                          color={isDark ? "#9A8E7A" : "#8A7B68"}
+                        />
+                        <Text
+                          style={[
+                            styles.deleteButtonText,
+                            { color: isDark ? "#9A8E7A" : "#8A7B68" },
+                          ]}
+                        >
                           Cannot Delete SUPER_ADMIN
                         </Text>
                       </View>
@@ -430,11 +497,14 @@ export default function ManageAdminsScreen() {
                           },
                         ]}
                         onPress={() => {
-                          console.log("Delete button pressed for admin:", admin.id);
+                          console.log(
+                            "Delete button pressed for admin:",
+                            admin.id,
+                          );
                           handleDeleteAdmin(
                             admin.id,
                             `${admin.firstName} ${admin.lastName}`,
-                            admin.adminCapabilities
+                            admin.adminCapabilities,
                           );
                         }}
                         disabled={deletingAdminId === admin.id}
@@ -445,7 +515,12 @@ export default function ManageAdminsScreen() {
                         ) : (
                           <>
                             <Feather name="trash-2" size={18} color="#ef4444" />
-                            <Text style={[styles.deleteButtonText, { color: "#ef4444" }]}>
+                            <Text
+                              style={[
+                                styles.deleteButtonText,
+                                { color: "#ef4444" },
+                              ]}
+                            >
                               Delete Admin
                             </Text>
                           </>
@@ -469,14 +544,18 @@ export default function ManageAdminsScreen() {
           <View
             style={[
               styles.modalOverlay,
-              { backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)" },
+              {
+                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
+              },
             ]}
           >
             <View
               style={[
                 styles.modalContent,
                 {
-                  backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "#FFFAF0",
                 },
               ]}
             >
@@ -500,7 +579,7 @@ export default function ManageAdminsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView 
+              <ScrollView
                 style={styles.modalForm}
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={{ paddingBottom: 20 }}
@@ -513,9 +592,13 @@ export default function ManageAdminsScreen() {
                   style={[
                     styles.modalInput,
                     {
-                      backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#f9fafb",
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "#f9fafb",
                       color: colors.text,
-                      borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "#E8D8B8",
                     },
                   ]}
                   placeholder={t("admin.firstNamePlaceholder")}
@@ -533,9 +616,13 @@ export default function ManageAdminsScreen() {
                   style={[
                     styles.modalInput,
                     {
-                      backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#f9fafb",
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "#f9fafb",
                       color: colors.text,
-                      borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "#E8D8B8",
                     },
                   ]}
                   placeholder={t("admin.lastNamePlaceholder")}
@@ -553,9 +640,13 @@ export default function ManageAdminsScreen() {
                   style={[
                     styles.modalInput,
                     {
-                      backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#f9fafb",
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "#f9fafb",
                       color: colors.text,
-                      borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "#E8D8B8",
                     },
                   ]}
                   placeholder="admin@example.com"
@@ -575,9 +666,13 @@ export default function ManageAdminsScreen() {
                   style={[
                     styles.modalInput,
                     {
-                      backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#f9fafb",
+                      backgroundColor: isDark
+                        ? "rgba(201,150,63,0.12)"
+                        : "#f9fafb",
                       color: colors.text,
-                      borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.15)"
+                        : "#E8D8B8",
                     },
                   ]}
                   placeholder={t("admin.passwordMinLength")}
@@ -657,7 +752,9 @@ export default function ManageAdminsScreen() {
                     });
                   }}
                 >
-                  <Text style={[styles.modalButtonText, { color: colors.text }]}>
+                  <Text
+                    style={[styles.modalButtonText, { color: colors.text }]}
+                  >
                     Cancel
                   </Text>
                 </TouchableOpacity>
@@ -676,7 +773,9 @@ export default function ManageAdminsScreen() {
                   {isCreating ? (
                     <ActivityIndicator color="#FFFAF0" />
                   ) : (
-                    <Text style={[styles.modalButtonText, { color: "#FFFAF0" }]}>
+                    <Text
+                      style={[styles.modalButtonText, { color: "#FFFAF0" }]}
+                    >
                       Create Admin
                     </Text>
                   )}
@@ -802,7 +901,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === "android" ? 80 : 40,
     maxHeight: "85%",
     minHeight: "70%",
     width: "100%",
@@ -886,4 +985,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-

@@ -47,7 +47,6 @@ interface Candidate {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
   phone?: string;
   avatar?: string;
   city?: string;
@@ -154,6 +153,7 @@ interface Candidate {
     description: string;
     url?: string;
   }>;
+  categories?: string[];
 }
 
 // Helper function to translate category names
@@ -1194,6 +1194,58 @@ export default function CandidateProfileScreen() {
               >
                 {candidate.bio}
               </Text>
+            </View>
+          )}
+
+          {/* Categories */}
+          {candidate.categories && candidate.categories.length > 0 && (
+            <View
+              style={[
+                styles.section,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.85)"
+                    : "#FFFAF0",
+                  borderWidth: isDark ? 1 : 0,
+                  borderColor: isDark
+                    ? "rgba(255,250,240,0.12)"
+                    : "transparent",
+                },
+              ]}
+            >
+              <View style={styles.sectionHeader}>
+                <Feather name="grid" size={20} color={colors.tint} />
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  {t("candidate.serviceCategories")}
+                </Text>
+              </View>
+              <View style={styles.skillsContainer}>
+                {candidate.categories.map((category, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.skillTag,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(201, 150, 63, 0.2)"
+                          : "rgba(201, 150, 63, 0.1)",
+                        borderColor: isDark
+                          ? "rgba(201, 150, 63, 0.3)"
+                          : "rgba(201, 150, 63, 0.2)",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.skillText,
+                        { color: isDark ? "#E8B86D" : "#B8822A" },
+                      ]}
+                    >
+                      {category}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           )}
 

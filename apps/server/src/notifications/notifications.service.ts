@@ -218,7 +218,12 @@ export class NotificationsService {
     t: (key: string, params?: any) => string,
     language: 'en' | 'pt' = 'en',
   ): string {
-    const e = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const e = (s: string) =>
+      s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
     const locationText =
       job.city && job.country
@@ -429,7 +434,7 @@ export class NotificationsService {
       const client = new postmark.ServerClient(apiToken);
 
       const result = await client.sendEmail({
-        From: fromEmail,
+        From: `Nasta <${fromEmail}>`,
         To: to,
         Subject: subject,
         TextBody: text,
@@ -979,8 +984,12 @@ export class NotificationsService {
           : tNotif('notifications.templates.accountDeletionDeniedTitle');
       const body =
         event.decision === 'APPROVED'
-          ? tNotif('notifications.templates.accountDeletionApprovedBody', { ticketNumber: event.ticketNumber })
-          : tNotif('notifications.templates.accountDeletionDeniedBody', { ticketNumber: event.ticketNumber });
+          ? tNotif('notifications.templates.accountDeletionApprovedBody', {
+              ticketNumber: event.ticketNumber,
+            })
+          : tNotif('notifications.templates.accountDeletionDeniedBody', {
+              ticketNumber: event.ticketNumber,
+            });
 
       await this.createNotification({
         userId: event.userId,
@@ -2135,7 +2144,8 @@ export class NotificationsService {
     t: (key: string, params?: any) => string,
     language: 'en' | 'pt' = 'en',
   ): string {
-    const e = (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const e = (s: string) =>
+      s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     return `
 <!DOCTYPE html>
 <html lang="${language}">
@@ -2278,7 +2288,8 @@ export class NotificationsService {
     t: (key: string, params?: any) => string,
     language: 'en' | 'pt' = 'en',
   ): string {
-    const e = (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const e = (s: string) =>
+      s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     return `
 <!DOCTYPE html>
 <html lang="${language}">
@@ -2413,7 +2424,8 @@ export class NotificationsService {
     t: (key: string, params?: any) => string,
     language: 'en' | 'pt' = 'en',
   ): string {
-    const e = (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const e = (s: string) =>
+      s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     return `
 <!DOCTYPE html>
 <html lang="${language}">

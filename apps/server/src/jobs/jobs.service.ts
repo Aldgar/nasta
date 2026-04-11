@@ -623,10 +623,12 @@ export class JobsService {
       startDate: dto.startDate ? new Date(dto.startDate) : null,
       endDate: dto.endDate ? new Date(dto.endDate) : null,
       rateAmount: dto.rateAmount ?? null,
-      currency: dto.currency ?? 'EUR', // Default to EUR if not provided
+      currency: dto.currency ?? 'EUR',
       paymentType: dto.paymentType
-        ? (dto.paymentType as unknown as any)
-        : ('MONTHLY' as any), // Default to MONTHLY if not provided
+        ? ((dto.paymentType === 'FIXED'
+            ? 'PROJECT'
+            : dto.paymentType) as unknown as any)
+        : ('MONTHLY' as any),
       requiresVehicle: dto.requiresVehicle ?? false,
       requiresDriverLicense: dto.requiresDriverLicense ?? false,
       employer: { connect: { id: employerId } },
@@ -1367,6 +1369,37 @@ export class JobsService {
     return Array.from(categoryMap.values()).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
+  }
+
+  async createCategory(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Category name is required');
+    }
+
+    // Check if category already exists (case-insensitive)
+    const existing = await this.prisma.jobCategory.findFirst({
+      where: {
+        name: { equals: trimmed, mode: 'insensitive' },
+      },
+    });
+
+    if (existing) {
+      return { id: existing.id, name: existing.name };
+    }
+
+    const category = await this.prisma.jobCategory.create({
+      data: {
+        name: trimmed,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    return category;
   }
 }
 

@@ -171,6 +171,7 @@ export class ProfilesController {
       languages: string[];
       skills: string[];
       cvUrl?: string;
+      categories?: string[];
       rates?: Array<{
         rate: number;
         description?: string;

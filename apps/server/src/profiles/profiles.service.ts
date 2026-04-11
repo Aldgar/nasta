@@ -433,6 +433,7 @@ export class ProfilesService {
       languages: Array<{ language: string; level: string }> | string[];
       skills: Array<{ name: string; yearsExperience: number }> | string[];
       cvUrl?: string;
+      categories?: string[];
       rates?: Array<{
         rate: number;
         description?: string;
@@ -653,6 +654,11 @@ export class ProfilesService {
       languages: normalizedLanguages,
       cvUrl: data.cvUrl,
     };
+
+    // Add categories if provided
+    if (data.categories && data.categories.length > 0) {
+      linksData.categories = data.categories;
+    }
 
     // Add rates array if provided
     if (data.rates && data.rates.length > 0) {

@@ -647,6 +647,15 @@ export class ApplicationsController {
     @Req() req: Request,
     @Param('jobId') jobId: string,
     @Param('candidateId') candidateId: string,
+    @Body()
+    body: {
+      selectedRates?: Array<{
+        rate: number;
+        paymentType: string;
+        description?: string;
+        isCustom?: boolean;
+      }>;
+    },
   ) {
     const user = req.user as {
       id: string;
@@ -661,6 +670,7 @@ export class ApplicationsController {
       user.id,
       jobId,
       candidateId,
+      body?.selectedRates,
     );
   }
 
@@ -760,7 +770,9 @@ export class SeekerApplicationsController {
   @Post(':id/respond-to-request')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Accept or reject an instant job request (service provider)' })
+  @ApiOperation({
+    summary: 'Accept or reject an instant job request (service provider)',
+  })
   @ApiBody({ type: RespondInstantJobRequestDto })
   async respondToRequest(
     @Req() req: Request,

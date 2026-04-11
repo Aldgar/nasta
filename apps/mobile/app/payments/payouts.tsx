@@ -1393,6 +1393,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
+    paddingBottom: Platform.OS === "android" ? 56 : 0,
     maxHeight: "90%",
   },
   modalHeader: {

@@ -103,6 +103,8 @@ interface Application {
     rate: number;
     paymentType: string;
     otherSpecification?: string;
+    description?: string;
+    isCustom?: boolean;
   }>;
   applicant: Applicant;
   job: {
@@ -114,6 +116,7 @@ interface Application {
     country?: string;
     rateAmount?: number;
     currency?: string;
+    paymentType?: string;
     startDate?: string;
     company?: {
       id: string;
@@ -210,12 +213,16 @@ export default function ApplicantDetailScreen() {
       description?: string;
       paymentType: string;
       otherSpecification?: string;
+      isCustom?: boolean;
     }>;
     rating?: number;
     ratingCount?: number;
     skills?: Array<{ name: string; yearsExp?: number }>;
   } | null>(null);
   const [selectedRates, setSelectedRates] = useState<Set<number>>(new Set());
+  const [lockedRateIndices, setLockedRateIndices] = useState<Set<number>>(
+    new Set(),
+  );
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedAction, setSelectedAction] = useState<
     "ACCEPT" | "REJECT" | null
@@ -379,17 +386,92 @@ export default function ApplicantDetailScreen() {
                     data.applicant.profile.avatarUrl = avatarUrl;
                   }
                 }
-                setCandidateData({
-                  rates: candidateProfile.rates,
-                  rating: candidateProfile.rating,
-                  ratingCount: candidateProfile.ratingCount,
-                  skills: candidateProfile.skills,
+                setCandidateData((prev) => {
+                  let mergedRates = candidateProfile.rates
+                    ? [...candidateProfile.rates]
+                    : [];
+
+                  // Append custom rates from application.selectedRates
+                  // that don't exist in the candidate's profile rates
+                  if (data.selectedRates && Array.isArray(data.selectedRates)) {
+                    data.selectedRates.forEach((sr: any) => {
+                      if (sr.isCustom) {
+                        mergedRates.push({
+                          rate: sr.rate,
+                          paymentType: sr.paymentType,
+                          description: sr.description,
+                          otherSpecification: sr.otherSpecification,
+                          isCustom: true,
+                        });
+                      }
+                    });
+                  }
+
+                  // Inject employer's job rate as a custom rate if it exists
+                  // and isn't already in the list (from selectedRates or profile)
+                  if (data.job?.rateAmount && data.job.rateAmount > 0) {
+                    const jobRate = data.job.rateAmount / 100;
+                    const jobPaymentType = data.job.paymentType || "HOURLY";
+                    const alreadyExists = mergedRates.some(
+                      (r: any) =>
+                        r.rate === jobRate && r.paymentType === jobPaymentType,
+                    );
+                    if (!alreadyExists) {
+                      mergedRates.push({
+                        rate: jobRate,
+                        paymentType: jobPaymentType,
+                        isCustom: true,
+                      });
+                    }
+                  }
+
+                  return {
+                    rates: mergedRates,
+                    rating: candidateProfile.rating,
+                    ratingCount: candidateProfile.ratingCount,
+                    skills: candidateProfile.skills,
+                  };
                 });
                 setApplication(data); // Update with avatar URL
 
                 // Initialize selectedRates from backend data only on initial load (showLoading=true)
                 // During polling (showLoading=false), preserve user's current selection
                 if (showLoading) {
+                  // Build the merged rates list (same logic as setCandidateData above)
+                  let mergedRates = candidateProfile.rates
+                    ? [...candidateProfile.rates]
+                    : [];
+                  if (data.selectedRates && Array.isArray(data.selectedRates)) {
+                    data.selectedRates.forEach((sr: any) => {
+                      if (sr.isCustom) {
+                        mergedRates.push({
+                          rate: sr.rate,
+                          paymentType: sr.paymentType,
+                          description: sr.description,
+                          otherSpecification: sr.otherSpecification,
+                          isCustom: true,
+                        });
+                      }
+                    });
+                  }
+
+                  // Inject employer's job rate as a custom rate
+                  if (data.job?.rateAmount && data.job.rateAmount > 0) {
+                    const jobRate = data.job.rateAmount / 100;
+                    const jobPaymentType = data.job.paymentType || "HOURLY";
+                    const alreadyExists = mergedRates.some(
+                      (r: any) =>
+                        r.rate === jobRate && r.paymentType === jobPaymentType,
+                    );
+                    if (!alreadyExists) {
+                      mergedRates.push({
+                        rate: jobRate,
+                        paymentType: jobPaymentType,
+                        isCustom: true,
+                      });
+                    }
+                  }
+
                   setSelectedRates((prevSelected) => {
                     // If user has already made selections, don't overwrite unless backend has different data
                     if (prevSelected.size > 0) {
@@ -402,32 +484,33 @@ export default function ApplicantDetailScreen() {
                     if (
                       data.selectedRates &&
                       Array.isArray(data.selectedRates) &&
-                      data.selectedRates.length > 0 &&
-                      candidateProfile.rates
+                      data.selectedRates.length > 0
                     ) {
                       const selectedIndices = new Set<number>();
 
-                      // For each selected rate from backend, find its index in candidate rates
+                      // For each selected rate from backend, find its index in merged rates
                       data.selectedRates.forEach(
                         (selectedRate: {
                           rate: number;
                           paymentType: string;
                           otherSpecification?: string;
+                          isCustom?: boolean;
                         }) => {
-                          const index = candidateProfile.rates.findIndex(
-                            (rate: {
-                              rate: number;
-                              paymentType: string;
-                              otherSpecification?: string;
-                            }) => {
+                          const index = mergedRates.findIndex((rate: any) => {
+                            if (selectedRate.isCustom) {
                               return (
+                                rate.isCustom === true &&
                                 rate.rate === selectedRate.rate &&
-                                rate.paymentType === selectedRate.paymentType &&
-                                (rate.otherSpecification || "") ===
-                                  (selectedRate.otherSpecification || "")
+                                rate.paymentType === selectedRate.paymentType
                               );
-                            },
-                          );
+                            }
+                            return (
+                              rate.rate === selectedRate.rate &&
+                              rate.paymentType === selectedRate.paymentType &&
+                              (rate.otherSpecification || "") ===
+                                (selectedRate.otherSpecification || "")
+                            );
+                          });
 
                           if (index !== -1) {
                             selectedIndices.add(index);
@@ -435,12 +518,19 @@ export default function ApplicantDetailScreen() {
                         },
                       );
 
+                      // Lock all pre-selected rates from the instant job request
+                      // so the employer cannot deselect rates the SP already accepted
+                      if (selectedIndices.size > 0) {
+                        setLockedRateIndices(new Set(selectedIndices));
+                      }
+
                       console.log(
                         "[ApplicantDetail] Initializing selectedRates from backend:",
                         {
                           selectedRatesFromBackend: data.selectedRates,
-                          candidateRates: candidateProfile.rates,
+                          mergedRates: mergedRates,
                           selectedIndices: Array.from(selectedIndices),
+                          instantJob,
                         },
                       );
 
@@ -744,6 +834,8 @@ export default function ApplicantDetailScreen() {
             rate: rate.rate,
             paymentType: rate.paymentType,
             otherSpecification: rate.otherSpecification || undefined,
+            ...(rate.isCustom ? { isCustom: true } : {}),
+            ...(rate.description ? { description: rate.description } : {}),
           };
         })
         .filter((rate) => rate.rate !== undefined && rate.rate !== null);
@@ -2186,7 +2278,7 @@ export default function ApplicantDetailScreen() {
               ]}
               onPress={() => {
                 if (instantJob) {
-                  router.replace("/employer-tabs/jobs" as any);
+                  router.replace("/manage-applications" as any);
                 } else {
                   router.back();
                 }
@@ -2258,7 +2350,7 @@ export default function ApplicantDetailScreen() {
             )}
 
             {/* Applicant Profile Card */}
-            <TouchableButton
+            <View
               style={[
                 styles.candidateCard,
                 {
@@ -2270,11 +2362,6 @@ export default function ApplicantDetailScreen() {
                     : "rgba(184,130,42,0.2)",
                 },
               ]}
-              onPress={() => {
-                if (applicant.id) {
-                  router.push(`/candidate/${applicant.id}` as any);
-                }
-              }}
             >
               <View style={styles.candidateHeader}>
                 <View style={styles.candidateInfo}>
@@ -2523,7 +2610,9 @@ export default function ApplicantDetailScreen() {
                       );
 
                       // If paid, grey it out and disable interaction
-                      const isDisabled = !!application?.completedAt || isPaid;
+                      const isLocked = lockedRateIndices.has(idx);
+                      const isDisabled =
+                        !!application?.completedAt || isPaid || isLocked;
 
                       return (
                         <TouchableButton
@@ -2566,6 +2655,13 @@ export default function ApplicantDetailScreen() {
                               Alert.alert(
                                 t("applications.alreadyPaid"),
                                 t("applications.serviceAlreadyPaid"),
+                              );
+                              return;
+                            }
+                            if (isLocked) {
+                              Alert.alert(
+                                t("applications.lockedRate"),
+                                t("applications.lockedRateDescription"),
                               );
                               return;
                             }
@@ -2627,6 +2723,12 @@ export default function ApplicantDetailScreen() {
                                   size={12}
                                   color={isDark ? "#9A8E7A" : "#8A7B68"}
                                 />
+                              ) : isLocked && isSelected ? (
+                                <Feather
+                                  name="check"
+                                  size={14}
+                                  color="#FFFAF0"
+                                />
                               ) : isSelected ? (
                                 <Feather
                                   name="check"
@@ -2637,31 +2739,62 @@ export default function ApplicantDetailScreen() {
                             </View>
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text
-                              style={[
-                                styles.rateText,
-                                {
-                                  color: isPaid
-                                    ? isDark
-                                      ? "#9A8E7A"
-                                      : "#8A7B68"
-                                    : colors.text,
-                                },
-                              ]}
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: 6,
+                              }}
                             >
-                              €{rate.rate}/{paymentTypeLabel}
-                              {isPaid && (
-                                <Text
+                              <Text
+                                style={[
+                                  styles.rateText,
+                                  {
+                                    color: isPaid
+                                      ? isDark
+                                        ? "#9A8E7A"
+                                        : "#8A7B68"
+                                      : colors.text,
+                                  },
+                                ]}
+                              >
+                                €{rate.rate}/{paymentTypeLabel}
+                                {isPaid && (
+                                  <Text
+                                    style={{
+                                      fontSize: 11,
+                                      fontStyle: "italic",
+                                      marginLeft: 4,
+                                    }}
+                                  >
+                                    ({t("applications.paid")})
+                                  </Text>
+                                )}
+                              </Text>
+                              {rate.isCustom && (
+                                <View
                                   style={{
-                                    fontSize: 11,
-                                    fontStyle: "italic",
-                                    marginLeft: 4,
+                                    backgroundColor: isDark
+                                      ? "rgba(59,130,246,0.15)"
+                                      : "rgba(59,130,246,0.1)",
+                                    borderRadius: 4,
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 2,
                                   }}
                                 >
-                                  ({t("applications.paid")})
-                                </Text>
+                                  <Text
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: "600",
+                                      color: isDark ? "#60A5FA" : "#3B82F6",
+                                    }}
+                                  >
+                                    {t("applications.customRate")}
+                                  </Text>
+                                </View>
                               )}
-                            </Text>
+                            </View>
                             {(rate as any).description ? (
                               <Text
                                 style={[
@@ -3292,7 +3425,7 @@ export default function ApplicantDetailScreen() {
               })()}
 
               {/* Card Footer */}
-              <View
+              <TouchableButton
                 style={[
                   styles.cardFooter,
                   {
@@ -3301,12 +3434,17 @@ export default function ApplicantDetailScreen() {
                       : "rgba(184,130,42,0.06)",
                   },
                 ]}
+                onPress={() => {
+                  if (applicant.id) {
+                    router.push(`/candidate/${applicant.id}` as any);
+                  }
+                }}
               >
                 <Text style={[styles.cta, { color: colors.tint }]}>
                   {t("applications.viewFullProfile")} →
                 </Text>
-              </View>
-            </TouchableButton>
+              </TouchableButton>
+            </View>
 
             {/* Suggest Negotiation Button */}
             {application &&

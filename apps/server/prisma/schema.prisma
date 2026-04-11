@@ -872,6 +872,7 @@ enum PaymentType {
   WEEKLY
   MONTHLY
   PROJECT
+  OTHER
 }
 
 // Timesheet entries for hourly calculation

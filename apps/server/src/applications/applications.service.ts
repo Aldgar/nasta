@@ -1708,7 +1708,7 @@ export class ApplicationsService {
               location: app.job.location || '',
               startDate: startDateStr,
               payment: paymentStr,
-              ctaUrl: `${this.clientBaseUrl}/jobs/${app.job.id}`,
+              ctaUrl: `${this.clientBaseUrl}/applicant/${app.id}`,
             },
             tEmployer,
             lang,
@@ -1804,7 +1804,7 @@ export class ApplicationsService {
               category: (app.job as any).category?.name || '',
               location: app.job.location || '',
               reason: rejectionReason || '',
-              ctaUrl: `${this.clientBaseUrl}/jobs/${app.job.id}`,
+              ctaUrl: `${this.clientBaseUrl}/applicant/${app.id}`,
             },
             tEmployer,
             lang,
@@ -4040,6 +4040,12 @@ export class ApplicationsService {
     employerId: string,
     jobId: string,
     candidateId: string,
+    selectedRates?: Array<{
+      rate: number;
+      paymentType: string;
+      description?: string;
+      isCustom?: boolean;
+    }>,
   ) {
     if (!this.isValidObjectId(jobId)) {
       throw new BadRequestException('Invalid job id');
@@ -4130,6 +4136,9 @@ export class ApplicationsService {
         status: 'REQUESTED',
         coverLetter: 'Instant job request',
         appliedAt: new Date(),
+        ...(selectedRates && selectedRates.length > 0
+          ? { selectedRates: selectedRates }
+          : {}),
       },
       select: {
         id: true,
@@ -4227,7 +4236,7 @@ export class ApplicationsService {
             employerName:
               `${(job as any).employer?.firstName || ''} ${(job as any).employer?.lastName || ''}`.trim() ||
               'Employer',
-            ctaUrl: `${this.clientBaseUrl}/jobs/${job.id}`,
+            ctaUrl: `${this.clientBaseUrl}/my-application/${application.id}`,
           },
           tForCandidate,
           lang,

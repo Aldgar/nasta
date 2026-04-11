@@ -107,6 +107,7 @@ export default function OnboardingScreen() {
     ] as RateEntry[],
     languages: [] as LanguageEntry[],
     skills: [] as SkillEntry[],
+    categories: [] as string[],
     workExperience: [] as WorkExperienceEntry[],
     certifications: [] as CertificationEntry[],
     education: [] as EducationEntry[],
@@ -133,6 +134,12 @@ export default function OnboardingScreen() {
     LanguageEntry["level"] | null
   >(null);
   const [showSkillSelectModal, setShowSkillSelectModal] = useState(false);
+  const [showCategorySelectModal, setShowCategorySelectModal] = useState(false);
+  const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+  const [availableCategories, setAvailableCategories] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [showWorkExpModal, setShowWorkExpModal] = useState<string | null>(null);
   const [showCertificationModal, setShowCertificationModal] = useState<
     string | null
@@ -188,6 +195,7 @@ export default function OnboardingScreen() {
                   education?: EducationEntry[];
                   projects?: ProjectEntry[];
                   skills?: Array<{ name: string; yearsExperience: number }>;
+                  categories?: string[];
                 }
               | null
               | undefined;
@@ -331,6 +339,7 @@ export default function OnboardingScreen() {
               rates: rates,
               languages: languages,
               skills: skills,
+              categories: links?.categories || [],
               workExperience: workExperience,
               certifications: certifications,
               education: education,
@@ -346,6 +355,23 @@ export default function OnboardingScreen() {
     };
 
     loadProfile();
+  }, []);
+
+  // Fetch available categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const base = getApiBase();
+        const res = await fetch(`${base}/jobs/categories`);
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableCategories(data);
+        }
+      } catch (error) {
+        console.log("Error loading categories:", error);
+      }
+    };
+    fetchCategories();
   }, []);
 
   // temporary lists
@@ -844,6 +870,7 @@ export default function OnboardingScreen() {
         certifications: formData.certifications,
         education: formData.education,
         projects: formData.projects,
+        categories: formData.categories,
         rates: validRates.map((rate) => ({
           rate: parseFloat(rate.rate),
           description: rate.description.trim() || undefined,
@@ -906,104 +933,112 @@ export default function OnboardingScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
-        <View style={styles.header}>
-          <TouchableButton onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={24} color={colors.text} />
-          </TouchableButton>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {t("onboarding.professionalProfile")}
-          </Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        {loadingProfile ? (
-          <View
-            style={[
-              styles.loadingContainer,
-              { flex: 1, justifyContent: "center", alignItems: "center" },
-            ]}
-          >
-            <ActivityIndicator size="large" color={colors.tint} />
-            <Text
-              style={[
-                styles.loadingText,
-                { color: colors.text, marginTop: 16 },
-              ]}
+          <View style={styles.header}>
+            <TouchableButton
+              onPress={() => router.back()}
+              style={styles.backBtn}
             >
-              {t("onboarding.loadingProfile")}
+              <Feather name="arrow-left" size={24} color={colors.text} />
+            </TouchableButton>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {t("onboarding.professionalProfile")}
             </Text>
+            <View style={{ width: 24 }} />
           </View>
-        ) : (
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <Text style={[styles.introText, { color: colors.text }]}>
-              {t("onboarding.completeProfileDescription")}
-            </Text>
 
+          {loadingProfile ? (
             <View
               style={[
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.80)"
-                    : "#FFFAF0",
-                  borderRadius: 4,
-                  padding: 20,
-                  marginBottom: 20,
-                  borderWidth: 1.5,
-                  borderColor: isDark ? "rgba(255, 250, 240, 0.12)" : "#F0E8D5",
-                  shadowColor: isDark ? "#000" : "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.3 : 0.08,
-                  shadowRadius: 12,
-                  elevation: 0,
-                },
+                styles.loadingContainer,
+                { flex: 1, justifyContent: "center", alignItems: "center" },
               ]}
             >
+              <ActivityIndicator size="large" color={colors.tint} />
               <Text
                 style={[
-                  styles.label,
+                  styles.loadingText,
+                  { color: colors.text, marginTop: 16 },
+                ]}
+              >
+                {t("onboarding.loadingProfile")}
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.introText, { color: colors.text }]}>
+                {t("onboarding.completeProfileDescription")}
+              </Text>
+
+              <View
+                style={[
                   {
-                    color: colors.text,
-                    marginBottom: 12,
-                    fontSize: 18,
-                    fontWeight: "700",
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.80)"
+                      : "#FFFAF0",
+                    borderRadius: 4,
+                    padding: 20,
+                    marginBottom: 20,
+                    borderWidth: 1.5,
+                    borderColor: isDark
+                      ? "rgba(255, 250, 240, 0.12)"
+                      : "#F0E8D5",
+                    shadowColor: isDark ? "#000" : "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: isDark ? 0.3 : 0.08,
+                    shadowRadius: 12,
+                    elevation: 0,
                   },
                 ]}
               >
-                {t("onboarding.aboutMe")}
-              </Text>
-              <TextInput
-                style={[
-                  styles.textArea,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(15, 23, 42, 0.5)"
-                      : "#FFF8F0",
-                    color: colors.text,
-                    borderColor: isDark ? "rgba(255,250,240,0.12)" : "#F0E8D5",
-                    borderWidth: 1.5,
-                    borderRadius: 4,
-                    padding: 16,
-                    minHeight: 120,
-                  },
-                ]}
-                placeholder={t("onboarding.tellUsAboutExperience")}
-                placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
-                multiline
-                numberOfLines={4}
-                value={formData.aboutMe}
-                onChangeText={(t) =>
-                  setFormData((prev) => ({ ...prev, aboutMe: t }))
-                }
-              />
-            </View>
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: colors.text,
+                      marginBottom: 12,
+                      fontSize: 18,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {t("onboarding.aboutMe")}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textArea,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(15, 23, 42, 0.5)"
+                        : "#FFF8F0",
+                      color: colors.text,
+                      borderColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "#F0E8D5",
+                      borderWidth: 1.5,
+                      borderRadius: 4,
+                      padding: 16,
+                      minHeight: 120,
+                    },
+                  ]}
+                  placeholder={t("onboarding.tellUsAboutExperience")}
+                  placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
+                  multiline
+                  numberOfLines={4}
+                  value={formData.aboutMe}
+                  onChangeText={(t) =>
+                    setFormData((prev) => ({ ...prev, aboutMe: t }))
+                  }
+                />
+              </View>
 
-            {/* Dynamic Rate Entries - Each in its own card */}
-            {formData.rates.map((rateEntry, index) => (
+              {/* Service Categories Card */}
               <View
-                key={rateEntry.id}
                 style={[
                   {
                     backgroundColor: isDark
@@ -1024,578 +1059,32 @@ export default function OnboardingScreen() {
                   },
                 ]}
               >
-                {/* Card Header with Remove Button */}
-                <View
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: colors.text,
+                      marginBottom: 12,
+                      fontSize: 18,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {t("onboarding.serviceCategories")}
+                </Text>
+                <Text
                   style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    color: isDark ? "#8A7B68" : "#94a3af",
+                    fontSize: 13,
                     marginBottom: 16,
                   }}
                 >
-                  <Text
-                    style={[
-                      styles.label,
-                      {
-                        color: colors.text,
-                        fontSize: 16,
-                        fontWeight: "700",
-                      },
-                    ]}
-                  >
-                    {t("onboarding.rate")} {index + 1}
-                  </Text>
-                  {formData.rates.length > 1 && (
-                    <TouchableButton
-                      onPress={() => removeRateEntry(rateEntry.id)}
-                      style={{
-                        backgroundColor: isDark
-                          ? "rgba(239, 68, 68, 0.15)"
-                          : "#fee2e2",
-                        borderRadius: 8,
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <Feather name="trash-2" size={14} color="#ef4444" />
-                      <Text
-                        style={{
-                          color: "#ef4444",
-                          fontWeight: "700",
-                          fontSize: 13,
-                        }}
-                      >
-                        {t("onboarding.removeRate")}
-                      </Text>
-                    </TouchableButton>
-                  )}
-                </View>
-
-                {/* Rate Input */}
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                        fontSize: 14,
-                        fontWeight: "700",
-                      },
-                    ]}
-                  >
-                    {t("onboarding.rate")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(15, 23, 42, 0.5)"
-                          : "#FFF8F0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        borderRadius: 4,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        fontSize: 16,
-                      },
-                    ]}
-                    placeholder={t("onboarding.ratePlaceholder")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
-                    keyboardType="numeric"
-                    value={rateEntry.rate}
-                    onChangeText={(t) =>
-                      updateRateEntry(rateEntry.id, "rate", t)
-                    }
-                  />
-                </View>
-
-                {/* Description Input */}
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                        fontSize: 14,
-                        fontWeight: "700",
-                      },
-                    ]}
-                  >
-                    {t("onboarding.rateDescription")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(15, 23, 42, 0.5)"
-                          : "#FFF8F0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        borderRadius: 4,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        fontSize: 16,
-                      },
-                    ]}
-                    placeholder={t("onboarding.rateDescriptionPlaceholder")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
-                    value={rateEntry.description}
-                    onChangeText={(t) =>
-                      updateRateEntry(rateEntry.id, "description", t)
-                    }
-                  />
-                </View>
-
-                {/* Payment Type Dropdown */}
-                <View>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                        fontSize: 14,
-                        fontWeight: "700",
-                      },
-                    ]}
-                  >
-                    {t("onboarding.paymentType")}
-                  </Text>
-                  <TouchableButton
-                    onPress={() => setShowPaymentTypeModal(rateEntry.id)}
-                    style={[
-                      styles.dropdownButton,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(15, 23, 42, 0.5)"
-                          : "#FFF8F0",
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        borderRadius: 4,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        paddingRight: 12,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownText,
-                        {
-                          color: colors.text,
-                          flex: 1,
-                          marginRight: 8,
-                          fontSize: 16,
-                          fontWeight: "500",
-                        },
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {rateEntry.paymentType === "OTHER" &&
-                      rateEntry.otherSpecification
-                        ? rateEntry.otherSpecification
-                        : rateEntry.paymentType === "HOUR"
-                          ? t("onboarding.hour")
-                          : rateEntry.paymentType === "DAY"
-                            ? t("common.day")
-                            : rateEntry.paymentType === "WEEK"
-                              ? t("applications.week")
-                              : rateEntry.paymentType === "MONTH"
-                                ? t("applications.month")
-                                : t("onboarding.other")}
-                    </Text>
-                    <Feather
-                      name="chevron-down"
-                      size={18}
-                      color={isDark ? "#B8A88A" : "#8A7B68"}
-                    />
-                  </TouchableButton>
-                </View>
-              </View>
-            ))}
-
-            {/* Add Another Rate Button */}
-            <TouchableButton
-              onPress={addRateEntry}
-              style={[
-                styles.addRateButton,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(201, 150, 63, 0.5)"
-                    : "#D4A24E",
-                  borderColor: isDark ? "rgba(201, 150, 63, 0.8)" : "#E8B86D",
-                  borderWidth: 2,
-                  borderStyle: "dashed",
-                  shadowColor: isDark ? "#C9963F" : "#C9963F",
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                  elevation: 0,
-                  marginBottom: 24,
-                },
-              ]}
-            >
-              <Feather
-                name="plus"
-                size={22}
-                color={isDark ? "#F0E8D5" : "#C9963F"}
-              />
-              <Text
-                style={[
-                  styles.addRateText,
-                  {
-                    color: isDark ? "#F0E8D5" : "#C9963F",
-                    fontWeight: "700",
-                    fontSize: 16,
-                  },
-                ]}
-              >
-                {t("onboarding.addAnotherRate")}
-              </Text>
-            </TouchableButton>
-
-            {/* Languages Section with Form */}
-            <View
-              style={[
-                styles.section,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.75)"
-                    : "#FFFAF0",
-                  borderWidth: 1.5,
-                  borderColor: isDark ? "rgba(255,250,240,0.15)" : "#F0E8D5",
-                  shadowColor: isDark ? "#000" : "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.05,
-                  shadowRadius: 8,
-                  elevation: 0,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.label,
-                  {
-                    color: colors.text,
-                    marginBottom: 16,
-                    fontSize: 18,
-                    fontWeight: "700",
-                  },
-                ]}
-              >
-                {t("onboarding.languages")}
-              </Text>
-
-              {/* Add Language Form */}
-              <View
-                style={[
-                  styles.addLanguageForm,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(15, 23, 42, 0.3)"
-                      : "#FFF8F0",
-                    borderColor: isDark ? "rgba(201,150,63,0.12)" : "#F0E8D5",
-                    borderWidth: 1.5,
-                    borderRadius: 4,
-                    padding: 16,
-                    marginBottom: 16,
-                  },
-                ]}
-              >
-                <View style={styles.rowContainer}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text
-                      style={[
-                        styles.inputLabel,
-                        {
-                          color: isDark ? "#B8A88A" : "#8A7B68",
-                          marginBottom: 8,
-                        },
-                      ]}
-                    >
-                      {t("onboarding.selectLanguage")}
-                    </Text>
-                    <TouchableButton
-                      onPress={() => setShowLanguageSelectModal(true)}
-                      style={[
-                        styles.dropdownButton,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.80)"
-                            : "#FFFAF0",
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.15)"
-                            : "#F0E8D5",
-                          borderWidth: 1.5,
-                          paddingRight: 12,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dropdownText,
-                          {
-                            color: selectedLanguageForAdd
-                              ? colors.text
-                              : isDark
-                                ? "#9A8E7A"
-                                : "#9A8E7A",
-                            fontWeight: "500",
-                            flex: 1,
-                            marginRight: 8,
-                          },
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {selectedLanguageForAdd ||
-                          t("onboarding.chooseLanguage")}
-                      </Text>
-                      <Feather
-                        name="chevron-down"
-                        size={18}
-                        color={isDark ? "#B8A88A" : "#8A7B68"}
-                      />
-                    </TouchableButton>
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text
-                      style={[
-                        styles.inputLabel,
-                        {
-                          color: isDark ? "#B8A88A" : "#8A7B68",
-                          marginBottom: 8,
-                        },
-                      ]}
-                    >
-                      {t("onboarding.level")}
-                    </Text>
-                    <TouchableButton
-                      onPress={() => setShowLanguageLevelModal("new")}
-                      style={[
-                        styles.dropdownButton,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.80)"
-                            : "#FFFAF0",
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.15)"
-                            : "#F0E8D5",
-                          borderWidth: 1.5,
-                          paddingRight: 12,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dropdownText,
-                          {
-                            color: selectedLanguageLevel
-                              ? colors.text
-                              : isDark
-                                ? "#9A8E7A"
-                                : "#9A8E7A",
-                            fontWeight: "500",
-                            flex: 1,
-                            marginRight: 8,
-                          },
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {selectedLanguageLevel
-                          ? t(
-                              `onboarding.languageLevel.${selectedLanguageLevel.toLowerCase()}`,
-                            )
-                          : t("onboarding.chooseLevel")}
-                      </Text>
-                      <Feather
-                        name="chevron-down"
-                        size={18}
-                        color={isDark ? "#B8A88A" : "#8A7B68"}
-                      />
-                    </TouchableButton>
-                  </View>
-                </View>
-                <TouchableButton
-                  onPress={handleAddLanguage}
-                  style={[
-                    styles.addLanguageButton,
-                    {
-                      backgroundColor:
-                        !selectedLanguageForAdd || !selectedLanguageLevel
-                          ? isDark
-                            ? "rgba(201, 150, 63, 0.25)"
-                            : "#D4A24E"
-                          : isDark
-                            ? "#C9963F"
-                            : "#C9963F",
-                      marginTop: 16,
-                      opacity:
-                        !selectedLanguageForAdd || !selectedLanguageLevel
-                          ? 0.5
-                          : 1,
-                      shadowColor:
-                        !selectedLanguageForAdd || !selectedLanguageLevel
-                          ? "transparent"
-                          : isDark
-                            ? "#C9963F"
-                            : "#C9963F",
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 8,
-                      elevation: 0,
-                    },
-                  ]}
-                  disabled={!selectedLanguageForAdd || !selectedLanguageLevel}
-                >
-                  <Feather
-                    name="plus"
-                    size={18}
-                    color="#FFFAF0"
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text
-                    style={[
-                      styles.addLanguageButtonText,
-                      { color: "#FFFAF0", fontWeight: "700", fontSize: 15 },
-                    ]}
-                  >
-                    {t("onboarding.addLanguage")}
-                  </Text>
-                </TouchableButton>
-              </View>
-
-              {/* Added Languages List */}
-              {formData.languages.length > 0 && (
-                <View style={styles.languagesList}>
-                  {formData.languages.map((langEntry, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.languageListItem,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.55)"
-                            : "#FFF8F0",
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.15)"
-                            : "#F0E8D5",
-                          borderWidth: 1.5,
-                          borderRadius: 4,
-                          padding: 14,
-                          marginBottom:
-                            index < formData.languages.length - 1 ? 12 : 0,
-                        },
-                      ]}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.languageListItemName,
-                            { color: colors.text, fontWeight: "700" },
-                          ]}
-                        >
-                          {t(
-                            `onboarding.language.${langEntry.language.toLowerCase()}`,
-                          )}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.languageListItemLevel,
-                            { color: isDark ? "#E8B86D" : "#B8822A" },
-                          ]}
-                        >
-                          {t(
-                            `onboarding.languageLevel.${langEntry.level.toLowerCase()}`,
-                          )}
-                        </Text>
-                      </View>
-                      <TouchableButton
-                        onPress={() => removeLanguage(langEntry.language)}
-                        style={[
-                          styles.removeLanguageButton,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(239, 68, 68, 0.15)"
-                              : "#fee2e2",
-                            borderRadius: 8,
-                            padding: 10,
-                            minWidth: 40,
-                            minHeight: 40,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          },
-                        ]}
-                      >
-                        <Feather name="x" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Professional Skills Section with Dropdown and List */}
-            <View
-              style={[
-                styles.section,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.75)"
-                    : "#FFFAF0",
-                  borderWidth: 1.5,
-                  borderColor: isDark ? "rgba(255,250,240,0.15)" : "#F0E8D5",
-                  shadowColor: isDark ? "#000" : "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.4 : 0.05,
-                  shadowRadius: 8,
-                  elevation: 0,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.label,
-                  {
-                    color: colors.text,
-                    marginBottom: 16,
-                    fontSize: 18,
-                    fontWeight: "700",
-                  },
-                ]}
-              >
-                {t("onboarding.professionalSkills")}
-              </Text>
-
-              {/* Skill Selector */}
-              <View style={{ marginBottom: 16 }}>
-                <Text
-                  style={[
-                    styles.inputLabel,
-                    { color: isDark ? "#B8A88A" : "#8A7B68", marginBottom: 8 },
-                  ]}
-                >
-                  {t("onboarding.selectSkill")}
+                  {t("onboarding.selectCategoriesDescription")}
                 </Text>
+
+                {/* Category Selector Button */}
                 <TouchableButton
-                  onPress={() => setShowSkillSelectModal(true)}
+                  onPress={() => setShowCategorySelectModal(true)}
                   style={[
                     styles.dropdownButton,
                     {
@@ -1607,6 +1096,7 @@ export default function OnboardingScreen() {
                         : "#F0E8D5",
                       borderWidth: 1.5,
                       paddingRight: 12,
+                      marginBottom: 16,
                     },
                   ]}
                 >
@@ -1623,7 +1113,7 @@ export default function OnboardingScreen() {
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {t("onboarding.chooseSkill")}
+                    {t("onboarding.chooseCategories")}
                   </Text>
                   <Feather
                     name="chevron-down"
@@ -1631,167 +1121,385 @@ export default function OnboardingScreen() {
                     color={isDark ? "#B8A88A" : "#8A7B68"}
                   />
                 </TouchableButton>
+
+                {/* Selected Categories as Chips */}
+                {formData.categories.length > 0 && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 8,
+                    }}
+                  >
+                    {formData.categories.map((cat) => (
+                      <View
+                        key={cat}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: isDark
+                            ? "rgba(201, 150, 63, 0.15)"
+                            : "rgba(255,250,240,0.92)",
+                          borderColor: isDark
+                            ? "rgba(201, 150, 63, 0.4)"
+                            : "#D4A24E",
+                          borderWidth: 1,
+                          borderRadius: 20,
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: isDark ? "#E8B86D" : "#B8822A",
+                            fontWeight: "600",
+                            fontSize: 13,
+                            marginRight: 6,
+                          }}
+                        >
+                          {translateSkillName(cat)}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              categories: prev.categories.filter(
+                                (c) => c !== cat,
+                              ),
+                            }))
+                          }
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Feather
+                            name="x"
+                            size={14}
+                            color={isDark ? "#E8B86D" : "#B8822A"}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
 
-              {/* Added Skills List */}
-              {formData.skills.length > 0 && (
-                <View style={styles.skillsList}>
-                  {formData.skills.map((skillEntry, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.skillListItem,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(12, 22, 42, 0.55)"
-                            : "#FFF8F0",
-                          borderColor: isDark
-                            ? "rgba(255,250,240,0.15)"
-                            : "#F0E8D5",
-                          borderWidth: 1.5,
-                          borderRadius: 4,
-                          padding: 14,
-                          marginBottom:
-                            index < formData.skills.length - 1 ? 12 : 0,
-                        },
-                      ]}
-                    >
-                      <View style={{ flex: 1, marginRight: 12 }}>
-                        <Text
-                          style={[
-                            styles.skillListItemName,
-                            {
-                              color: colors.text,
-                              fontWeight: "700",
-                              marginBottom: 8,
-                            },
-                          ]}
-                        >
-                          {translateSkillName(skillEntry.name)}
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.skillYearsInputList,
-                            {
-                              backgroundColor: isDark
-                                ? "rgba(12, 22, 42, 0.65)"
-                                : "#FFFAF0",
-                              borderColor: isDark
-                                ? "rgba(201, 150, 63, 0.4)"
-                                : "#D4A24E",
-                              borderWidth: 1.5,
-                              color: colors.text,
-                            },
-                          ]}
-                          placeholder={t("onboarding.years")}
-                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                          keyboardType="numeric"
-                          value={skillEntry.yearsExperience}
-                          onChangeText={(t) =>
-                            updateSkillYears(skillEntry.name, t)
-                          }
-                        />
-                      </View>
-                      <TouchableButton
-                        onPress={() => removeSkill(skillEntry.name)}
-                        style={[
-                          styles.removeSkillButton,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(239, 68, 68, 0.15)"
-                              : "#fee2e2",
-                            borderRadius: 8,
-                            padding: 10,
-                            minWidth: 40,
-                            minHeight: 40,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          },
-                        ]}
-                      >
-                        <Feather name="x" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Work Experience Section */}
-            <View
-              style={[
-                styles.section,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.65)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <Text style={[styles.label, { color: colors.text }]}>
-                {t("onboarding.workExperience")}
-              </Text>
-              {formData.workExperience.map((exp, index) => (
+              {/* Dynamic Rate Entries - Each in its own card */}
+              {formData.rates.map((rateEntry, index) => (
                 <View
-                  key={exp.id}
+                  key={rateEntry.id}
                   style={[
-                    styles.workExpCard,
                     {
                       backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.55)"
-                        : "#f9fafb",
-                      borderColor: isDark ? "rgba(201,150,63,0.12)" : "#E8D8B8",
-                      marginBottom:
-                        index < formData.workExperience.length - 1 ? 12 : 0,
+                        ? "rgba(12, 22, 42, 0.80)"
+                        : "#FFFAF0",
+                      borderRadius: 4,
+                      padding: 20,
+                      marginBottom: 16,
+                      borderWidth: 1.5,
+                      borderColor: isDark
+                        ? "rgba(255, 250, 240, 0.12)"
+                        : "#F0E8D5",
+                      shadowColor: isDark ? "#000" : "#000",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: isDark ? 0.3 : 0.08,
+                      shadowRadius: 12,
+                      elevation: 0,
                     },
                   ]}
                 >
-                  <View style={styles.workExpHeader}>
-                    <Text style={[styles.workExpTitle, { color: colors.text }]}>
-                      {t("onboarding.experience")} #{index + 1}
+                  {/* Card Header with Remove Button */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.label,
+                        {
+                          color: colors.text,
+                          fontSize: 16,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {t("onboarding.rate")} {index + 1}
                     </Text>
-                    {formData.workExperience.length > 1 && (
+                    {formData.rates.length > 1 && (
                       <TouchableButton
-                        onPress={() => removeWorkExperience(exp.id)}
-                        style={styles.removeExpButton}
+                        onPress={() => removeRateEntry(rateEntry.id)}
+                        style={{
+                          backgroundColor: isDark
+                            ? "rgba(239, 68, 68, 0.15)"
+                            : "#fee2e2",
+                          borderRadius: 8,
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
                       >
-                        <Feather name="x" size={18} color="#ef4444" />
+                        <Feather name="trash-2" size={14} color="#ef4444" />
+                        <Text
+                          style={{
+                            color: "#ef4444",
+                            fontWeight: "700",
+                            fontSize: 13,
+                          }}
+                        >
+                          {t("onboarding.removeRate")}
+                        </Text>
                       </TouchableButton>
                     )}
                   </View>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.companyPlace")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.enterCompanyName")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={exp.company}
-                    onChangeText={(t) =>
-                      updateWorkExperience(exp.id, "company", t)
-                    }
-                  />
+
+                  {/* Rate Input */}
+                  <View style={{ marginBottom: 16 }}>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                          fontSize: 14,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {t("onboarding.rate")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(15, 23, 42, 0.5)"
+                            : "#FFF8F0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          borderRadius: 4,
+                          paddingVertical: 14,
+                          paddingHorizontal: 16,
+                          fontSize: 16,
+                        },
+                      ]}
+                      placeholder={t("onboarding.ratePlaceholder")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
+                      keyboardType="numeric"
+                      value={rateEntry.rate}
+                      onChangeText={(t) =>
+                        updateRateEntry(rateEntry.id, "rate", t)
+                      }
+                    />
+                  </View>
+
+                  {/* Description Input */}
+                  <View style={{ marginBottom: 16 }}>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                          fontSize: 14,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {t("onboarding.rateDescription")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(15, 23, 42, 0.5)"
+                            : "#FFF8F0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          borderRadius: 4,
+                          paddingVertical: 14,
+                          paddingHorizontal: 16,
+                          fontSize: 16,
+                        },
+                      ]}
+                      placeholder={t("onboarding.rateDescriptionPlaceholder")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
+                      value={rateEntry.description}
+                      onChangeText={(t) =>
+                        updateRateEntry(rateEntry.id, "description", t)
+                      }
+                    />
+                  </View>
+
+                  {/* Payment Type Dropdown */}
+                  <View>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                          fontSize: 14,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {t("onboarding.paymentType")}
+                    </Text>
+                    <TouchableButton
+                      onPress={() => setShowPaymentTypeModal(rateEntry.id)}
+                      style={[
+                        styles.dropdownButton,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(15, 23, 42, 0.5)"
+                            : "#FFF8F0",
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          borderRadius: 4,
+                          paddingVertical: 14,
+                          paddingHorizontal: 16,
+                          paddingRight: 12,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownText,
+                          {
+                            color: colors.text,
+                            flex: 1,
+                            marginRight: 8,
+                            fontSize: 16,
+                            fontWeight: "500",
+                          },
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {rateEntry.paymentType === "OTHER" &&
+                        rateEntry.otherSpecification
+                          ? rateEntry.otherSpecification
+                          : rateEntry.paymentType === "HOUR"
+                            ? t("onboarding.hour")
+                            : rateEntry.paymentType === "DAY"
+                              ? t("common.day")
+                              : rateEntry.paymentType === "WEEK"
+                                ? t("applications.week")
+                                : rateEntry.paymentType === "MONTH"
+                                  ? t("applications.month")
+                                  : t("onboarding.other")}
+                      </Text>
+                      <Feather
+                        name="chevron-down"
+                        size={18}
+                        color={isDark ? "#B8A88A" : "#8A7B68"}
+                      />
+                    </TouchableButton>
+                  </View>
+                </View>
+              ))}
+
+              {/* Add Another Rate Button */}
+              <TouchableButton
+                onPress={addRateEntry}
+                style={[
+                  styles.addRateButton,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(201, 150, 63, 0.5)"
+                      : "#D4A24E",
+                    borderColor: isDark ? "rgba(201, 150, 63, 0.8)" : "#E8B86D",
+                    borderWidth: 2,
+                    borderStyle: "dashed",
+                    shadowColor: isDark ? "#C9963F" : "#C9963F",
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 0,
+                    marginBottom: 24,
+                  },
+                ]}
+              >
+                <Feather
+                  name="plus"
+                  size={22}
+                  color={isDark ? "#F0E8D5" : "#C9963F"}
+                />
+                <Text
+                  style={[
+                    styles.addRateText,
+                    {
+                      color: isDark ? "#F0E8D5" : "#C9963F",
+                      fontWeight: "700",
+                      fontSize: 16,
+                    },
+                  ]}
+                >
+                  {t("onboarding.addAnotherRate")}
+                </Text>
+              </TouchableButton>
+
+              {/* Languages Section with Form */}
+              <View
+                style={[
+                  styles.section,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.75)"
+                      : "#FFFAF0",
+                    borderWidth: 1.5,
+                    borderColor: isDark ? "rgba(255,250,240,0.15)" : "#F0E8D5",
+                    shadowColor: isDark ? "#000" : "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.05,
+                    shadowRadius: 8,
+                    elevation: 0,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: colors.text,
+                      marginBottom: 16,
+                      fontSize: 18,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {t("onboarding.languages")}
+                </Text>
+
+                {/* Add Language Form */}
+                <View
+                  style={[
+                    styles.addLanguageForm,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(15, 23, 42, 0.3)"
+                        : "#FFF8F0",
+                      borderColor: isDark ? "rgba(201,150,63,0.12)" : "#F0E8D5",
+                      borderWidth: 1.5,
+                      borderRadius: 4,
+                      padding: 16,
+                      marginBottom: 16,
+                    },
+                  ]}
+                >
                   <View style={styles.rowContainer}>
                     <View style={{ flex: 1, marginRight: 8 }}>
                       <Text
@@ -1803,29 +1511,50 @@ export default function OnboardingScreen() {
                           },
                         ]}
                       >
-                        {t("onboarding.fromDate")}
+                        {t("onboarding.selectLanguage")}
                       </Text>
-                      <TextInput
+                      <TouchableButton
+                        onPress={() => setShowLanguageSelectModal(true)}
                         style={[
-                          styles.input,
+                          styles.dropdownButton,
                           {
                             backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.65)"
+                              ? "rgba(12, 22, 42, 0.80)"
                               : "#FFFAF0",
-                            color: colors.text,
                             borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
+                              ? "rgba(255,250,240,0.15)"
                               : "#F0E8D5",
                             borderWidth: 1.5,
+                            paddingRight: 12,
                           },
                         ]}
-                        placeholder={t("onboarding.datePlaceholder")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        value={exp.fromDate}
-                        onChangeText={(t) =>
-                          updateWorkExperience(exp.id, "fromDate", t)
-                        }
-                      />
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownText,
+                            {
+                              color: selectedLanguageForAdd
+                                ? colors.text
+                                : isDark
+                                  ? "#9A8E7A"
+                                  : "#9A8E7A",
+                              fontWeight: "500",
+                              flex: 1,
+                              marginRight: 8,
+                            },
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {selectedLanguageForAdd ||
+                            t("onboarding.chooseLanguage")}
+                        </Text>
+                        <Feather
+                          name="chevron-down"
+                          size={18}
+                          color={isDark ? "#B8A88A" : "#8A7B68"}
+                        />
+                      </TouchableButton>
                     </View>
                     <View style={{ flex: 1, marginLeft: 8 }}>
                       <Text
@@ -1837,856 +1566,1338 @@ export default function OnboardingScreen() {
                           },
                         ]}
                       >
-                        {t("onboarding.toDate")}
+                        {t("onboarding.level")}
                       </Text>
-                      <TextInput
+                      <TouchableButton
+                        onPress={() => setShowLanguageLevelModal("new")}
                         style={[
-                          styles.input,
+                          styles.dropdownButton,
                           {
                             backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.65)"
+                              ? "rgba(12, 22, 42, 0.80)"
                               : "#FFFAF0",
-                            color: colors.text,
                             borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
+                              ? "rgba(255,250,240,0.15)"
                               : "#F0E8D5",
                             borderWidth: 1.5,
-                            opacity: exp.isCurrent ? 0.6 : 1,
+                            paddingRight: 12,
                           },
                         ]}
-                        placeholder={t("onboarding.datePlaceholder")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        value={exp.toDate}
-                        onChangeText={(t) =>
-                          updateWorkExperience(exp.id, "toDate", t)
-                        }
-                        editable={!exp.isCurrent}
-                      />
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownText,
+                            {
+                              color: selectedLanguageLevel
+                                ? colors.text
+                                : isDark
+                                  ? "#9A8E7A"
+                                  : "#9A8E7A",
+                              fontWeight: "500",
+                              flex: 1,
+                              marginRight: 8,
+                            },
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {selectedLanguageLevel
+                            ? t(
+                                `onboarding.languageLevel.${selectedLanguageLevel.toLowerCase()}`,
+                              )
+                            : t("onboarding.chooseLevel")}
+                        </Text>
+                        <Feather
+                          name="chevron-down"
+                          size={18}
+                          color={isDark ? "#B8A88A" : "#8A7B68"}
+                        />
+                      </TouchableButton>
                     </View>
                   </View>
-                  <View
+                  <TouchableButton
+                    onPress={handleAddLanguage}
                     style={[
-                      styles.rowContainer,
-                      { marginTop: 12, alignItems: "center" },
+                      styles.addLanguageButton,
+                      {
+                        backgroundColor:
+                          !selectedLanguageForAdd || !selectedLanguageLevel
+                            ? isDark
+                              ? "rgba(201, 150, 63, 0.25)"
+                              : "#D4A24E"
+                            : isDark
+                              ? "#C9963F"
+                              : "#C9963F",
+                        marginTop: 16,
+                        opacity:
+                          !selectedLanguageForAdd || !selectedLanguageLevel
+                            ? 0.5
+                            : 1,
+                        shadowColor:
+                          !selectedLanguageForAdd || !selectedLanguageLevel
+                            ? "transparent"
+                            : isDark
+                              ? "#C9963F"
+                              : "#C9963F",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 8,
+                        elevation: 0,
+                      },
+                    ]}
+                    disabled={!selectedLanguageForAdd || !selectedLanguageLevel}
+                  >
+                    <Feather
+                      name="plus"
+                      size={18}
+                      color="#FFFAF0"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={[
+                        styles.addLanguageButtonText,
+                        { color: "#FFFAF0", fontWeight: "700", fontSize: 15 },
+                      ]}
+                    >
+                      {t("onboarding.addLanguage")}
+                    </Text>
+                  </TouchableButton>
+                </View>
+
+                {/* Added Languages List */}
+                {formData.languages.length > 0 && (
+                  <View style={styles.languagesList}>
+                    {formData.languages.map((langEntry, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.languageListItem,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.55)"
+                              : "#FFF8F0",
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.15)"
+                              : "#F0E8D5",
+                            borderWidth: 1.5,
+                            borderRadius: 4,
+                            padding: 14,
+                            marginBottom:
+                              index < formData.languages.length - 1 ? 12 : 0,
+                          },
+                        ]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.languageListItemName,
+                              { color: colors.text, fontWeight: "700" },
+                            ]}
+                          >
+                            {t(
+                              `onboarding.language.${langEntry.language.toLowerCase()}`,
+                            )}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.languageListItemLevel,
+                              { color: isDark ? "#E8B86D" : "#B8822A" },
+                            ]}
+                          >
+                            {t(
+                              `onboarding.languageLevel.${langEntry.level.toLowerCase()}`,
+                            )}
+                          </Text>
+                        </View>
+                        <TouchableButton
+                          onPress={() => removeLanguage(langEntry.language)}
+                          style={[
+                            styles.removeLanguageButton,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(239, 68, 68, 0.15)"
+                                : "#fee2e2",
+                              borderRadius: 8,
+                              padding: 10,
+                              minWidth: 40,
+                              minHeight: 40,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            },
+                          ]}
+                        >
+                          <Feather name="x" size={18} color="#ef4444" />
+                        </TouchableButton>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Professional Skills Section with Dropdown and List */}
+              <View
+                style={[
+                  styles.section,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.75)"
+                      : "#FFFAF0",
+                    borderWidth: 1.5,
+                    borderColor: isDark ? "rgba(255,250,240,0.15)" : "#F0E8D5",
+                    shadowColor: isDark ? "#000" : "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.4 : 0.05,
+                    shadowRadius: 8,
+                    elevation: 0,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: colors.text,
+                      marginBottom: 16,
+                      fontSize: 18,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {t("onboarding.professionalSkills")}
+                </Text>
+
+                {/* Skill Selector */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text
+                    style={[
+                      styles.inputLabel,
+                      {
+                        color: isDark ? "#B8A88A" : "#8A7B68",
+                        marginBottom: 8,
+                      },
                     ]}
                   >
-                    <TouchableButton
-                      onPress={() =>
-                        updateWorkExperience(
-                          exp.id,
-                          "isCurrent",
-                          !exp.isCurrent,
-                        )
-                      }
+                    {t("onboarding.selectSkill")}
+                  </Text>
+                  <TouchableButton
+                    onPress={() => setShowSkillSelectModal(true)}
+                    style={[
+                      styles.dropdownButton,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(12, 22, 42, 0.80)"
+                          : "#FFFAF0",
+                        borderColor: isDark
+                          ? "rgba(255,250,240,0.15)"
+                          : "#F0E8D5",
+                        borderWidth: 1.5,
+                        paddingRight: 12,
+                      },
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.checkbox,
+                        styles.dropdownText,
                         {
-                          backgroundColor: exp.isCurrent
-                            ? isDark
-                              ? "#C9963F"
-                              : colors.tint
-                            : isDark
-                              ? "rgba(201,150,63,0.12)"
-                              : "#f9fafb",
-                          borderColor: exp.isCurrent
-                            ? isDark
-                              ? "#C9963F"
-                              : colors.tint
-                            : isDark
-                              ? "rgba(201,150,63,0.25)"
-                              : "#D4C0A0",
+                          color: isDark ? "#9A8E7A" : "#9A8E7A",
+                          fontWeight: "500",
+                          flex: 1,
+                          marginRight: 8,
+                        },
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {t("onboarding.chooseSkill")}
+                    </Text>
+                    <Feather
+                      name="chevron-down"
+                      size={18}
+                      color={isDark ? "#B8A88A" : "#8A7B68"}
+                    />
+                  </TouchableButton>
+                </View>
+
+                {/* Added Skills List */}
+                {formData.skills.length > 0 && (
+                  <View style={styles.skillsList}>
+                    {formData.skills.map((skillEntry, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.skillListItem,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(12, 22, 42, 0.55)"
+                              : "#FFF8F0",
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.15)"
+                              : "#F0E8D5",
+                            borderWidth: 1.5,
+                            borderRadius: 4,
+                            padding: 14,
+                            marginBottom:
+                              index < formData.skills.length - 1 ? 12 : 0,
+                          },
+                        ]}
+                      >
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <Text
+                            style={[
+                              styles.skillListItemName,
+                              {
+                                color: colors.text,
+                                fontWeight: "700",
+                                marginBottom: 8,
+                              },
+                            ]}
+                          >
+                            {translateSkillName(skillEntry.name)}
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.skillYearsInputList,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(12, 22, 42, 0.65)"
+                                  : "#FFFAF0",
+                                borderColor: isDark
+                                  ? "rgba(201, 150, 63, 0.4)"
+                                  : "#D4A24E",
+                                borderWidth: 1.5,
+                                color: colors.text,
+                              },
+                            ]}
+                            placeholder={t("onboarding.years")}
+                            placeholderTextColor={
+                              isDark ? "#8A7B68" : "#9A8E7A"
+                            }
+                            keyboardType="numeric"
+                            value={skillEntry.yearsExperience}
+                            onChangeText={(t) =>
+                              updateSkillYears(skillEntry.name, t)
+                            }
+                          />
+                        </View>
+                        <TouchableButton
+                          onPress={() => removeSkill(skillEntry.name)}
+                          style={[
+                            styles.removeSkillButton,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(239, 68, 68, 0.15)"
+                                : "#fee2e2",
+                              borderRadius: 8,
+                              padding: 10,
+                              minWidth: 40,
+                              minHeight: 40,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            },
+                          ]}
+                        >
+                          <Feather name="x" size={18} color="#ef4444" />
+                        </TouchableButton>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Work Experience Section */}
+              <View
+                style={[
+                  styles.section,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.65)"
+                      : "#FFFAF0",
+                  },
+                ]}
+              >
+                <Text style={[styles.label, { color: colors.text }]}>
+                  {t("onboarding.workExperience")}
+                </Text>
+                {formData.workExperience.map((exp, index) => (
+                  <View
+                    key={exp.id}
+                    style={[
+                      styles.workExpCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(12, 22, 42, 0.55)"
+                          : "#f9fafb",
+                        borderColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#E8D8B8",
+                        marginBottom:
+                          index < formData.workExperience.length - 1 ? 12 : 0,
+                      },
+                    ]}
+                  >
+                    <View style={styles.workExpHeader}>
+                      <Text
+                        style={[styles.workExpTitle, { color: colors.text }]}
+                      >
+                        {t("onboarding.experience")} #{index + 1}
+                      </Text>
+                      {formData.workExperience.length > 1 && (
+                        <TouchableButton
+                          onPress={() => removeWorkExperience(exp.id)}
+                          style={styles.removeExpButton}
+                        >
+                          <Feather name="x" size={18} color="#ef4444" />
+                        </TouchableButton>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
                         },
                       ]}
                     >
-                      {exp.isCurrent && (
-                        <Feather name="check" size={16} color="#FFFAF0" />
-                      )}
-                    </TouchableButton>
+                      {t("onboarding.companyPlace")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.enterCompanyName")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={exp.company}
+                      onChangeText={(t) =>
+                        updateWorkExperience(exp.id, "company", t)
+                      }
+                    />
+                    <View style={styles.rowContainer}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text
+                          style={[
+                            styles.inputLabel,
+                            {
+                              color: isDark ? "#B8A88A" : "#8A7B68",
+                              marginBottom: 8,
+                            },
+                          ]}
+                        >
+                          {t("onboarding.fromDate")}
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.65)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#F0E8D5",
+                              borderWidth: 1.5,
+                            },
+                          ]}
+                          placeholder={t("onboarding.datePlaceholder")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          value={exp.fromDate}
+                          onChangeText={(t) =>
+                            updateWorkExperience(exp.id, "fromDate", t)
+                          }
+                        />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 8 }}>
+                        <Text
+                          style={[
+                            styles.inputLabel,
+                            {
+                              color: isDark ? "#B8A88A" : "#8A7B68",
+                              marginBottom: 8,
+                            },
+                          ]}
+                        >
+                          {t("onboarding.toDate")}
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.65)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#F0E8D5",
+                              borderWidth: 1.5,
+                              opacity: exp.isCurrent ? 0.6 : 1,
+                            },
+                          ]}
+                          placeholder={t("onboarding.datePlaceholder")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          value={exp.toDate}
+                          onChangeText={(t) =>
+                            updateWorkExperience(exp.id, "toDate", t)
+                          }
+                          editable={!exp.isCurrent}
+                        />
+                      </View>
+                    </View>
+                    <View
+                      style={[
+                        styles.rowContainer,
+                        { marginTop: 12, alignItems: "center" },
+                      ]}
+                    >
+                      <TouchableButton
+                        onPress={() =>
+                          updateWorkExperience(
+                            exp.id,
+                            "isCurrent",
+                            !exp.isCurrent,
+                          )
+                        }
+                        style={[
+                          styles.checkbox,
+                          {
+                            backgroundColor: exp.isCurrent
+                              ? isDark
+                                ? "#C9963F"
+                                : colors.tint
+                              : isDark
+                                ? "rgba(201,150,63,0.12)"
+                                : "#f9fafb",
+                            borderColor: exp.isCurrent
+                              ? isDark
+                                ? "#C9963F"
+                                : colors.tint
+                              : isDark
+                                ? "rgba(201,150,63,0.25)"
+                                : "#D4C0A0",
+                          },
+                        ]}
+                      >
+                        {exp.isCurrent && (
+                          <Feather name="check" size={16} color="#FFFAF0" />
+                        )}
+                      </TouchableButton>
+                      <Text
+                        style={[styles.checkboxLabel, { color: colors.text }]}
+                      >
+                        {t("onboarding.currentJob")}
+                      </Text>
+                    </View>
                     <Text
-                      style={[styles.checkboxLabel, { color: colors.text }]}
-                    >
-                      {t("onboarding.currentJob")}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                        marginTop: 12,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.jobCategory")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.egSoftwareDevelopment")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={exp.category}
-                    onChangeText={(t) =>
-                      updateWorkExperience(exp.id, "category", t)
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.yearsOfExperience")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.eg3")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    keyboardType="numeric"
-                    value={exp.years}
-                    onChangeText={(t) =>
-                      updateWorkExperience(exp.id, "years", t)
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.description")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.textArea,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        minHeight: 100,
-                      },
-                    ]}
-                    placeholder={t("onboarding.describeResponsibilities")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    multiline
-                    numberOfLines={4}
-                    value={exp.description}
-                    onChangeText={(t) =>
-                      updateWorkExperience(exp.id, "description", t)
-                    }
-                  />
-                </View>
-              ))}
-              <TouchableButton
-                onPress={addWorkExperience}
-                style={[
-                  styles.addButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(201, 150, 63, 0.15)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark ? "rgba(201, 150, 63, 0.4)" : "#D4A24E",
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                  },
-                ]}
-              >
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={isDark ? "#E8B86D" : "#B8822A"}
-                />
-                <Text
-                  style={[
-                    styles.addButtonText,
-                    {
-                      color: isDark ? "#E8B86D" : "#B8822A",
-                      fontWeight: "700",
-                    },
-                  ]}
-                >
-                  {t("onboarding.addWorkExperience")}
-                </Text>
-              </TouchableButton>
-            </View>
-
-            {/* Certifications Section */}
-            <View
-              style={[
-                styles.section,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.65)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <Text style={[styles.label, { color: colors.text }]}>
-                {t("onboarding.certifications")}
-              </Text>
-              {formData.certifications.map((cert, index) => (
-                <View
-                  key={cert.id}
-                  style={[
-                    styles.certCard,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.55)"
-                        : "#f9fafb",
-                      borderColor: isDark ? "rgba(201,150,63,0.12)" : "#E8D8B8",
-                      marginBottom:
-                        index < formData.certifications.length - 1 ? 12 : 0,
-                    },
-                  ]}
-                >
-                  <View style={styles.certHeader}>
-                    <Text style={[styles.certTitle, { color: colors.text }]}>
-                      {t("onboarding.certification")} #{index + 1}
-                    </Text>
-                    {formData.certifications.length > 1 && (
-                      <TouchableButton
-                        onPress={() => removeCertification(cert.id)}
-                        style={styles.removeCertButton}
-                      >
-                        <Feather name="x" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.title")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.egBscComputerScience")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={cert.title}
-                    onChangeText={(t) =>
-                      updateCertification(cert.id, "title", t)
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.institution")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.egUniversityOfLondon")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={cert.institution}
-                    onChangeText={(t) =>
-                      updateCertification(cert.id, "institution", t)
-                    }
-                  />
-                  <View style={styles.rowContainer}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text
-                        style={[
-                          styles.inputLabel,
-                          {
-                            color: isDark ? "#B8A88A" : "#8A7B68",
-                            marginBottom: 8,
-                          },
-                        ]}
-                      >
-                        {t("onboarding.graduationDate")}
-                      </Text>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.65)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#F0E8D5",
-                            borderWidth: 1.5,
-                            opacity: cert.isStillStudying ? 0.6 : 1,
-                          },
-                        ]}
-                        placeholder={t("onboarding.datePlaceholder")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        value={cert.graduationDate}
-                        onChangeText={(t) =>
-                          updateCertification(cert.id, "graduationDate", t)
-                        }
-                        editable={!cert.isStillStudying}
-                      />
-                    </View>
-                    <View
                       style={[
-                        styles.rowContainer,
-                        { flex: 1, marginLeft: 8, alignItems: "center" },
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                          marginTop: 12,
+                        },
                       ]}
                     >
-                      <TouchableButton
-                        onPress={() =>
-                          updateCertification(
-                            cert.id,
-                            "isStillStudying",
-                            !cert.isStillStudying,
-                          )
-                        }
-                        style={[
-                          styles.checkbox,
-                          {
-                            backgroundColor: cert.isStillStudying
-                              ? isDark
-                                ? "#C9963F"
-                                : colors.tint
-                              : isDark
-                                ? "rgba(201,150,63,0.12)"
-                                : "#f9fafb",
-                            borderColor: cert.isStillStudying
-                              ? isDark
-                                ? "#C9963F"
-                                : colors.tint
-                              : isDark
-                                ? "rgba(201,150,63,0.25)"
-                                : "#D4C0A0",
-                          },
-                        ]}
-                      >
-                        {cert.isStillStudying && (
-                          <Feather name="check" size={16} color="#FFFAF0" />
-                        )}
-                      </TouchableButton>
-                      <Text
-                        style={[styles.checkboxLabel, { color: colors.text }]}
-                      >
-                        {t("onboarding.stillStudying")}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-              <TouchableButton
-                onPress={addCertification}
-                style={[
-                  styles.addButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(201, 150, 63, 0.15)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark ? "rgba(201, 150, 63, 0.4)" : "#D4A24E",
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                  },
-                ]}
-              >
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={isDark ? "#E8B86D" : "#B8822A"}
-                />
-                <Text
-                  style={[
-                    styles.addButtonText,
-                    {
-                      color: isDark ? "#E8B86D" : "#B8822A",
-                      fontWeight: "700",
-                    },
-                  ]}
-                >
-                  {t("onboarding.addCertification")}
-                </Text>
-              </TouchableButton>
-            </View>
-
-            {/* Education Section */}
-            <View
-              style={[
-                styles.section,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.65)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <Text style={[styles.label, { color: colors.text }]}>
-                {t("onboarding.education")}
-              </Text>
-              {formData.education.map((edu, index) => (
-                <View
-                  key={edu.id}
-                  style={[
-                    styles.certCard,
-                    {
-                      backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.55)"
-                        : "#f9fafb",
-                      borderColor: isDark ? "rgba(201,150,63,0.12)" : "#E8D8B8",
-                      marginBottom:
-                        index < formData.education.length - 1 ? 12 : 0,
-                    },
-                  ]}
-                >
-                  <View style={styles.certHeader}>
-                    <Text style={[styles.certTitle, { color: colors.text }]}>
-                      {t("onboarding.education")} #{index + 1}
+                      {t("onboarding.jobCategory")}
                     </Text>
-                    {formData.education.length > 1 && (
-                      <TouchableButton
-                        onPress={() => removeEducation(edu.id)}
-                        style={styles.removeCertButton}
-                      >
-                        <Feather name="x" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.degreeTitle")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.egBscComputerScience")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={edu.title}
-                    onChangeText={(t) => updateEducation(edu.id, "title", t)}
-                  />
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.institution")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.egUniversityOfLondon")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={edu.institution}
-                    onChangeText={(t) =>
-                      updateEducation(edu.id, "institution", t)
-                    }
-                  />
-                  <View style={styles.rowContainer}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text
-                        style={[
-                          styles.inputLabel,
-                          {
-                            color: isDark ? "#B8A88A" : "#8A7B68",
-                            marginBottom: 8,
-                          },
-                        ]}
-                      >
-                        {t("onboarding.graduationDate")}
-                      </Text>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: isDark
-                              ? "rgba(12, 22, 42, 0.65)"
-                              : "#FFFAF0",
-                            color: colors.text,
-                            borderColor: isDark
-                              ? "rgba(255,250,240,0.12)"
-                              : "#F0E8D5",
-                            borderWidth: 1.5,
-                            opacity: edu.isStillStudying ? 0.6 : 1,
-                          },
-                        ]}
-                        placeholder={t("onboarding.datePlaceholder")}
-                        placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                        value={edu.graduationDate}
-                        onChangeText={(t) =>
-                          updateEducation(edu.id, "graduationDate", t)
-                        }
-                        editable={!edu.isStillStudying}
-                      />
-                    </View>
-                    <View
+                    <TextInput
                       style={[
-                        styles.rowContainer,
-                        { flex: 1, marginLeft: 8, alignItems: "center" },
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.egSoftwareDevelopment")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={exp.category}
+                      onChangeText={(t) =>
+                        updateWorkExperience(exp.id, "category", t)
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
                       ]}
                     >
-                      <TouchableButton
-                        onPress={() =>
-                          updateEducation(
-                            edu.id,
-                            "isStillStudying",
-                            !edu.isStillStudying,
-                          )
-                        }
-                        style={[
-                          styles.checkbox,
-                          {
-                            backgroundColor: edu.isStillStudying
-                              ? isDark
-                                ? "#C9963F"
-                                : colors.tint
-                              : isDark
-                                ? "rgba(201,150,63,0.12)"
-                                : "#f9fafb",
-                            borderColor: edu.isStillStudying
-                              ? isDark
-                                ? "#C9963F"
-                                : colors.tint
-                              : isDark
-                                ? "rgba(201,150,63,0.25)"
-                                : "#D4C0A0",
-                          },
-                        ]}
-                      >
-                        {edu.isStillStudying && (
-                          <Feather name="check" size={16} color="#FFFAF0" />
-                        )}
-                      </TouchableButton>
-                      <Text
-                        style={[styles.checkboxLabel, { color: colors.text }]}
-                      >
-                        {t("onboarding.stillStudying")}
-                      </Text>
-                    </View>
+                      {t("onboarding.yearsOfExperience")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.eg3")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      keyboardType="numeric"
+                      value={exp.years}
+                      onChangeText={(t) =>
+                        updateWorkExperience(exp.id, "years", t)
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.description")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.textArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          minHeight: 100,
+                        },
+                      ]}
+                      placeholder={t("onboarding.describeResponsibilities")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      multiline
+                      numberOfLines={4}
+                      value={exp.description}
+                      onChangeText={(t) =>
+                        updateWorkExperience(exp.id, "description", t)
+                      }
+                    />
                   </View>
-                </View>
-              ))}
-              <TouchableButton
-                onPress={addEducation}
-                style={[
-                  styles.addButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(201, 150, 63, 0.15)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark ? "rgba(201, 150, 63, 0.4)" : "#D4A24E",
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                  },
-                ]}
-              >
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={isDark ? "#E8B86D" : "#B8822A"}
-                />
-                <Text
+                ))}
+                <TouchableButton
+                  onPress={addWorkExperience}
                   style={[
-                    styles.addButtonText,
-                    {
-                      color: isDark ? "#E8B86D" : "#B8822A",
-                      fontWeight: "700",
-                    },
-                  ]}
-                >
-                  {t("onboarding.addEducation")}
-                </Text>
-              </TouchableButton>
-            </View>
-
-            {/* Projects Section */}
-            <View
-              style={[
-                styles.section,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(12, 22, 42, 0.65)"
-                    : "#FFFAF0",
-                },
-              ]}
-            >
-              <Text style={[styles.label, { color: colors.text }]}>
-                {t("onboarding.projects")}
-              </Text>
-              {formData.projects.map((project, index) => (
-                <View
-                  key={project.id}
-                  style={[
-                    styles.projectCard,
+                    styles.addButton,
                     {
                       backgroundColor: isDark
-                        ? "rgba(12, 22, 42, 0.55)"
-                        : "#f9fafb",
-                      borderColor: isDark ? "rgba(201,150,63,0.12)" : "#E8D8B8",
-                      marginBottom:
-                        index < formData.projects.length - 1 ? 12 : 0,
+                        ? "rgba(201, 150, 63, 0.15)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(201, 150, 63, 0.4)"
+                        : "#D4A24E",
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
                     },
                   ]}
                 >
-                  <View style={styles.projectHeader}>
-                    <Text style={[styles.projectTitle, { color: colors.text }]}>
-                      {t("onboarding.project")} #{index + 1}
-                    </Text>
-                    {formData.projects.length > 1 && (
-                      <TouchableButton
-                        onPress={() => removeProject(project.id)}
-                        style={styles.removeProjectButton}
-                      >
-                        <Feather name="x" size={18} color="#ef4444" />
-                      </TouchableButton>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.projectTitle")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                      },
-                    ]}
-                    placeholder={t("onboarding.enterProjectTitle")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={project.title}
-                    onChangeText={(t) => updateProject(project.id, "title", t)}
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={isDark ? "#E8B86D" : "#B8822A"}
                   />
                   <Text
                     style={[
-                      styles.inputLabel,
+                      styles.addButtonText,
                       {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
+                        color: isDark ? "#E8B86D" : "#B8822A",
+                        fontWeight: "700",
                       },
                     ]}
                   >
-                    {t("onboarding.description")}
+                    {t("onboarding.addWorkExperience")}
                   </Text>
-                  <TextInput
-                    style={[
-                      styles.textArea,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                        marginBottom: 12,
-                        minHeight: 100,
-                      },
-                    ]}
-                    placeholder={t("onboarding.describeProject")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    multiline
-                    numberOfLines={4}
-                    value={project.description}
-                    onChangeText={(t) =>
-                      updateProject(project.id, "description", t)
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.inputLabel,
-                      {
-                        color: isDark ? "#B8A88A" : "#8A7B68",
-                        marginBottom: 8,
-                      },
-                    ]}
-                  >
-                    {t("onboarding.projectUrlOptional")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark
-                          ? "rgba(12, 22, 42, 0.65)"
-                          : "#FFFAF0",
-                        color: colors.text,
-                        borderColor: isDark
-                          ? "rgba(255,250,240,0.12)"
-                          : "#F0E8D5",
-                        borderWidth: 1.5,
-                      },
-                    ]}
-                    placeholder={t("onboarding.projectUrlPlaceholder")}
-                    placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-                    value={project.url}
-                    onChangeText={(t) => updateProject(project.id, "url", t)}
-                  />
-                </View>
-              ))}
-              <TouchableButton
-                onPress={addProject}
+                </TouchableButton>
+              </View>
+
+              {/* Certifications Section */}
+              <View
                 style={[
-                  styles.addButton,
+                  styles.section,
                   {
                     backgroundColor: isDark
-                      ? "rgba(201, 150, 63, 0.15)"
-                      : "rgba(255,250,240,0.92)",
-                    borderColor: isDark ? "rgba(201, 150, 63, 0.4)" : "#D4A24E",
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
+                      ? "rgba(12, 22, 42, 0.65)"
+                      : "#FFFAF0",
                   },
                 ]}
               >
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={isDark ? "#E8B86D" : "#B8822A"}
-                />
-                <Text
+                <Text style={[styles.label, { color: colors.text }]}>
+                  {t("onboarding.certifications")}
+                </Text>
+                {formData.certifications.map((cert, index) => (
+                  <View
+                    key={cert.id}
+                    style={[
+                      styles.certCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(12, 22, 42, 0.55)"
+                          : "#f9fafb",
+                        borderColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#E8D8B8",
+                        marginBottom:
+                          index < formData.certifications.length - 1 ? 12 : 0,
+                      },
+                    ]}
+                  >
+                    <View style={styles.certHeader}>
+                      <Text style={[styles.certTitle, { color: colors.text }]}>
+                        {t("onboarding.certification")} #{index + 1}
+                      </Text>
+                      {formData.certifications.length > 1 && (
+                        <TouchableButton
+                          onPress={() => removeCertification(cert.id)}
+                          style={styles.removeCertButton}
+                        >
+                          <Feather name="x" size={18} color="#ef4444" />
+                        </TouchableButton>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.title")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.egBscComputerScience")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={cert.title}
+                      onChangeText={(t) =>
+                        updateCertification(cert.id, "title", t)
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.institution")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.egUniversityOfLondon")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={cert.institution}
+                      onChangeText={(t) =>
+                        updateCertification(cert.id, "institution", t)
+                      }
+                    />
+                    <View style={styles.rowContainer}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text
+                          style={[
+                            styles.inputLabel,
+                            {
+                              color: isDark ? "#B8A88A" : "#8A7B68",
+                              marginBottom: 8,
+                            },
+                          ]}
+                        >
+                          {t("onboarding.graduationDate")}
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.65)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#F0E8D5",
+                              borderWidth: 1.5,
+                              opacity: cert.isStillStudying ? 0.6 : 1,
+                            },
+                          ]}
+                          placeholder={t("onboarding.datePlaceholder")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          value={cert.graduationDate}
+                          onChangeText={(t) =>
+                            updateCertification(cert.id, "graduationDate", t)
+                          }
+                          editable={!cert.isStillStudying}
+                        />
+                      </View>
+                      <View
+                        style={[
+                          styles.rowContainer,
+                          { flex: 1, marginLeft: 8, alignItems: "center" },
+                        ]}
+                      >
+                        <TouchableButton
+                          onPress={() =>
+                            updateCertification(
+                              cert.id,
+                              "isStillStudying",
+                              !cert.isStillStudying,
+                            )
+                          }
+                          style={[
+                            styles.checkbox,
+                            {
+                              backgroundColor: cert.isStillStudying
+                                ? isDark
+                                  ? "#C9963F"
+                                  : colors.tint
+                                : isDark
+                                  ? "rgba(201,150,63,0.12)"
+                                  : "#f9fafb",
+                              borderColor: cert.isStillStudying
+                                ? isDark
+                                  ? "#C9963F"
+                                  : colors.tint
+                                : isDark
+                                  ? "rgba(201,150,63,0.25)"
+                                  : "#D4C0A0",
+                            },
+                          ]}
+                        >
+                          {cert.isStillStudying && (
+                            <Feather name="check" size={16} color="#FFFAF0" />
+                          )}
+                        </TouchableButton>
+                        <Text
+                          style={[styles.checkboxLabel, { color: colors.text }]}
+                        >
+                          {t("onboarding.stillStudying")}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+                <TouchableButton
+                  onPress={addCertification}
                   style={[
-                    styles.addButtonText,
+                    styles.addButton,
                     {
-                      color: isDark ? "#E8B86D" : "#B8822A",
-                      fontWeight: "700",
+                      backgroundColor: isDark
+                        ? "rgba(201, 150, 63, 0.15)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(201, 150, 63, 0.4)"
+                        : "#D4A24E",
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
                     },
                   ]}
                 >
-                  {t("onboarding.addProject")}
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={isDark ? "#E8B86D" : "#B8822A"}
+                  />
+                  <Text
+                    style={[
+                      styles.addButtonText,
+                      {
+                        color: isDark ? "#E8B86D" : "#B8822A",
+                        fontWeight: "700",
+                      },
+                    ]}
+                  >
+                    {t("onboarding.addCertification")}
+                  </Text>
+                </TouchableButton>
+              </View>
+
+              {/* Education Section */}
+              <View
+                style={[
+                  styles.section,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.65)"
+                      : "#FFFAF0",
+                  },
+                ]}
+              >
+                <Text style={[styles.label, { color: colors.text }]}>
+                  {t("onboarding.education")}
+                </Text>
+                {formData.education.map((edu, index) => (
+                  <View
+                    key={edu.id}
+                    style={[
+                      styles.certCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(12, 22, 42, 0.55)"
+                          : "#f9fafb",
+                        borderColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#E8D8B8",
+                        marginBottom:
+                          index < formData.education.length - 1 ? 12 : 0,
+                      },
+                    ]}
+                  >
+                    <View style={styles.certHeader}>
+                      <Text style={[styles.certTitle, { color: colors.text }]}>
+                        {t("onboarding.education")} #{index + 1}
+                      </Text>
+                      {formData.education.length > 1 && (
+                        <TouchableButton
+                          onPress={() => removeEducation(edu.id)}
+                          style={styles.removeCertButton}
+                        >
+                          <Feather name="x" size={18} color="#ef4444" />
+                        </TouchableButton>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.degreeTitle")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.egBscComputerScience")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={edu.title}
+                      onChangeText={(t) => updateEducation(edu.id, "title", t)}
+                    />
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.institution")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.egUniversityOfLondon")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={edu.institution}
+                      onChangeText={(t) =>
+                        updateEducation(edu.id, "institution", t)
+                      }
+                    />
+                    <View style={styles.rowContainer}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text
+                          style={[
+                            styles.inputLabel,
+                            {
+                              color: isDark ? "#B8A88A" : "#8A7B68",
+                              marginBottom: 8,
+                            },
+                          ]}
+                        >
+                          {t("onboarding.graduationDate")}
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(12, 22, 42, 0.65)"
+                                : "#FFFAF0",
+                              color: colors.text,
+                              borderColor: isDark
+                                ? "rgba(255,250,240,0.12)"
+                                : "#F0E8D5",
+                              borderWidth: 1.5,
+                              opacity: edu.isStillStudying ? 0.6 : 1,
+                            },
+                          ]}
+                          placeholder={t("onboarding.datePlaceholder")}
+                          placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                          value={edu.graduationDate}
+                          onChangeText={(t) =>
+                            updateEducation(edu.id, "graduationDate", t)
+                          }
+                          editable={!edu.isStillStudying}
+                        />
+                      </View>
+                      <View
+                        style={[
+                          styles.rowContainer,
+                          { flex: 1, marginLeft: 8, alignItems: "center" },
+                        ]}
+                      >
+                        <TouchableButton
+                          onPress={() =>
+                            updateEducation(
+                              edu.id,
+                              "isStillStudying",
+                              !edu.isStillStudying,
+                            )
+                          }
+                          style={[
+                            styles.checkbox,
+                            {
+                              backgroundColor: edu.isStillStudying
+                                ? isDark
+                                  ? "#C9963F"
+                                  : colors.tint
+                                : isDark
+                                  ? "rgba(201,150,63,0.12)"
+                                  : "#f9fafb",
+                              borderColor: edu.isStillStudying
+                                ? isDark
+                                  ? "#C9963F"
+                                  : colors.tint
+                                : isDark
+                                  ? "rgba(201,150,63,0.25)"
+                                  : "#D4C0A0",
+                            },
+                          ]}
+                        >
+                          {edu.isStillStudying && (
+                            <Feather name="check" size={16} color="#FFFAF0" />
+                          )}
+                        </TouchableButton>
+                        <Text
+                          style={[styles.checkboxLabel, { color: colors.text }]}
+                        >
+                          {t("onboarding.stillStudying")}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+                <TouchableButton
+                  onPress={addEducation}
+                  style={[
+                    styles.addButton,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(201, 150, 63, 0.15)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(201, 150, 63, 0.4)"
+                        : "#D4A24E",
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
+                    },
+                  ]}
+                >
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={isDark ? "#E8B86D" : "#B8822A"}
+                  />
+                  <Text
+                    style={[
+                      styles.addButtonText,
+                      {
+                        color: isDark ? "#E8B86D" : "#B8822A",
+                        fontWeight: "700",
+                      },
+                    ]}
+                  >
+                    {t("onboarding.addEducation")}
+                  </Text>
+                </TouchableButton>
+              </View>
+
+              {/* Projects Section */}
+              <View
+                style={[
+                  styles.section,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(12, 22, 42, 0.65)"
+                      : "#FFFAF0",
+                  },
+                ]}
+              >
+                <Text style={[styles.label, { color: colors.text }]}>
+                  {t("onboarding.projects")}
+                </Text>
+                {formData.projects.map((project, index) => (
+                  <View
+                    key={project.id}
+                    style={[
+                      styles.projectCard,
+                      {
+                        backgroundColor: isDark
+                          ? "rgba(12, 22, 42, 0.55)"
+                          : "#f9fafb",
+                        borderColor: isDark
+                          ? "rgba(201,150,63,0.12)"
+                          : "#E8D8B8",
+                        marginBottom:
+                          index < formData.projects.length - 1 ? 12 : 0,
+                      },
+                    ]}
+                  >
+                    <View style={styles.projectHeader}>
+                      <Text
+                        style={[styles.projectTitle, { color: colors.text }]}
+                      >
+                        {t("onboarding.project")} #{index + 1}
+                      </Text>
+                      {formData.projects.length > 1 && (
+                        <TouchableButton
+                          onPress={() => removeProject(project.id)}
+                          style={styles.removeProjectButton}
+                        >
+                          <Feather name="x" size={18} color="#ef4444" />
+                        </TouchableButton>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.projectTitle")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                        },
+                      ]}
+                      placeholder={t("onboarding.enterProjectTitle")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={project.title}
+                      onChangeText={(t) =>
+                        updateProject(project.id, "title", t)
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.description")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.textArea,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                          marginBottom: 12,
+                          minHeight: 100,
+                        },
+                      ]}
+                      placeholder={t("onboarding.describeProject")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      multiline
+                      numberOfLines={4}
+                      value={project.description}
+                      onChangeText={(t) =>
+                        updateProject(project.id, "description", t)
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color: isDark ? "#B8A88A" : "#8A7B68",
+                          marginBottom: 8,
+                        },
+                      ]}
+                    >
+                      {t("onboarding.projectUrlOptional")}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(12, 22, 42, 0.65)"
+                            : "#FFFAF0",
+                          color: colors.text,
+                          borderColor: isDark
+                            ? "rgba(255,250,240,0.12)"
+                            : "#F0E8D5",
+                          borderWidth: 1.5,
+                        },
+                      ]}
+                      placeholder={t("onboarding.projectUrlPlaceholder")}
+                      placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                      value={project.url}
+                      onChangeText={(t) => updateProject(project.id, "url", t)}
+                    />
+                  </View>
+                ))}
+                <TouchableButton
+                  onPress={addProject}
+                  style={[
+                    styles.addButton,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(201, 150, 63, 0.15)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(201, 150, 63, 0.4)"
+                        : "#D4A24E",
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
+                    },
+                  ]}
+                >
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={isDark ? "#E8B86D" : "#B8822A"}
+                  />
+                  <Text
+                    style={[
+                      styles.addButtonText,
+                      {
+                        color: isDark ? "#E8B86D" : "#B8822A",
+                        fontWeight: "700",
+                      },
+                    ]}
+                  >
+                    {t("onboarding.addProject")}
+                  </Text>
+                </TouchableButton>
+              </View>
+
+              <TouchableButton
+                style={[
+                  styles.submitBtn,
+                  {
+                    backgroundColor: isDark ? "#C9963F" : colors.tint,
+                    borderColor: isDark ? "#C9963F" : colors.tint,
+                    borderWidth: 1,
+                  },
+                  loading && { opacity: 0.7 },
+                ]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                <Text style={styles.submitBtnText}>
+                  {loading
+                    ? t("onboarding.saving")
+                    : t("onboarding.saveProfile")}
                 </Text>
               </TouchableButton>
-            </View>
-
-            <TouchableButton
-              style={[
-                styles.submitBtn,
-                {
-                  backgroundColor: isDark ? "#C9963F" : colors.tint,
-                  borderColor: isDark ? "#C9963F" : colors.tint,
-                  borderWidth: 1,
-                },
-                loading && { opacity: 0.7 },
-              ]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              <Text style={styles.submitBtnText}>
-                {loading ? t("onboarding.saving") : t("onboarding.saveProfile")}
-              </Text>
-            </TouchableButton>
-          </ScrollView>
-        )}
+            </ScrollView>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
 
@@ -2979,105 +3190,113 @@ export default function OnboardingScreen() {
         }}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
-        >
-        <View
-          style={[
-            styles.modalOverlay,
-            { backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)" },
-          ]}
         >
           <View
             style={[
-              styles.modalContent,
+              styles.modalOverlay,
               {
-                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
               },
             ]}
           >
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {t("onboarding.specifyPaymentType")}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowOtherInputModal(null);
-                  setOtherInputValue("");
-                }}
-              >
-                <Feather name="x" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.modalLabel, { color: colors.text }]}>
-              {t("onboarding.paymentTypeName")}
-            </Text>
-            <TextInput
+            <View
               style={[
-                styles.modalInput,
+                styles.modalContent,
                 {
-                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#f9fafb",
-                  color: colors.text,
-                  borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "#FFFAF0",
                 },
               ]}
-              placeholder={t("onboarding.egProjectMilestone")}
-              placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-              value={otherInputValue}
-              onChangeText={setOtherInputValue}
-              autoFocus
-            />
-            <View style={styles.modalButtons}>
-              <TouchableButton
-                style={[
-                  styles.modalButton,
-                  styles.modalButtonCancel,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "#F5ECD8",
-                    borderColor: isDark
-                      ? "rgba(201,150,63,0.25)"
-                      : "rgba(184,130,42,0.2)",
-                  },
-                ]}
-                onPress={() => {
-                  setShowOtherInputModal(null);
-                  setOtherInputValue("");
-                }}
-              >
-                <Text style={[styles.modalButtonText, { color: colors.text }]}>
-                  {t("common.cancel")}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {t("onboarding.specifyPaymentType")}
                 </Text>
-              </TouchableButton>
-              <TouchableButton
-                style={[
-                  styles.modalButton,
-                  styles.modalButtonSave,
-                  {
-                    backgroundColor: isDark ? "#C9963F" : colors.tint,
-                    borderColor: isDark ? "#C9963F" : colors.tint,
-                  },
-                ]}
-                onPress={() => {
-                  if (showOtherInputModal && otherInputValue.trim()) {
-                    updateRateEntry(
-                      showOtherInputModal,
-                      "otherSpecification",
-                      otherInputValue.trim(),
-                    );
+                <TouchableOpacity
+                  onPress={() => {
                     setShowOtherInputModal(null);
                     setOtherInputValue("");
-                  }
-                }}
-              >
-                <Text style={[styles.modalButtonText, { color: "#FFFAF0" }]}>
-                  {t("common.save")}
-                </Text>
-              </TouchableButton>
+                  }}
+                >
+                  <Feather name="x" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.modalLabel, { color: colors.text }]}>
+                {t("onboarding.paymentTypeName")}
+              </Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(201,150,63,0.12)"
+                      : "#f9fafb",
+                    color: colors.text,
+                    borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                  },
+                ]}
+                placeholder={t("onboarding.egProjectMilestone")}
+                placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                value={otherInputValue}
+                onChangeText={setOtherInputValue}
+                autoFocus
+              />
+              <View style={styles.modalButtons}>
+                <TouchableButton
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonCancel,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "#F5ECD8",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.25)"
+                        : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setShowOtherInputModal(null);
+                    setOtherInputValue("");
+                  }}
+                >
+                  <Text
+                    style={[styles.modalButtonText, { color: colors.text }]}
+                  >
+                    {t("common.cancel")}
+                  </Text>
+                </TouchableButton>
+                <TouchableButton
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonSave,
+                    {
+                      backgroundColor: isDark ? "#C9963F" : colors.tint,
+                      borderColor: isDark ? "#C9963F" : colors.tint,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (showOtherInputModal && otherInputValue.trim()) {
+                      updateRateEntry(
+                        showOtherInputModal,
+                        "otherSpecification",
+                        otherInputValue.trim(),
+                      );
+                      setShowOtherInputModal(null);
+                      setOtherInputValue("");
+                    }
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: "#FFFAF0" }]}>
+                    {t("common.save")}
+                  </Text>
+                </TouchableButton>
+              </View>
             </View>
           </View>
-        </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -3089,9 +3308,139 @@ export default function OnboardingScreen() {
         onRequestClose={() => setShowSkillSelectModal(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
+          <View
+            style={[
+              styles.modalOverlay,
+              {
+                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "#FFFAF0",
+                  maxHeight: "80%",
+                },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {t("onboarding.selectProfessionalSkill")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowSkillSelectModal(false)}
+                >
+                  <Feather name="x" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={{ maxHeight: 500 }}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {availableSkills
+                  .filter(
+                    (skill) => !formData.skills.find((s) => s.name === skill),
+                  )
+                  .map((skill) => {
+                    return (
+                      <TouchableButton
+                        key={skill}
+                        onPress={() => {
+                          handleAddSkill(skill);
+                          setShowSkillSelectModal(false);
+                        }}
+                        style={[
+                          styles.paymentTypeOption,
+                          {
+                            backgroundColor: isDark
+                              ? "rgba(255,250,240,0.10)"
+                              : "#FFF8F0",
+                            borderColor: isDark
+                              ? "rgba(255,250,240,0.12)"
+                              : "#F0E8D5",
+                            borderWidth: 1.5,
+                            marginBottom: 8,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.paymentTypeText,
+                            {
+                              color: colors.text,
+                              fontWeight: "500",
+                            },
+                          ]}
+                        >
+                          {translateSkillName(skill)}
+                        </Text>
+                        <Feather
+                          name="chevron-right"
+                          size={18}
+                          color={isDark ? "#9A8E7A" : "#8A7B68"}
+                        />
+                      </TouchableButton>
+                    );
+                  })}
+                <TouchableButton
+                  onPress={() => {
+                    setShowSkillSelectModal(false);
+                    setShowCustomSkillModal(true);
+                  }}
+                  style={[
+                    styles.paymentTypeOption,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(201, 150, 63, 0.15)"
+                        : "rgba(255,250,240,0.92)",
+                      borderColor: isDark
+                        ? "rgba(201, 150, 63, 0.4)"
+                        : "#D4A24E",
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
+                      marginTop: 8,
+                    },
+                  ]}
+                >
+                  <Feather
+                    name="plus"
+                    size={18}
+                    color={isDark ? "#E8B86D" : "#B8822A"}
+                  />
+                  <Text
+                    style={[
+                      styles.paymentTypeText,
+                      {
+                        color: isDark ? "#E8B86D" : "#B8822A",
+                        fontWeight: "700",
+                      },
+                    ]}
+                  >
+                    {t("onboarding.other")}
+                  </Text>
+                </TouchableButton>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Category Selection Modal */}
+      <Modal
+        visible={showCategorySelectModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCategorySelectModal(false)}
+      >
         <View
           style={[
             styles.modalOverlay,
@@ -3109,9 +3458,11 @@ export default function OnboardingScreen() {
           >
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {t("onboarding.selectProfessionalSkill")}
+                {t("onboarding.selectServiceCategories")}
               </Text>
-              <TouchableOpacity onPress={() => setShowSkillSelectModal(false)}>
+              <TouchableOpacity
+                onPress={() => setShowCategorySelectModal(false)}
+              >
                 <Feather name="x" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -3121,55 +3472,77 @@ export default function OnboardingScreen() {
               contentContainerStyle={{ paddingBottom: 20 }}
               keyboardShouldPersistTaps="handled"
             >
-              {availableSkills
-                .filter(
-                  (skill) => !formData.skills.find((s) => s.name === skill),
-                )
-                .map((skill) => {
-                  return (
-                    <TouchableButton
-                      key={skill}
-                      onPress={() => {
-                        handleAddSkill(skill);
-                        setShowSkillSelectModal(false);
-                      }}
-                      style={[
-                        styles.paymentTypeOption,
-                        {
-                          backgroundColor: isDark
+              {availableCategories.map((category) => {
+                const isSelected = formData.categories.includes(category.name);
+                return (
+                  <TouchableButton
+                    key={category.id}
+                    onPress={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        categories: isSelected
+                          ? prev.categories.filter((c) => c !== category.name)
+                          : [...prev.categories, category.name],
+                      }));
+                    }}
+                    style={[
+                      styles.paymentTypeOption,
+                      {
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? "rgba(201, 150, 63, 0.20)"
+                            : "rgba(212, 162, 78, 0.15)"
+                          : isDark
                             ? "rgba(255,250,240,0.10)"
                             : "#FFF8F0",
-                          borderColor: isDark
+                        borderColor: isSelected
+                          ? isDark
+                            ? "rgba(201, 150, 63, 0.5)"
+                            : "#D4A24E"
+                          : isDark
                             ? "rgba(255,250,240,0.12)"
                             : "#F0E8D5",
-                          borderWidth: 1.5,
-                          marginBottom: 8,
+                        borderWidth: 1.5,
+                        marginBottom: 8,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentTypeText,
+                        {
+                          color: isSelected
+                            ? isDark
+                              ? "#E8B86D"
+                              : "#B8822A"
+                            : colors.text,
+                          fontWeight: isSelected ? "700" : "500",
+                          flex: 1,
                         },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.paymentTypeText,
-                          {
-                            color: colors.text,
-                            fontWeight: "500",
-                          },
-                        ]}
-                      >
-                        {translateSkillName(skill)}
-                      </Text>
-                      <Feather
-                        name="chevron-right"
-                        size={18}
-                        color={isDark ? "#9A8E7A" : "#8A7B68"}
-                      />
-                    </TouchableButton>
-                  );
-                })}
+                      {translateSkillName(category.name)}
+                    </Text>
+                    <Feather
+                      name={isSelected ? "check-circle" : "circle"}
+                      size={20}
+                      color={
+                        isSelected
+                          ? isDark
+                            ? "#E8B86D"
+                            : "#B8822A"
+                          : isDark
+                            ? "#9A8E7A"
+                            : "#8A7B68"
+                      }
+                    />
+                  </TouchableButton>
+                );
+              })}
               <TouchableButton
                 onPress={() => {
-                  setShowSkillSelectModal(false);
-                  setShowCustomSkillModal(true);
+                  setShowCategorySelectModal(false);
+                  setShowCustomCategoryModal(true);
                 }}
                 style={[
                   styles.paymentTypeOption,
@@ -3202,8 +3575,181 @@ export default function OnboardingScreen() {
                 </Text>
               </TouchableButton>
             </ScrollView>
+            <TouchableButton
+              onPress={() => setShowCategorySelectModal(false)}
+              style={{
+                backgroundColor: isDark ? "rgba(201, 150, 63, 0.2)" : "#D4A24E",
+                borderRadius: 8,
+                paddingVertical: 14,
+                alignItems: "center",
+                marginTop: 12,
+              }}
+            >
+              <Text
+                style={{
+                  color: isDark ? "#E8B86D" : "#FFF",
+                  fontWeight: "700",
+                  fontSize: 15,
+                }}
+              >
+                {t("common.done")}
+              </Text>
+            </TouchableButton>
           </View>
         </View>
+      </Modal>
+
+      {/* Custom Category Modal */}
+      <Modal
+        visible={showCustomCategoryModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowCustomCategoryModal(false);
+          setCustomCategoryInput("");
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <View
+            style={[
+              styles.modalOverlay,
+              {
+                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "#FFFAF0",
+                },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {t("onboarding.addCustomCategory")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowCustomCategoryModal(false);
+                    setCustomCategoryInput("");
+                  }}
+                >
+                  <Feather name="x" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(15, 23, 42, 0.5)"
+                      : "#FFF8F0",
+                    color: colors.text,
+                    borderColor: isDark ? "rgba(255,250,240,0.12)" : "#F0E8D5",
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    padding: 16,
+                    marginBottom: 16,
+                  },
+                ]}
+                placeholder={t("onboarding.enterCategoryName")}
+                placeholderTextColor={isDark ? "#8A7B68" : "#94a3af"}
+                value={customCategoryInput}
+                onChangeText={setCustomCategoryInput}
+                autoFocus
+              />
+              <TouchableButton
+                onPress={async () => {
+                  const trimmed = customCategoryInput.trim();
+                  if (!trimmed) {
+                    Alert.alert(
+                      t("onboarding.missingInformation"),
+                      t("onboarding.enterCategoryName"),
+                    );
+                    return;
+                  }
+
+                  // Check if already selected
+                  if (
+                    formData.categories.some(
+                      (c) => c.toLowerCase() === trimmed.toLowerCase(),
+                    )
+                  ) {
+                    Alert.alert(
+                      t("onboarding.categoryAlreadyAdded"),
+                      t("onboarding.categoryAlreadyInList"),
+                    );
+                    return;
+                  }
+
+                  try {
+                    const token = await SecureStore.getItemAsync("auth_token");
+                    const base = getApiBase();
+                    const res = await fetch(`${base}/jobs/categories`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ name: trimmed }),
+                    });
+
+                    if (res.ok) {
+                      const newCat = await res.json();
+                      // Add to available categories if not already there
+                      setAvailableCategories((prev) => {
+                        if (prev.find((c) => c.id === newCat.id)) return prev;
+                        return [...prev, newCat].sort((a, b) =>
+                          a.name.localeCompare(b.name),
+                        );
+                      });
+                      // Add to selected categories
+                      setFormData((prev) => ({
+                        ...prev,
+                        categories: [...prev.categories, newCat.name],
+                      }));
+                      setCustomCategoryInput("");
+                      setShowCustomCategoryModal(false);
+                    } else {
+                      const err = await res.json();
+                      Alert.alert(
+                        t("common.error"),
+                        err.message || t("onboarding.failedToAddCategory"),
+                      );
+                    }
+                  } catch (error) {
+                    console.log("Error creating category:", error);
+                    Alert.alert(t("common.error"), t("errors.networkError"));
+                  }
+                }}
+                style={{
+                  backgroundColor: isDark
+                    ? "rgba(201, 150, 63, 0.2)"
+                    : "#D4A24E",
+                  borderRadius: 8,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: isDark ? "#E8B86D" : "#FFF",
+                    fontWeight: "700",
+                    fontSize: 15,
+                  }}
+                >
+                  {t("onboarding.addCategory")}
+                </Text>
+              </TouchableButton>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -3218,95 +3764,103 @@ export default function OnboardingScreen() {
         }}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
-        >
-        <View
-          style={[
-            styles.modalOverlay,
-            { backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)" },
-          ]}
         >
           <View
             style={[
-              styles.modalContent,
+              styles.modalOverlay,
               {
-                backgroundColor: isDark ? "rgba(12, 22, 42, 0.90)" : "#FFFAF0",
+                backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
               },
             ]}
           >
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {t("onboarding.addCustomSkill")}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowCustomSkillModal(false);
-                  setCustomSkillInput("");
-                }}
-              >
-                <Feather name="x" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.modalLabel, { color: colors.text }]}>
-              {t("onboarding.skillName")}
-            </Text>
-            <TextInput
+            <View
               style={[
-                styles.modalInput,
+                styles.modalContent,
                 {
-                  backgroundColor: isDark ? "rgba(201,150,63,0.12)" : "#f9fafb",
-                  color: colors.text,
-                  borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
+                  backgroundColor: isDark
+                    ? "rgba(12, 22, 42, 0.90)"
+                    : "#FFFAF0",
                 },
               ]}
-              placeholder={t("onboarding.egWeldingLandscaping")}
-              placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
-              value={customSkillInput}
-              onChangeText={setCustomSkillInput}
-              autoFocus
-            />
-            <View style={styles.modalButtons}>
-              <TouchableButton
+            >
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {t("onboarding.addCustomSkill")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowCustomSkillModal(false);
+                    setCustomSkillInput("");
+                  }}
+                >
+                  <Feather name="x" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.modalLabel, { color: colors.text }]}>
+                {t("onboarding.skillName")}
+              </Text>
+              <TextInput
                 style={[
-                  styles.modalButton,
-                  styles.modalButtonCancel,
+                  styles.modalInput,
                   {
                     backgroundColor: isDark
-                      ? "rgba(255,250,240,0.12)"
-                      : "#F5ECD8",
-                    borderColor: isDark
-                      ? "rgba(201,150,63,0.25)"
-                      : "rgba(184,130,42,0.2)",
+                      ? "rgba(201,150,63,0.12)"
+                      : "#f9fafb",
+                    color: colors.text,
+                    borderColor: isDark ? "rgba(255,250,240,0.15)" : "#E8D8B8",
                   },
                 ]}
-                onPress={() => {
-                  setShowCustomSkillModal(false);
-                  setCustomSkillInput("");
-                }}
-              >
-                <Text style={[styles.modalButtonText, { color: colors.text }]}>
-                  {t("common.cancel")}
-                </Text>
-              </TouchableButton>
-              <TouchableButton
-                style={[
-                  styles.modalButton,
-                  styles.modalButtonSave,
-                  {
-                    backgroundColor: isDark ? "#C9963F" : colors.tint,
-                    borderColor: isDark ? "#C9963F" : colors.tint,
-                  },
-                ]}
-                onPress={handleAddCustomSkill}
-              >
-                <Text style={[styles.modalButtonText, { color: "#FFFAF0" }]}>
-                  {t("common.add")}
-                </Text>
-              </TouchableButton>
+                placeholder={t("onboarding.egWeldingLandscaping")}
+                placeholderTextColor={isDark ? "#8A7B68" : "#9A8E7A"}
+                value={customSkillInput}
+                onChangeText={setCustomSkillInput}
+                autoFocus
+              />
+              <View style={styles.modalButtons}>
+                <TouchableButton
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonCancel,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(255,250,240,0.12)"
+                        : "#F5ECD8",
+                      borderColor: isDark
+                        ? "rgba(201,150,63,0.25)"
+                        : "rgba(184,130,42,0.2)",
+                    },
+                  ]}
+                  onPress={() => {
+                    setShowCustomSkillModal(false);
+                    setCustomSkillInput("");
+                  }}
+                >
+                  <Text
+                    style={[styles.modalButtonText, { color: colors.text }]}
+                  >
+                    {t("common.cancel")}
+                  </Text>
+                </TouchableButton>
+                <TouchableButton
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonSave,
+                    {
+                      backgroundColor: isDark ? "#C9963F" : colors.tint,
+                      borderColor: isDark ? "#C9963F" : colors.tint,
+                    },
+                  ]}
+                  onPress={handleAddCustomSkill}
+                >
+                  <Text style={[styles.modalButtonText, { color: "#FFFAF0" }]}>
+                    {t("common.add")}
+                  </Text>
+                </TouchableButton>
+              </View>
             </View>
           </View>
-        </View>
         </KeyboardAvoidingView>
       </Modal>
     </GradientBackground>
@@ -3585,7 +4139,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === "android" ? 80 : 40,
     maxHeight: "90%",
   },
   modalHeader: {
