@@ -26,17 +26,24 @@ export default function BrandLogo({
   // Use the officially selected raster logo from /public for pixel-perfect match.
   const [dark, setDark] = useState(false);
   useEffect(() => {
+    const root = document.documentElement;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () =>
       setDark(
-        mq.matches || document.documentElement.classList.contains("dark"),
+        root.classList.contains("dark") ||
+          (!root.classList.contains("light") && mq.matches),
       );
     apply();
+    const obs = new MutationObserver(apply);
+    obs.observe(root, { attributes: true, attributeFilter: ["class"] });
     mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
+    return () => {
+      obs.disconnect();
+      mq.removeEventListener("change", apply);
+    };
   }, []);
 
-  const src = dark ? "/NastaLogoDark.png" : "/NastaLogoLight.png";
+  const src = dark ? "/nasta-app-icon.png" : "/NastaLogoLight.png";
 
   if (!tile) {
     // Render the asset plainly for maximum fidelity

@@ -2236,10 +2236,32 @@ export class NotificationsService {
             </td>
           </tr>
 
-          <!-- CTA Button -->
+          <!-- How to Respond -->
           <tr>
-            <td align="center" style="padding: 32px 40px 0;">
-              <a href="${e(data.ctaUrl)}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #C9963F 0%, #D4A853 50%, #C9963F 100%); color: #0A1628; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(201, 150, 63, 0.35);">${e(t('email.instantJobRequest.openAppButton'))}</a>
+            <td style="padding: 32px 40px 0;">
+              <div style="padding: 24px; background-color: #0E1B32; border-radius: 8px;">
+                <h3 style="margin: 0 0 16px; color: #C9963F; font-size: 16px; font-weight: 600;">📱 How to Respond</h3>
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #C9963F, #D4A853); color: #0A1628; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">1</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Open the <strong style="color: #C9963F;">Nasta</strong> app on your phone</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #C9963F, #D4A853); color: #0A1628; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">2</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Go to the <strong style="color: #C9963F;">Track</strong> tab at the bottom</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #C9963F, #D4A853); color: #0A1628; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">3</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Find the job request and tap to <strong style="color: #C9963F;">accept or decline</strong></span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
             </td>
           </tr>
 
@@ -2384,10 +2406,32 @@ export class NotificationsService {
             </td>
           </tr>
 
-          <!-- CTA Button -->
+          <!-- How to Continue -->
           <tr>
-            <td align="center" style="padding: 32px 40px;">
-              <a href="${e(data.ctaUrl)}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.35);">${e(t('email.instantJobRequest.viewApplicationButton'))}</a>
+            <td style="padding: 32px 40px;">
+              <div style="padding: 24px; background-color: #0E1B32; border-radius: 8px; border-left: 4px solid #22C55E;">
+                <h3 style="margin: 0 0 16px; color: #22C55E; font-size: 16px; font-weight: 600;">📱 What to Do Next</h3>
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #22C55E, #16A34A); color: #FFFFFF; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">1</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Open the <strong style="color: #C9963F;">Nasta</strong> app on your phone</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #22C55E, #16A34A); color: #FFFFFF; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">2</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Go to <strong style="color: #C9963F;">Applicants</strong> from your job listing</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #22C55E, #16A34A); color: #FFFFFF; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">3</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Find the approved request and <strong style="color: #22C55E;">complete the next steps</strong></span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
             </td>
           </tr>
           
@@ -2504,10 +2548,32 @@ export class NotificationsService {
             </td>
           </tr>
 
-          <!-- CTA Button -->
+          <!-- How to Continue -->
           <tr>
-            <td align="center" style="padding: 32px 40px;">
-              <a href="${e(data.ctaUrl)}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #C9963F 0%, #D4A853 50%, #C9963F 100%); color: #0A1628; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(201, 150, 63, 0.35);">${e(t('email.instantJobRequest.browseProvidersButton'))}</a>
+            <td style="padding: 32px 40px;">
+              <div style="padding: 24px; background-color: #0E1B32; border-radius: 8px; border-left: 4px solid #C9963F;">
+                <h3 style="margin: 0 0 16px; color: #C9963F; font-size: 16px; font-weight: 600;">📱 Finding Another Provider</h3>
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #C9963F, #D4A853); color: #0A1628; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">1</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Open the <strong style="color: #C9963F;">Nasta</strong> app on your phone</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #C9963F, #D4A853); color: #0A1628; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">2</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Go to the <strong style="color: #C9963F;">Home</strong> tab and browse available providers</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; vertical-align: top;">
+                      <span style="display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #C9963F, #D4A853); color: #0A1628; text-align: center; line-height: 28px; font-weight: 700; font-size: 14px; margin-right: 12px;">3</span>
+                      <span style="color: #F5E6C8; font-size: 14px;">Select a provider and <strong style="color: #C9963F;">send a new instant job request</strong></span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
             </td>
           </tr>
           

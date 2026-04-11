@@ -1067,7 +1067,7 @@ export default function InstantJobRequest() {
               if (showSummary) {
                 setShowSummary(false);
               } else {
-                router.push(`/candidate/${candidateId}` as any);
+                router.back();
               }
             }}
           >

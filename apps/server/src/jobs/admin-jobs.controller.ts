@@ -25,13 +25,29 @@ export class AdminJobsController {
   @ApiOperation({ summary: 'Admin: list all jobs with optional status filter' })
   async list(
     @Query('status')
-    status?: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'CLOSED' | 'EXPIRED',
+    status?:
+      | 'DRAFT'
+      | 'ACTIVE'
+      | 'ASSIGNED'
+      | 'COMPLETED'
+      | 'PAUSED'
+      | 'CLOSED'
+      | 'EXPIRED'
+      | 'CANCELLED_NO_SHOW',
     @Query('page') page = '1',
     @Query('limit') limit = '20',
+    @Query('search') search?: string,
   ) {
     const p = Math.max(1, Number(page) || 1);
     const l = Math.min(100, Math.max(1, Number(limit) || 20));
-    const where = status ? ({ status } as const) : ({} as const);
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { employer: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
     const [items, total] = await Promise.all([
       this.prisma.job.findMany({
         where,
@@ -45,8 +61,16 @@ export class AdminJobsController {
           city: true,
           country: true,
           createdAt: true,
-          employer: { select: { id: true, email: true } },
+          isInstantBook: true,
+          paymentType: true,
+          salaryMin: true,
+          salaryMax: true,
+          currency: true,
+          employer: {
+            select: { id: true, email: true, firstName: true, lastName: true },
+          },
           category: { select: { id: true, name: true } },
+          _count: { select: { applications: true, bookings: true } },
         },
       }),
       this.prisma.job.count({ where }),
@@ -56,22 +80,162 @@ export class AdminJobsController {
 
   @Get(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: get job details' })
+  @ApiOperation({ summary: 'Admin: get full job details with movements' })
   async get(@Param('id') id: string) {
     const job = await this.prisma.job.findUnique({
       where: { id },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        requirements: true,
-        responsibilities: true,
-        status: true,
-        city: true,
-        country: true,
-        createdAt: true,
-        employer: { select: { id: true, email: true } },
+      include: {
+        employer: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            phone: true,
+            avatar: true,
+            location: true,
+            city: true,
+            country: true,
+            createdAt: true,
+          },
+        },
+        company: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
+        skills: {
+          select: { id: true, skill: { select: { id: true, name: true } } },
+        },
+        applications: {
+          orderBy: { appliedAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            coverLetter: true,
+            proposedRate: true,
+            currency: true,
+            verificationCode: true,
+            verificationCodeVerifiedAt: true,
+            serviceProviderMarkedDoneAt: true,
+            rejectionReason: true,
+            withdrawalReason: true,
+            appliedAt: true,
+            updatedAt: true,
+            completedAt: true,
+            payment: {
+              select: {
+                id: true,
+                type: true,
+                status: true,
+                amount: true,
+                currency: true,
+                stripePaymentIntentId: true,
+                createdAt: true,
+              },
+            },
+            applicant: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                avatar: true,
+                isIdVerified: true,
+                isBackgroundVerified: true,
+                noShowCount: true,
+                city: true,
+                country: true,
+              },
+            },
+            completionRatings: {
+              select: {
+                id: true,
+                platformRating: true,
+                easeOfServiceRating: true,
+                otherPartyRating: true,
+                platformComment: true,
+                otherPartyComment: true,
+                raterId: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+        bookings: {
+          orderBy: { bookedAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            title: true,
+            bookedAt: true,
+            updatedAt: true,
+            completedAt: true,
+            startTime: true,
+            endTime: true,
+            actualRate: true,
+            currency: true,
+            agreedPayUnit: true,
+            agreedRateAmount: true,
+            agreedCurrency: true,
+            holdAmount: true,
+            holdIntentId: true,
+            capturedAmount: true,
+            capturedAt: true,
+            approvedUnits: true,
+            finalAmount: true,
+            stripeTransferId: true,
+            payoutStatus: true,
+            payoutDate: true,
+            notes: true,
+            jobSeeker: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                avatar: true,
+                isIdVerified: true,
+                isBackgroundVerified: true,
+                noShowCount: true,
+                city: true,
+                country: true,
+              },
+            },
+            employer: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+            timesheetEntries: {
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                clockIn: true,
+                clockOut: true,
+                approvedByEmployer: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+        referrals: {
+          select: {
+            id: true,
+            createdAt: true,
+            candidate: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
     return job;

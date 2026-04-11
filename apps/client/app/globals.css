@@ -23,6 +23,11 @@
   --surface-alt: #F5F0E6;
   --border-color: #D4C9B0;
   --muted-text: #6B6355;
+
+  /* Card & header tokens (light defaults) */
+  --card-bg: rgba(255, 255, 255, 0.55);
+  --card-hover-bg: rgba(255, 255, 255, 0.75);
+  --header-bg: rgba(250, 250, 247, 0.8);
 }
 
 @theme inline {
@@ -43,6 +48,11 @@
   --color-dark-navy: var(--dark-navy);
   --color-soft-gray: var(--soft-gray);
   --color-light-bg: var(--light-bg);
+
+  /* Card & header */
+  --color-card-bg: var(--card-bg);
+  --color-card-hover-bg: var(--card-hover-bg);
+  --color-header-bg: var(--header-bg);
 
   /* Fonts */
   --font-sans: var(--font-geist-sans);
@@ -66,6 +76,9 @@
     --surface-alt: #0D1A30;
     --border-color: rgba(201, 150, 63, 0.3);
     --muted-text: rgba(240, 232, 213, 0.5);
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --card-hover-bg: rgba(255, 255, 255, 0.04);
+    --header-bg: rgba(10, 22, 40, 0.8);
   }
 }
 
@@ -85,6 +98,9 @@
   --surface-alt: #0D1A30;
   --border-color: rgba(201, 150, 63, 0.3);
   --muted-text: rgba(240, 232, 213, 0.5);
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --card-hover-bg: rgba(255, 255, 255, 0.04);
+  --header-bg: rgba(10, 22, 40, 0.8);
 }
 
 /* Explicit light mode via class (overrides system dark preference) */
@@ -103,6 +119,9 @@
   --surface-alt: #F5F0E6;
   --border-color: #D4C9B0;
   --muted-text: #6B6355;
+  --card-bg: rgba(255, 255, 255, 0.55);
+  --card-hover-bg: rgba(255, 255, 255, 0.75);
+  --header-bg: rgba(250, 250, 247, 0.8);
 }
 
 body { background: var(--background); color: var(--foreground); font-family: var(--font-sans), system-ui, sans-serif; }
@@ -196,7 +215,7 @@ select:disabled {
   padding: 14px 16px;
   border: 1px solid rgba(201, 150, 63, 0.12);
   background: rgba(255, 250, 240, 0.12);
-  color: #F0E8D5;
+  color: var(--foreground);
   font-size: 16px;
   min-height: 50px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -207,14 +226,28 @@ select:disabled {
 .input-field::placeholder { color: #9A8E7A; }
 .input-field:focus { border-color: rgba(201, 150, 63, 0.4); }
 
-/* Brand hero background: Piye Mission Control gradient (matching mobile) */
+/* Brand hero background – light mode default (Nubian Gold) */
 .bg-brand-gradient {
+  background:
+    linear-gradient(135deg, rgba(184,130,42,0.03), transparent, rgba(184,130,42,0.015)),
+    linear-gradient(180deg, #FAFAF7 0%, #F7F2EA 15%, #F3EDE2 35%, #F5EFE5 55%, #F7F2EA 75%, #FAFAF7 100%);
+}
+
+/* Dark overrides for brand gradient */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .bg-brand-gradient {
+    background:
+      linear-gradient(135deg, rgba(201,150,63,0.04), transparent, rgba(201,150,63,0.02)),
+      linear-gradient(180deg, #080F1E 0%, #0A1628 15%, #0D1A30 35%, #0E1B32 55%, #10182C 75%, #0C1322 100%);
+  }
+}
+:root.dark .bg-brand-gradient {
   background:
     linear-gradient(135deg, rgba(201,150,63,0.04), transparent, rgba(201,150,63,0.02)),
     linear-gradient(180deg, #080F1E 0%, #0A1628 15%, #0D1A30 35%, #0E1B32 55%, #10182C 75%, #0C1322 100%);
 }
 
-/* Scan line accent (matching mobile GradientBackground) */
+/* Scan line accent */
 .bg-brand-gradient::before {
   content: "";
   position: fixed;
@@ -222,23 +255,46 @@ select:disabled {
   left: 0;
   right: 0;
   height: 1px;
-  background: rgba(201, 150, 63, 0.12);
+  background: rgba(184, 130, 42, 0.08);
   z-index: 1;
 }
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .bg-brand-gradient::before {
+    background: rgba(201, 150, 63, 0.12);
+  }
+}
+:root.dark .bg-brand-gradient::before {
+  background: rgba(201, 150, 63, 0.12);
+}
 
+/* Grid / dot pattern overlay */
 .bg-brand-gradient::after {
   content: "";
   position: fixed;
   inset: 0;
   background-image:
-    radial-gradient(circle, rgba(201, 150, 63, 0.06) 1px, transparent 1px),
-    linear-gradient(rgba(201, 150, 63, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(201, 150, 63, 0.025) 1px, transparent 1px);
+    radial-gradient(circle, rgba(184, 130, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(184, 130, 42, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184, 130, 42, 0.012) 1px, transparent 1px);
   background-size: 48px 48px, 48px 48px, 48px 48px;
   -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 35%, black 10%, transparent 70%);
   mask-image: radial-gradient(ellipse 80% 60% at 50% 35%, black 10%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .bg-brand-gradient::after {
+    background-image:
+      radial-gradient(circle, rgba(201, 150, 63, 0.06) 1px, transparent 1px),
+      linear-gradient(rgba(201, 150, 63, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201, 150, 63, 0.025) 1px, transparent 1px);
+  }
+}
+:root.dark .bg-brand-gradient::after {
+  background-image:
+    radial-gradient(circle, rgba(201, 150, 63, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(201, 150, 63, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 150, 63, 0.025) 1px, transparent 1px);
 }
 
 @keyframes sweep {

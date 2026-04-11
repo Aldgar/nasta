@@ -225,6 +225,26 @@ export default function Home() {
   const { user, loading } = useAuth();
   const { t } = useLanguage();
 
+  /* Detect active color scheme for theme-aware logo */
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const check = () =>
+      setIsDark(
+        root.classList.contains("dark") ||
+          (!root.classList.contains("light") && mq.matches),
+      );
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(root, { attributes: true, attributeFilter: ["class"] });
+    mq.addEventListener("change", check);
+    return () => {
+      obs.disconnect();
+      mq.removeEventListener("change", check);
+    };
+  }, []);
+
   useEffect(() => {
     if (!loading && user) router.replace(roleHome(user.role));
   }, [user, loading, router]);
@@ -252,12 +272,12 @@ export default function Home() {
 
         <Reveal>
           <Image
-            src="/NastaLogoLight.png"
+            src={isDark ? "/nasta-app-icon.png" : "/NastaLogoLight.png"}
             alt="Nasta"
             width={140}
             height={140}
             priority
-            className="mx-auto mb-12 rounded-3xl shadow-2xl shadow-[var(--primary)]/15"
+            className="mx-auto mb-12 rounded-3xl shadow-[0_8px_40px_rgba(184,130,42,0.35)]"
           />
         </Reveal>
 
@@ -303,7 +323,7 @@ export default function Home() {
             </Link>
             <Link
               href="/login"
-              className="rounded-xl border border-[var(--border-color)]/40 px-8 py-4 text-base font-semibold backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/50 hover:shadow-[0_0_24px_rgba(201,150,63,0.12)] hover:bg-white/[0.05]"
+              className="rounded-xl border border-[var(--border-color)]/40 px-8 py-4 text-base font-semibold backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/50 hover:shadow-[0_0_24px_rgba(201,150,63,0.12)] hover:bg-[var(--card-hover-bg)]"
             >
               {t("landing.signIn", "Sign In")}
             </Link>
@@ -395,7 +415,7 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 pb-36">
         <div className="grid gap-6 md:grid-cols-2">
           <Reveal>
-            <div className="h-full rounded-3xl border border-[var(--border-color)]/20 bg-white/[0.02] p-10 backdrop-blur-sm">
+            <div className="h-full rounded-3xl border border-[var(--border-color)]/20 bg-[var(--card-bg)] p-10 backdrop-blur-sm">
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">
                 {t("landing.forEmployers", "For Employers")}
               </p>
@@ -453,7 +473,7 @@ export default function Home() {
             </div>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="h-full rounded-3xl border border-[var(--border-color)]/20 bg-white/[0.02] p-10 backdrop-blur-sm">
+            <div className="h-full rounded-3xl border border-[var(--border-color)]/20 bg-[var(--card-bg)] p-10 backdrop-blur-sm">
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">
                 {t("landing.forServiceProviders", "For Service Providers")}
               </p>
@@ -518,7 +538,7 @@ export default function Home() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.07}>
-              <div className="group relative h-full overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-white/[0.02] p-8 backdrop-blur-sm transition-all duration-500 hover:border-[var(--primary)]/30 hover:bg-white/[0.04] sm:p-10">
+              <div className="group relative h-full overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-[var(--card-bg)] p-8 backdrop-blur-sm transition-all duration-500 hover:border-[var(--primary)]/30 hover:bg-[var(--card-hover-bg)] sm:p-10">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-32 w-32 rounded-full bg-[var(--primary)] opacity-0 blur-[60px] transition-opacity duration-700 group-hover:opacity-[0.07]" />
                 <div className="relative">
                   <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] ring-1 ring-[var(--primary)]/15 transition-all duration-500 group-hover:bg-[var(--primary)]/15 group-hover:ring-[var(--primary)]/25">
@@ -562,7 +582,7 @@ export default function Home() {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Service Providers */}
             <Reveal>
-              <div className="relative h-full overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-white/[0.02] backdrop-blur-sm">
+              <div className="relative h-full overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-[var(--card-bg)] backdrop-blur-sm">
                 <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--primary)] via-[var(--warm-coral)] to-[var(--primary)]" />
                 <div className="p-8 sm:p-10">
                   <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[var(--primary)]/10 px-3 py-1 text-xs font-semibold text-[var(--primary)] ring-1 ring-[var(--primary)]/20">
@@ -758,7 +778,7 @@ export default function Home() {
                     ].map((item) => (
                       <div
                         key={item.title}
-                        className="flex items-start gap-4 rounded-xl px-4 py-3.5 transition-colors hover:bg-white/[0.03]"
+                        className="flex items-start gap-4 rounded-xl px-4 py-3.5 transition-colors hover:bg-[var(--card-hover-bg)]"
                       >
                         <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
                           {item.icon}
@@ -783,7 +803,7 @@ export default function Home() {
 
             {/* Employers */}
             <Reveal delay={0.1}>
-              <div className="relative h-full overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-white/[0.02] backdrop-blur-sm">
+              <div className="relative h-full overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-[var(--card-bg)] backdrop-blur-sm">
                 <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--soft-blue)] via-[var(--primary)] to-[var(--soft-blue)]" />
                 <div className="p-8 sm:p-10">
                   <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[var(--soft-blue)]/10 px-3 py-1 text-xs font-semibold text-[var(--soft-blue)] ring-1 ring-[var(--soft-blue)]/20">
@@ -916,7 +936,7 @@ export default function Home() {
                     ].map((item) => (
                       <div
                         key={item.title}
-                        className="flex items-start gap-4 rounded-xl px-4 py-3.5 transition-colors hover:bg-white/[0.03]"
+                        className="flex items-start gap-4 rounded-xl px-4 py-3.5 transition-colors hover:bg-[var(--card-hover-bg)]"
                       >
                         <div
                           className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ${
@@ -950,7 +970,7 @@ export default function Home() {
                     ))}
                   </div>
 
-                  <div className="mt-8 rounded-xl border border-[var(--border-color)]/10 bg-white/[0.02] p-5">
+                  <div className="mt-8 rounded-xl border border-[var(--border-color)]/10 bg-[var(--card-bg)] p-5">
                     <p className="text-xs leading-relaxed text-[var(--muted-text)]">
                       <strong className="text-[var(--foreground)]">
                         {t("landing.quickStart", "Quick start:")}
@@ -1001,7 +1021,7 @@ export default function Home() {
       {/* ═══════════ MONITORING BANNER ═══════════ */}
       <section className="px-6 pb-36">
         <Reveal>
-          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-[var(--border-color)]/20 bg-white/[0.02] px-8 py-20 text-center backdrop-blur-sm sm:px-16 sm:py-28">
+          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-[var(--border-color)]/20 bg-[var(--card-bg)] px-8 py-20 text-center backdrop-blur-sm sm:px-16 sm:py-28">
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--primary)] opacity-[0.04] blur-[140px]" />
             <div className="relative">
               <p className="mb-5 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">
@@ -1045,7 +1065,7 @@ export default function Home() {
                 href="#"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)]/30 bg-white/[0.03] px-6 py-4 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-white/[0.06]"
+                className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-6 py-4 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
               >
                 <svg
                   className="h-8 w-8"
@@ -1067,7 +1087,7 @@ export default function Home() {
                 href="#"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)]/30 bg-white/[0.03] px-6 py-4 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-white/[0.06]"
+                className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-6 py-4 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
               >
                 <svg
                   className="h-8 w-8"
@@ -1125,7 +1145,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/login"
-                className="rounded-xl border border-[var(--border-color)]/40 px-8 py-4 text-base font-semibold transition-all duration-300 hover:border-[var(--primary)]/50 hover:shadow-[0_0_24px_rgba(201,150,63,0.12)] hover:bg-white/[0.05]"
+                className="rounded-xl border border-[var(--border-color)]/40 px-8 py-4 text-base font-semibold transition-all duration-300 hover:border-[var(--primary)]/50 hover:shadow-[0_0_24px_rgba(201,150,63,0.12)] hover:bg-[var(--card-hover-bg)]"
               >
                 {t("landing.signIn", "Sign In")}
               </Link>
@@ -1136,16 +1156,19 @@ export default function Home() {
 
       {/* ═══════════ FOOTER ═══════════ */}
       <footer className="px-6 pb-8 pt-16">
-        <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-[var(--border-color)]/20 bg-white/[0.02] backdrop-blur-sm">
+        <div
+          className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-[var(--primary)]/20 bg-[var(--card-bg)] backdrop-blur-sm"
+          style={{ borderTop: "2px solid var(--primary)" }}
+        >
           <div className="p-8 sm:p-12">
             {/* Logo + tagline */}
             <div className="mb-10 flex items-start gap-4">
               <Image
-                src="/nasta-app-icon.png"
+                src={isDark ? "/nasta-app-icon.png" : "/NastaLogoLight.png"}
                 alt="Nasta"
                 width={48}
                 height={48}
-                className="flex-shrink-0 rounded-xl"
+                className="flex-shrink-0 rounded-xl shadow-[0_2px_12px_rgba(184,130,42,0.25)]"
               />
               <p className="max-w-xs text-sm leading-relaxed text-[var(--muted-text)]">
                 {t(
@@ -1158,14 +1181,14 @@ export default function Home() {
             {/* Link columns */}
             <div className="mb-10 grid grid-cols-2 gap-8 sm:grid-cols-3">
               <div>
-                <h4 className="mb-4 border-b border-[var(--border-color)]/20 pb-2 text-xs font-semibold uppercase tracking-[0.15em]">
+                <h4 className="mb-4 border-b border-[var(--primary)]/25 pb-2 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">
                   {t("landing.platform", "Platform")}
                 </h4>
                 <ul className="space-y-2.5 text-sm text-[var(--muted-text)]">
                   <li>
                     <Link
                       href="/about"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.about", "About")}
                     </Link>
@@ -1173,7 +1196,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/how-it-works"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.howItWorksLink", "How it Works")}
                     </Link>
@@ -1181,7 +1204,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/for-employers"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.forEmployersLink", "For Employers")}
                     </Link>
@@ -1189,7 +1212,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/for-service-providers"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t(
                         "landing.forServiceProvidersLink",
@@ -1200,14 +1223,14 @@ export default function Home() {
                 </ul>
               </div>
               <div>
-                <h4 className="mb-4 border-b border-[var(--border-color)]/20 pb-2 text-xs font-semibold uppercase tracking-[0.15em]">
+                <h4 className="mb-4 border-b border-[var(--primary)]/25 pb-2 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">
                   {t("landing.supportSection", "Support")}
                 </h4>
                 <ul className="space-y-2.5 text-sm text-[var(--muted-text)]">
                   <li>
                     <Link
                       href="/faq"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.faqs", "FAQs")}
                     </Link>
@@ -1215,7 +1238,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/support"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.contactUs", "Contact Us")}
                     </Link>
@@ -1223,7 +1246,7 @@ export default function Home() {
                   <li>
                     <a
                       href="mailto:support@nasta.app"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.featureRequest", "Feature Request")}
                     </a>
@@ -1231,14 +1254,14 @@ export default function Home() {
                 </ul>
               </div>
               <div>
-                <h4 className="mb-4 border-b border-[var(--border-color)]/20 pb-2 text-xs font-semibold uppercase tracking-[0.15em]">
+                <h4 className="mb-4 border-b border-[var(--primary)]/25 pb-2 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">
                   {t("landing.legalSection", "Legal")}
                 </h4>
                 <ul className="space-y-2.5 text-sm text-[var(--muted-text)]">
                   <li>
                     <Link
                       href="/privacy"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.privacyPolicy", "Privacy Policy")}
                     </Link>
@@ -1246,7 +1269,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/terms"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.termsOfService", "Terms of Service")}
                     </Link>
@@ -1254,7 +1277,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/cookies"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.cookiePolicy", "Cookie Policy")}
                     </Link>
@@ -1262,7 +1285,7 @@ export default function Home() {
                   <li>
                     <Link
                       href="/platform-rules"
-                      className="transition-colors hover:text-[var(--foreground)]"
+                      className="transition-colors hover:text-[var(--primary)]"
                     >
                       {t("landing.platformRules", "Platform Rules")}
                     </Link>
@@ -1273,7 +1296,7 @@ export default function Home() {
           </div>
 
           {/* Bottom bar */}
-          <div className="border-t border-[var(--border-color)]/20 px-8 py-5 sm:px-12">
+          <div className="border-t border-[var(--primary)]/20 px-8 py-5 sm:px-12">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[13px] text-[var(--muted-text)]">
                 <p>
@@ -1284,7 +1307,7 @@ export default function Home() {
                   {t("landing.contact", "Contact:")}{" "}
                   <a
                     href="mailto:support@nasta.app"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                   >
                     support@nasta.app
                   </a>
@@ -1294,19 +1317,19 @@ export default function Home() {
                 <div className="hidden items-center gap-4 text-[13px] text-[var(--muted-text)] sm:flex">
                   <Link
                     href="/privacy"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                   >
                     {t("landing.privacy", "Privacy")}
                   </Link>
                   <Link
                     href="/terms"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                   >
                     {t("landing.terms", "Terms")}
                   </Link>
                   <Link
                     href="/cookies"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                   >
                     {t("landing.cookies", "Cookies")}
                   </Link>
@@ -1316,7 +1339,7 @@ export default function Home() {
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                     aria-label="X"
                   >
                     <svg
@@ -1331,7 +1354,7 @@ export default function Home() {
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                     aria-label="LinkedIn"
                   >
                     <svg
@@ -1346,7 +1369,7 @@ export default function Home() {
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                     aria-label="Instagram"
                   >
                     <svg
@@ -1361,7 +1384,7 @@ export default function Home() {
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="transition-colors hover:text-[var(--foreground)]"
+                    className="transition-colors hover:text-[var(--primary)]"
                     aria-label="Facebook"
                   >
                     <svg

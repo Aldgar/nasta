@@ -13,6 +13,10 @@ interface AdminStats {
   securityReports: number;
   pendingDeletions: number;
   totalUsers: number;
+  totalJobs: number;
+  activeJobs: number;
+  totalBookings: number;
+  activeBookings: number;
 }
 
 export default function AdminDashboard() {
@@ -26,6 +30,10 @@ export default function AdminDashboard() {
     securityReports: 0,
     pendingDeletions: 0,
     totalUsers: 0,
+    totalJobs: 0,
+    activeJobs: 0,
+    totalBookings: 0,
+    activeBookings: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +55,10 @@ export default function AdminDashboard() {
           securityReports: (d.securityReports as number) ?? 0,
           pendingDeletions: (d.pendingDeletions as number) ?? 0,
           totalUsers: (d.totalUsers as number) ?? 0,
+          totalJobs: (d.totalJobs as number) ?? 0,
+          activeJobs: (d.activeJobs as number) ?? 0,
+          totalBookings: (d.totalBookings as number) ?? 0,
+          activeBookings: (d.activeBookings as number) ?? 0,
         });
       }
       setLoading(false);
@@ -118,6 +130,15 @@ export default function AdminDashboard() {
       color: "var(--fulfillment-gold)",
     },
     {
+      href: "/dashboard/admin/jobs",
+      icon: "💼",
+      label: "Job Movements",
+      desc: "Track job lifecycle, bookings & payments",
+      stat: stats.totalJobs,
+      statLabel: `${stats.activeJobs} active · ${stats.activeBookings} bookings in progress`,
+      color: "var(--fulfillment-gold)",
+    },
+    {
       href: "/dashboard/admin/surveys",
       icon: "📊",
       label: "Surveys",
@@ -179,6 +200,22 @@ export default function AdminDashboard() {
             </p>
             <p className="mt-1 text-2xl font-bold text-[var(--achievement-green)]">
               {stats.totalUsers}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface)] p-4">
+            <p className="text-xs uppercase tracking-wider text-[var(--muted-text)]">
+              Active Jobs
+            </p>
+            <p className="mt-1 text-2xl font-bold text-[var(--fulfillment-gold)]">
+              {stats.activeJobs}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface)] p-4">
+            <p className="text-xs uppercase tracking-wider text-[var(--muted-text)]">
+              Active Bookings
+            </p>
+            <p className="mt-1 text-2xl font-bold text-[var(--warm-coral)]">
+              {stats.activeBookings}
             </p>
           </div>
         </div>

@@ -34,6 +34,10 @@ export class AdminDashboardController {
       securityReports,
       pendingDeletions,
       vehiclesPending,
+      totalJobs,
+      activeJobs,
+      totalBookings,
+      activeBookings,
     ] = await Promise.all([
       // Total users
       this.prisma.user.count(),
@@ -92,6 +96,22 @@ export class AdminDashboardController {
 
       // Pending vehicle verifications
       this.vehiclesService.getPendingCount(),
+
+      // Total jobs
+      this.prisma.job.count(),
+
+      // Active jobs
+      this.prisma.job.count({
+        where: { status: { in: ['ACTIVE', 'ASSIGNED'] } },
+      }),
+
+      // Total bookings
+      this.prisma.booking.count(),
+
+      // Active bookings (PENDING + CONFIRMED + IN_PROGRESS)
+      this.prisma.booking.count({
+        where: { status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } },
+      }),
     ]);
 
     return {
@@ -104,6 +124,10 @@ export class AdminDashboardController {
       securityReports,
       pendingDeletions,
       vehiclesPending,
+      totalJobs,
+      activeJobs,
+      totalBookings,
+      activeBookings,
     };
   }
 
