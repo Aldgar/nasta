@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   View,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -35,19 +37,19 @@ const parseMarkdown = (text: string, isDark: boolean, colors: any) => {
       elements.push(
         <Text key={key++} style={[styles.h1, { color: colors.text }]}>
           {trimmed.substring(2)}
-        </Text>
+        </Text>,
       );
     } else if (trimmed.startsWith("## ")) {
       elements.push(
         <Text key={key++} style={[styles.h2, { color: colors.text }]}>
           {trimmed.substring(3)}
-        </Text>
+        </Text>,
       );
     } else if (trimmed.startsWith("### ")) {
       elements.push(
         <Text key={key++} style={[styles.h3, { color: colors.text }]}>
           {trimmed.substring(4)}
-        </Text>
+        </Text>,
       );
     } else if (trimmed.startsWith("**") && trimmed.endsWith("**")) {
       // Bold text
@@ -55,7 +57,7 @@ const parseMarkdown = (text: string, isDark: boolean, colors: any) => {
       elements.push(
         <Text key={key++} style={[styles.bold, { color: colors.text }]}>
           {boldText}
-        </Text>
+        </Text>,
       );
     } else if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
       // List items
@@ -71,7 +73,7 @@ const parseMarkdown = (text: string, isDark: boolean, colors: any) => {
           >
             {listText}
           </Text>
-        </View>
+        </View>,
       );
     } else {
       // Regular text
@@ -84,7 +86,7 @@ const parseMarkdown = (text: string, isDark: boolean, colors: any) => {
           ]}
         >
           {trimmed}
-        </Text>
+        </Text>,
       );
     }
   });
@@ -113,6 +115,50 @@ export default function ContentPage() {
 
   const showAccept = params.showAccept === "true";
   const [accepted, setAccepted] = useState(false);
+  const [scrolledToBottom, setScrolledToBottom] = useState(false);
+  const contentHeightRef = useRef(0);
+  const layoutHeightRef = useRef(0);
+
+  const checkIfContentFits = useCallback(() => {
+    if (
+      contentHeightRef.current > 0 &&
+      layoutHeightRef.current > 0 &&
+      contentHeightRef.current <= layoutHeightRef.current + 20
+    ) {
+      setScrolledToBottom(true);
+    }
+  }, []);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } =
+        event.nativeEvent;
+      const paddingToBottom = 80;
+      const isAtBottom =
+        layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - paddingToBottom;
+      if (isAtBottom) {
+        setScrolledToBottom(true);
+      }
+    },
+    [],
+  );
+
+  const handleContentSizeChange = useCallback(
+    (_w: number, h: number) => {
+      contentHeightRef.current = h;
+      checkIfContentFits();
+    },
+    [checkIfContentFits],
+  );
+
+  const handleLayout = useCallback(
+    (event: any) => {
+      layoutHeightRef.current = event.nativeEvent.layout.height;
+      checkIfContentFits();
+    },
+    [checkIfContentFits],
+  );
 
   // Check acceptance status on mount (non-blocking)
   useEffect(() => {
@@ -181,7 +227,7 @@ export default function ContentPage() {
             }
           })(),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), 2000)
+            setTimeout(() => reject(new Error("Timeout")), 2000),
           ),
         ]).catch(() => {
           // Timeout or error - just use local storage
@@ -282,7 +328,7 @@ export default function ContentPage() {
             const base = getApiBase();
             console.log(
               "Calling backend:",
-              `${base}/users/me/legal/${mapping.endpoint}`
+              `${base}/users/me/legal/${mapping.endpoint}`,
             );
 
             // Add timeout to prevent hanging
@@ -301,7 +347,7 @@ export default function ContentPage() {
                   "Content-Type": "application/json",
                 },
                 signal: controller.signal,
-              }
+              },
             );
 
             if (timeoutId) clearTimeout(timeoutId);
@@ -317,7 +363,7 @@ export default function ContentPage() {
             if (timeoutId) clearTimeout(timeoutId);
             console.error(
               "Error calling backend API:",
-              apiError?.message || apiError
+              apiError?.message || apiError,
             );
             if (apiError?.name === "AbortError") {
               console.log("Request was aborted due to timeout");
@@ -351,10 +397,32 @@ export default function ContentPage() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={true}
+          onScroll={handleScroll}
+          onContentSizeChange={handleContentSizeChange}
+          onLayout={handleLayout}
+          scrollEventThrottle={16}
         >
           <View style={styles.contentContainer}>{parsedContent}</View>
           {showAccept && (
             <View style={styles.acceptContainer}>
+              {!scrolledToBottom && !accepted && (
+                <View style={styles.scrollHint}>
+                  <Feather
+                    name="arrow-down"
+                    size={16}
+                    color="#f59e0b"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[
+                      styles.scrollHintText,
+                      { color: isDark ? "#fbbf24" : "#d97706" },
+                    ]}
+                  >
+                    {t("legal.scrollToBottomToAccept")}
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 style={[
                   styles.acceptButton,
@@ -366,11 +434,11 @@ export default function ContentPage() {
                       : isDark
                         ? "#C9963F"
                         : "#B8822A",
-                    opacity: accepted ? 0.7 : 1,
+                    opacity: accepted ? 0.7 : scrolledToBottom ? 1 : 0.5,
                   },
                 ]}
                 onPress={handleAccept}
-                disabled={accepted}
+                disabled={accepted || !scrolledToBottom}
               >
                 <Text style={styles.acceptButtonText}>
                   {accepted ? `✓ ${t("legal.accepted")}` : t("legal.iAccept")}
@@ -447,6 +515,18 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: "rgba(184,130,42,0.2)",
+  },
+  scrollHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+  },
+  scrollHintText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   acceptButton: {
     paddingVertical: 16,

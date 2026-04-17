@@ -639,7 +639,7 @@ export default function SearchJobs() {
                         }}
                         title={job.title}
                         description={job.company?.name || job.location}
-                        onCalloutPress={() => {
+                        onPress={() => {
                           router.push(`/jobs/${job.id}` as any);
                         }}
                       />

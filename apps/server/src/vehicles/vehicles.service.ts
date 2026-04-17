@@ -3,17 +3,22 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailTranslationsService } from '../notifications/email-translations.service';
+import { DocumentAnalysisService } from '../document-analysis/document-analysis.service';
 
 @Injectable()
 export class VehiclesService {
+  private readonly logger = new Logger(VehiclesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly emailTranslations: EmailTranslationsService,
+    private readonly documentAnalysis: DocumentAnalysisService,
   ) {}
 
   async createVehicle(
@@ -91,10 +96,69 @@ export class VehiclesService {
       | 'vehicleLicenseUrl',
     url: string,
   ) {
-    return this.prisma.vehicle.update({
+    const updated = await this.prisma.vehicle.update({
       where: { id: vehicleId },
       data: { [field]: url },
     });
+
+    // Trigger document analysis for vehicle license uploads
+    if (field === 'vehicleLicenseUrl') {
+      this.runVehicleLicenseAnalysis(
+        vehicleId,
+        url,
+        updated.licensePlate,
+      ).catch((err) => {
+        this.logger.error(
+          `Vehicle license analysis failed for vehicle ${vehicleId}:`,
+          err,
+        );
+      });
+    }
+
+    return updated;
+  }
+
+  /**
+   * Run GCV document analysis on an uploaded vehicle license/registration.
+   * Cross-checks extracted plate against the user-provided plate.
+   */
+  private async runVehicleLicenseAnalysis(
+    vehicleId: string,
+    documentPath: string,
+    expectedPlate: string,
+  ): Promise<void> {
+    if (!this.documentAnalysis.isAvailable()) {
+      this.logger.warn(
+        'Vehicle document analysis skipped — GCV not configured',
+      );
+      return;
+    }
+
+    this.logger.log(`Starting document analysis for vehicle ${vehicleId}`);
+    const result = await this.documentAnalysis.analyzeVehicleLicense(
+      documentPath,
+      expectedPlate,
+    );
+
+    await this.prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        documentAnalysisScore: result.trustScore,
+        documentAnalysisFlags: result.flags,
+        documentAnalysisRaw: result.raw,
+        documentAnalyzedAt: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `Vehicle license analysis complete for ${vehicleId}: score=${result.trustScore}, flags=${result.flags.join(', ') || 'none'}`,
+    );
+
+    if (result.trustScore >= 0 && result.trustScore < 30) {
+      this.logger.warn(
+        `LOW TRUST SCORE (${result.trustScore}) for vehicle ${vehicleId} — possible fraud`,
+      );
+    }
   }
 
   async getMyVehicles(userId: string) {
@@ -177,6 +241,57 @@ export class VehiclesService {
       throw new NotFoundException('Vehicle not found');
     }
     return vehicle;
+  }
+
+  async getVehicleAnalysis(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: {
+        id: true,
+        licensePlate: true,
+        status: true,
+        documentAnalysisScore: true,
+        documentAnalysisFlags: true,
+        documentAnalysisRaw: true,
+        documentAnalyzedAt: true,
+      },
+    });
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    let analysisDetails: unknown = null;
+    if (vehicle.documentAnalysisRaw) {
+      try {
+        analysisDetails = JSON.parse(vehicle.documentAnalysisRaw);
+      } catch {
+        analysisDetails = vehicle.documentAnalysisRaw;
+      }
+    }
+
+    return {
+      vehicleId: vehicle.id,
+      licensePlate: vehicle.licensePlate,
+      status: vehicle.status,
+      analysis: {
+        trustScore: vehicle.documentAnalysisScore,
+        flags: vehicle.documentAnalysisFlags,
+        analyzedAt: vehicle.documentAnalyzedAt,
+        details: analysisDetails,
+        riskLevel:
+          vehicle.documentAnalysisScore === null
+            ? 'NOT_ANALYZED'
+            : vehicle.documentAnalysisScore < 0
+              ? 'UNAVAILABLE'
+              : vehicle.documentAnalysisScore < 30
+                ? 'HIGH_RISK'
+                : vehicle.documentAnalysisScore < 60
+                  ? 'MEDIUM_RISK'
+                  : vehicle.documentAnalysisScore < 80
+                    ? 'LOW_RISK'
+                    : 'CLEAN',
+      },
+    };
   }
 
   async reviewVehicle(

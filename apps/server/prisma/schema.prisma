@@ -701,6 +701,12 @@ model BackgroundCheck {
   consentVersion    String?
   consentTextHash   String?
 
+  // Document Analysis (Google Cloud Vision)
+  documentAnalysisScore  Float?   // 0-100 trust score
+  documentAnalysisFlags  String[] // e.g. ["INCONSISTENT_FONTS", "MISSING_SEAL"]
+  documentAnalysisRaw    String?  // Full JSON from GCV analysis
+  documentAnalyzedAt     DateTime?
+
   // Assignment routing
   assignedTo         String?          @db.ObjectId
   assignedCapability AdminCapability?
@@ -1263,6 +1269,12 @@ model Vehicle {
   adminNotes String?
   reviewedBy String?                   @db.ObjectId
   reviewedAt DateTime?
+
+  // Document Analysis (Google Cloud Vision) — for vehicle license
+  documentAnalysisScore Float?   // 0-100 trust score
+  documentAnalysisFlags String[] // e.g. ["PLATE_MISMATCH", "EDITED_IMAGE"]
+  documentAnalysisRaw   String?  // Full JSON from GCV analysis
+  documentAnalyzedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

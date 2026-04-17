@@ -353,6 +353,7 @@ export default function Settings() {
             phoneVerified: false,
             idStatus: "pending",
             backgroundStatus: "pending",
+            vehicleStatus: "not_registered",
           });
         } else {
           // Regular user profile structure
@@ -1781,7 +1782,7 @@ export default function Settings() {
                     <Row
                       onPress={() => {
                         if (verification.vehicleStatus !== "verified") {
-                          router.push("/kyc-capture" as never);
+                          router.push("/kyc" as never);
                         }
                       }}
                     >

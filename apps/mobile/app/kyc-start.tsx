@@ -6,6 +6,8 @@ import {
   Alert,
   StyleSheet,
   Platform,
+  ScrollView,
+  Linking,
 } from "react-native";
 import GradientBackground from "../components/GradientBackground";
 import * as SecureStore from "expo-secure-store";
@@ -15,11 +17,10 @@ import { getApiBase } from "../lib/api";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { ActivityIndicator } from "react-native";
+import { Feather } from "@expo/vector-icons";
 
 // Helper function to decode JWT token (without verification)
-function decodeJwtPayload(
-  token: string,
-): {
+function decodeJwtPayload(token: string): {
   exp?: number;
   iat?: number;
   sub?: string;
@@ -112,7 +113,7 @@ export default function KycStartScreen() {
               ].includes(status)
             ) {
               router.replace({
-                pathname: "/kyc-capture",
+                pathname: "/kyc",
                 params: { verificationId: currentVerification.id },
               } as never);
               return;
@@ -341,7 +342,7 @@ export default function KycStartScreen() {
                       text: t("common.continue"),
                       onPress: () => {
                         router.replace({
-                          pathname: "/kyc-capture",
+                          pathname: "/kyc",
                           params: { verificationId: currentVerification.id },
                         } as never);
                       },
@@ -386,7 +387,7 @@ export default function KycStartScreen() {
       Alert.alert(t("kyc.kycStarted"), t("kyc.kycStartedMessage"));
       if (verificationId) {
         router.replace({
-          pathname: "/kyc-capture",
+          pathname: "/kyc",
           params: { verificationId },
         } as never);
       } else {
@@ -439,13 +440,13 @@ export default function KycStartScreen() {
               {
                 backgroundColor: isDark
                   ? "rgba(201,150,63,0.12)"
-                  : "rgba(184,130,42,0.06)",
+                  : "rgba(184,130,42,0.10)",
                 borderColor: isDark
                   ? "rgba(201,150,63,0.25)"
-                  : "rgba(184,130,42,0.2)",
+                  : "rgba(184,130,42,0.30)",
               },
             ]}
-            onPress={() => router.back()}
+            onPress={() => router.replace("/user-home" as never)}
           >
             <Text style={[styles.topButtonText, { color: colors.text }]}>
               {t("common.back")}
@@ -453,19 +454,212 @@ export default function KycStartScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.contentContainer}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={[styles.title, { color: colors.text }]}>
             {t("kyc.verifyIdentity")}
           </Text>
           <Text
             style={[
               styles.subtitle,
-              { color: isDark ? "rgba(240,232,213,0.7)" : "#8A7B68" },
+              { color: isDark ? "rgba(240,232,213,0.7)" : "#4A3D2E" },
             ]}
           >
             {t("kyc.verifyIdentitySubtitle")}
           </Text>
 
+          {/* Why we verify */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark
+                  ? "rgba(201,150,63,0.08)"
+                  : "rgba(184,130,42,0.08)",
+                borderColor: isDark
+                  ? "rgba(201,150,63,0.2)"
+                  : "rgba(184,130,42,0.25)",
+              },
+            ]}
+          >
+            <Text style={[styles.infoTitle, { color: colors.text }]}>
+              {t("kyc.whyWeVerifyTitle")}
+            </Text>
+            <Text
+              style={[
+                styles.infoText,
+                { color: isDark ? "rgba(240,232,213,0.7)" : "#4A3D2E" },
+              ]}
+            >
+              {t("kyc.whyWeVerifyBody")}
+            </Text>
+          </View>
+
+          {/* What we collect */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark
+                  ? "rgba(201,150,63,0.08)"
+                  : "rgba(184,130,42,0.08)",
+                borderColor: isDark
+                  ? "rgba(201,150,63,0.2)"
+                  : "rgba(184,130,42,0.25)",
+              },
+            ]}
+          >
+            <Text style={[styles.infoTitle, { color: colors.text }]}>
+              {t("kyc.whatWeCollectTitle")}
+            </Text>
+            {[
+              t("kyc.collectItem1"),
+              t("kyc.collectItem2"),
+              t("kyc.collectItem3"),
+              t("kyc.collectItem4"),
+              t("kyc.collectItem5"),
+            ].map((item, idx) => (
+              <View key={idx} style={styles.bulletRow}>
+                <Feather
+                  name="check-circle"
+                  size={14}
+                  color={isDark ? "#C9963F" : "#A67A25"}
+                  style={styles.bulletIcon}
+                />
+                <Text
+                  style={[
+                    styles.bulletText,
+                    { color: isDark ? "rgba(240,232,213,0.7)" : "#4A3D2E" },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* How we handle your data */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark
+                  ? "rgba(201,150,63,0.08)"
+                  : "rgba(184,130,42,0.08)",
+                borderColor: isDark
+                  ? "rgba(201,150,63,0.2)"
+                  : "rgba(184,130,42,0.25)",
+              },
+            ]}
+          >
+            <Text style={[styles.infoTitle, { color: colors.text }]}>
+              {t("kyc.howWeHandleTitle")}
+            </Text>
+            {[
+              t("kyc.handleItem1"),
+              t("kyc.handleItem2"),
+              t("kyc.handleItem3"),
+              t("kyc.handleItem4"),
+            ].map((item, idx) => (
+              <View key={idx} style={styles.bulletRow}>
+                <Feather
+                  name="shield"
+                  size={14}
+                  color={isDark ? "#10B981" : "#059669"}
+                  style={styles.bulletIcon}
+                />
+                <Text
+                  style={[
+                    styles.bulletText,
+                    { color: isDark ? "rgba(240,232,213,0.7)" : "#4A3D2E" },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Processor disclosure */}
+          <Text
+            style={[
+              styles.processorNote,
+              { color: isDark ? "rgba(240,232,213,0.5)" : "#6B5D4E" },
+            ]}
+          >
+            {t("kyc.processorDisclosure")}
+          </Text>
+
+          {/* Privacy policy link */}
+          <TouchableOpacity
+            onPress={() => Linking.openURL("https://nasta.app/privacy")}
+            style={styles.privacyLink}
+          >
+            <Feather
+              name="external-link"
+              size={14}
+              color={isDark ? "#C9963F" : "#A67A25"}
+            />
+            <Text
+              style={[
+                styles.privacyLinkText,
+                { color: isDark ? "#C9963F" : "#A67A25" },
+              ]}
+            >
+              {t("kyc.readPrivacyPolicy")}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Preparation note */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark
+                  ? "rgba(245,158,11,0.08)"
+                  : "rgba(245,158,11,0.08)",
+                borderColor: isDark
+                  ? "rgba(245,158,11,0.2)"
+                  : "rgba(245,158,11,0.25)",
+              },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <Feather
+                name="alert-circle"
+                size={16}
+                color={isDark ? "#fbbf24" : "#d97706"}
+                style={{ marginRight: 8 }}
+              />
+              <Text
+                style={[
+                  styles.infoTitle,
+                  { color: isDark ? "#fbbf24" : "#d97706", marginBottom: 0 },
+                ]}
+              >
+                {t("kyc.prepareDocsTitle")}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.infoText,
+                { color: isDark ? "rgba(240,232,213,0.7)" : "#4A3D2E" },
+              ]}
+            >
+              {t("kyc.prepareDocsBody")}
+            </Text>
+          </View>
+
+          {/* Consent checkbox */}
           <TouchableOpacity
             onPress={() => setConsent((v) => !v)}
             style={styles.checkboxRow}
@@ -499,7 +693,9 @@ export default function KycStartScreen() {
                 </Text>
               )}
             </View>
-            <Text style={[styles.checkboxLabel, { color: colors.text }]}>
+            <Text
+              style={[styles.checkboxLabel, { color: colors.text, flex: 1 }]}
+            >
               {t("kyc.consentToChecks")}
             </Text>
           </TouchableOpacity>
@@ -549,13 +745,13 @@ export default function KycStartScreen() {
             <Text
               style={[
                 styles.secondaryText,
-                { color: isDark ? "rgba(240,232,213,0.8)" : "#8A7B68" },
+                { color: isDark ? "rgba(240,232,213,0.8)" : "#5C4D3C" },
               ]}
             >
               {t("kyc.doThisLater")}
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -580,6 +776,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingBottom: 40,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+    paddingTop: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: "800",
@@ -587,16 +790,63 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   subtitle: {
-    marginBottom: 32,
+    marginBottom: 24,
     fontSize: 16,
     textAlign: "center",
     lineHeight: 22,
   },
-  checkboxRow: {
+  infoCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 6,
+  },
+  bulletIcon: {
+    marginRight: 8,
+    marginTop: 2,
+  },
+  bulletText: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
+  processorNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center",
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  privacyLink: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 32,
     justifyContent: "center",
+    marginBottom: 24,
+    gap: 6,
+  },
+  privacyLinkText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 24,
   },
   checkbox: {
     width: 24,

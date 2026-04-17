@@ -3,9 +3,11 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { KycFileUploadService } from './file-upload.service';
+import { DiditVerificationService } from './didit-verification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailTranslationsService } from '../notifications/email-translations.service';
 
@@ -18,9 +20,12 @@ type VerificationType =
 
 @Injectable()
 export class KycService {
+  private readonly logger = new Logger(KycService.name);
+
   constructor(
     private prisma: PrismaService,
     private uploads: KycFileUploadService,
+    private diditVerification: DiditVerificationService,
     private notifications: NotificationsService,
     private emailTranslations: EmailTranslationsService,
   ) {}
@@ -138,7 +143,340 @@ export class KycService {
       });
     }
 
-    return { ...updated, message: 'Documents uploaded. Awaiting review.' };
+    // Trigger Didit verification if all required documents are present
+    const frontUrl =
+      (updates.documentFrontUrl as string) || kyc.documentFrontUrl;
+    const selfieUrl = (updates.selfieUrl as string) || kyc.selfieUrl;
+    const backUrl = (updates.documentBackUrl as string) || kyc.documentBackUrl;
+    const isDriversLicense = kyc.verificationType === 'DRIVERS_LICENSE';
+
+    if (frontUrl && (isDriversLicense || selfieUrl)) {
+      this.triggerDiditVerification(
+        verificationId,
+        userId,
+        frontUrl,
+        selfieUrl || undefined,
+        backUrl || undefined,
+        isDriversLicense,
+      );
+    }
+
+    return {
+      ...updated,
+      message: 'Documents uploaded. Verification in progress.',
+    };
+  }
+
+  /**
+   * Trigger Didit verification asynchronously (fire-and-forget).
+   * Updates the verification record with results when done.
+   */
+  private triggerDiditVerification(
+    verificationId: string,
+    userId: string,
+    documentFrontUrl: string,
+    selfieUrl?: string,
+    documentBackUrl?: string,
+    isDriversLicense = false,
+  ): void {
+    // Run async — don't block the upload response
+    (async () => {
+      try {
+        // Update status to IN_PROGRESS
+        await this.prisma.idVerification.update({
+          where: { id: verificationId },
+          data: { status: 'IN_PROGRESS' },
+        });
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { idVerificationStatus: 'IN_PROGRESS' },
+        });
+
+        let result;
+        if (isDriversLicense) {
+          result = await this.diditVerification.verifyDriversLicense(
+            documentFrontUrl,
+            userId,
+            documentBackUrl,
+          );
+        } else {
+          result = await this.diditVerification.verifyIdentity(
+            documentFrontUrl,
+            selfieUrl!,
+            userId,
+            documentBackUrl,
+          );
+        }
+
+        // Map Didit result to our status
+        // Approvals → MANUAL_REVIEW for admin to confirm
+        // Rejections → FAILED, notify user to redo
+        // Ambiguous → MANUAL_REVIEW for admin
+        const updates: Record<string, unknown> = {};
+        if (result.overallStatus === 'Approved') {
+          updates.status = 'MANUAL_REVIEW';
+        } else if (result.overallStatus === 'Declined') {
+          updates.status = 'FAILED';
+        } else {
+          updates.status = 'MANUAL_REVIEW';
+        }
+
+        // Store verification data
+        if (result.faceMatch) {
+          updates.faceMatch = result.faceMatch.face_match.score;
+        }
+        if (result.liveness) {
+          updates.livenessCheck =
+            result.liveness.liveness.status === 'Approved';
+        }
+        if (result.faceMatch?.face_match.score != null) {
+          updates.confidence = result.faceMatch.face_match.score / 100;
+        }
+
+        // Extract document data from ID verification
+        const idv = result.idVerification?.id_verification;
+        if (idv) {
+          updates.extractedData = {
+            firstName: idv.first_name,
+            lastName: idv.last_name,
+            fullName: idv.full_name,
+            dateOfBirth: idv.date_of_birth,
+            documentNumber: idv.document_number,
+            documentType: idv.document_type,
+            expirationDate: idv.expiration_date,
+            issuingState: idv.issuing_state,
+            issuingStateName: idv.issuing_state_name,
+            nationality: idv.nationality,
+            gender: idv.gender,
+            warnings: idv.warnings,
+          };
+          // extractedBy is @db.ObjectId — store provider name in extractedData instead
+          updates.extractedAt = new Date();
+
+          if (idv.document_number) updates.documentNumber = idv.document_number;
+          if (idv.issuing_state) updates.documentCountry = idv.issuing_state;
+          if (idv.expiration_date) {
+            const exp = new Date(idv.expiration_date);
+            if (!isNaN(exp.getTime())) updates.documentExpiry = exp;
+          }
+        }
+
+        // Store errors/warnings in fraudChecks
+        const allWarnings = [
+          ...(idv?.warnings ?? []),
+          ...(result.liveness?.liveness.warnings ?? []),
+          ...(result.faceMatch?.face_match.warnings ?? []),
+        ];
+        if (allWarnings.length > 0 || result.errors.length > 0) {
+          updates.fraudChecks = {
+            warnings: allWarnings,
+            errors: result.errors,
+          };
+        }
+
+        // Store Didit request IDs as provider reference
+        const requestIds = [
+          result.idVerification?.request_id,
+          result.liveness?.request_id,
+          result.faceMatch?.request_id,
+        ].filter(Boolean);
+        if (requestIds.length > 0) {
+          updates.providerReference = requestIds.join(',');
+        }
+        updates.provider = 'didit';
+
+        await this.prisma.idVerification.update({
+          where: { id: verificationId },
+          data: updates,
+        });
+
+        // Update user verification status
+        // Approvals stay MANUAL_REVIEW — admin must confirm before isIdVerified is set
+        // Rejections → FAILED immediately
+        const finalStatus = updates.status as string;
+        const userUpdate: Record<string, unknown> = {
+          idVerificationStatus: finalStatus,
+        };
+        // Do NOT set isIdVerified here — admin review will do that
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: userUpdate,
+        });
+
+        // Send notifications
+        try {
+          const t = await this.emailTranslations.getTranslatorForUser(userId);
+          const lang = (await this.emailTranslations.getUserLanguage(userId))
+            ?.toLowerCase()
+            .startsWith('pt')
+            ? ('pt' as const)
+            : ('en' as const);
+          const docTypeKey = isDriversLicense ? 'dlFailed' : 'idFailed';
+          const docTypeLabel = t(
+            isDriversLicense
+              ? 'email.kyc.documentTypeDl'
+              : 'email.kyc.documentTypeId',
+          );
+
+          if (finalStatus === 'FAILED') {
+            // Rejection → notify user via in-app + push + email
+            await this.notifications.createNotification({
+              userId,
+              type: 'SYSTEM',
+              title: t(
+                isDriversLicense
+                  ? 'email.kyc.notificationDlFailed'
+                  : 'email.kyc.notificationIdFailed',
+              ),
+              body: t(
+                isDriversLicense
+                  ? 'email.kyc.notificationDlFailedBody'
+                  : 'email.kyc.notificationIdFailedBody',
+              ),
+            });
+
+            // Send email notification for rejection
+            const user = await this.prisma.user.findUnique({
+              where: { id: userId },
+              select: { email: true, firstName: true },
+            });
+            if (user?.email) {
+              const firstName = user.firstName || t('email.common.there');
+              const subject = t(`email.kyc.${docTypeKey}Subject`);
+              const text = t(`email.kyc.${docTypeKey}Text`, { firstName });
+              const html = this.notifications.getKycVerificationHtml(
+                t(`email.kyc.${docTypeKey}Greeting` as any, { firstName }) ||
+                  t('email.kyc.idFailedGreeting', { firstName }),
+                t(`email.kyc.${docTypeKey}Header`),
+                t(`email.kyc.${docTypeKey}Message`),
+                {
+                  label:
+                    t(`email.kyc.${docTypeKey}NextSteps` as any) ||
+                    t('email.kyc.idFailedNextSteps'),
+                  items: [
+                    t(`email.kyc.${docTypeKey}Step1`),
+                    t(`email.kyc.${docTypeKey}Step2`),
+                    t(`email.kyc.${docTypeKey}Step3`),
+                    t(`email.kyc.${docTypeKey}Step4`),
+                  ],
+                },
+                lang,
+                t,
+                'error',
+              );
+              await this.notifications.sendEmail(
+                user.email,
+                subject,
+                text,
+                html,
+              );
+            }
+          } else if (
+            finalStatus === 'MANUAL_REVIEW' &&
+            result.overallStatus === 'Approved'
+          ) {
+            // Didit approved — notify user their docs are pending admin confirmation
+            await this.notifications.createNotification({
+              userId,
+              type: 'SYSTEM',
+              title: t('email.kyc.notificationUnderReview', {
+                documentType: docTypeLabel,
+              }),
+              body: t('email.kyc.notificationUnderReviewBody'),
+            });
+
+            // Send email to user about under-review status
+            const user = await this.prisma.user.findUnique({
+              where: { id: userId },
+              select: { firstName: true, lastName: true, email: true },
+            });
+            if (user?.email) {
+              const firstName = user.firstName || t('email.common.there');
+              const subject = t('email.kyc.underReviewSubject');
+              const text = t('email.kyc.underReviewText', {
+                firstName,
+                documentType: docTypeLabel,
+              });
+              const html = this.notifications.getKycVerificationHtml(
+                t('email.kyc.underReviewGreeting', { firstName }),
+                t('email.kyc.underReviewHeader'),
+                t('email.kyc.underReviewMessage', {
+                  documentType: docTypeLabel,
+                }),
+                {
+                  label: t('email.kyc.underReviewNextSteps'),
+                  items: [
+                    t('email.kyc.underReviewStep1'),
+                    t('email.kyc.underReviewStep2'),
+                    t('email.kyc.underReviewStep3'),
+                  ],
+                },
+                lang,
+                t,
+                'info',
+              );
+              await this.notifications.sendEmail(
+                user.email,
+                subject,
+                text,
+                html,
+              );
+            }
+
+            // Notify all active admins that a new verification needs review
+            const admins = await this.prisma.admin.findMany({
+              where: { isActive: true },
+              select: { email: true, firstName: true },
+            });
+            const userForAdmin =
+              user ??
+              (await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { firstName: true, lastName: true, email: true },
+              }));
+            const userName = userForAdmin
+              ? `${userForAdmin.firstName || ''} ${userForAdmin.lastName || ''}`.trim() ||
+                userForAdmin.email
+              : userId;
+            const adminT = this.emailTranslations.getTranslator('en');
+            for (const admin of admins) {
+              const adminSubject = adminT('email.kyc.adminNotifySubject');
+              const adminText = adminT('email.kyc.adminNotifyText', {
+                adminName: admin.firstName || 'Admin',
+                documentType: isDriversLicense ? "driver's license" : 'ID',
+                userName,
+              });
+              await this.notifications.sendEmail(
+                admin.email,
+                adminSubject,
+                adminText,
+              );
+            }
+          }
+        } catch (notifError) {
+          this.logger.warn(
+            `Failed to send verification notification: ${notifError}`,
+          );
+        }
+
+        this.logger.log(
+          `Didit verification complete: verification=${verificationId} status=${finalStatus}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Didit verification failed for ${verificationId}: ${error}`,
+        );
+        // Fallback to manual review on error
+        await this.prisma.idVerification.update({
+          where: { id: verificationId },
+          data: { status: 'MANUAL_REVIEW' },
+        });
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { idVerificationStatus: 'MANUAL_REVIEW' },
+        });
+      }
+    })();
   }
 
   async uploadCertification(
@@ -559,6 +897,9 @@ export class KycService {
         certificateNumber: true,
         submittedAt: true,
         createdAt: true,
+        documentAnalysisScore: true,
+        documentAnalysisFlags: true,
+        documentAnalyzedAt: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -715,6 +1056,82 @@ export class KycService {
           | 'MANUAL_REVIEW',
       },
     });
+
+    // Notify user of admin decision via in-app + push + email
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: kyc.userId },
+        select: { email: true, firstName: true },
+      });
+      const t = await this.emailTranslations.getTranslatorForUser(kyc.userId);
+      const lang = (await this.emailTranslations.getUserLanguage(kyc.userId))
+        ?.toLowerCase()
+        .startsWith('pt')
+        ? ('pt' as const)
+        : ('en' as const);
+
+      if (verified) {
+        await this.notifications.createNotification({
+          userId: kyc.userId,
+          type: 'SYSTEM',
+          title: t('email.kyc.notificationApproved'),
+          body: t('email.kyc.notificationApprovedBody'),
+        });
+        if (user?.email) {
+          const firstName = user.firstName || t('email.common.there');
+          const subject = t('email.kyc.adminApprovedSubject');
+          const text = t('email.kyc.adminApprovedText', { firstName });
+          const html = this.notifications.getKycVerificationHtml(
+            t('email.kyc.adminApprovedGreeting', { firstName }),
+            t('email.kyc.adminApprovedHeader'),
+            t('email.kyc.adminApprovedMessage'),
+            {
+              label: t('email.kyc.whatToDoNext'),
+              items: [t('email.kyc.instruction1')],
+            },
+            lang,
+            t,
+            'success',
+          );
+          await this.notifications.sendEmail(user.email, subject, text, html);
+        }
+      } else {
+        await this.notifications.createNotification({
+          userId: kyc.userId,
+          type: 'SYSTEM',
+          title: t('email.kyc.notificationRejected'),
+          body: t('email.kyc.notificationRejectedBody'),
+        });
+        if (user?.email) {
+          const firstName = user.firstName || t('email.common.there');
+          const subject = t('email.kyc.adminRejectedSubject');
+          const text = t('email.kyc.adminRejectedText', { firstName });
+          const html = this.notifications.getKycVerificationHtml(
+            t('email.kyc.adminRejectedGreeting', { firstName }),
+            t('email.kyc.adminRejectedHeader'),
+            t('email.kyc.adminRejectedMessage'),
+            {
+              label: t('email.kyc.idFailedNextSteps'),
+              items: [
+                t('email.kyc.idFailedStep1'),
+                t('email.kyc.idFailedStep2'),
+                t('email.kyc.idFailedStep3'),
+                t('email.kyc.idFailedStep4'),
+              ],
+            },
+            lang,
+            t,
+            'error',
+          );
+          await this.notifications.sendEmail(user.email, subject, text, html);
+        }
+      }
+    } catch (notifError) {
+      this.logger.warn(
+        `Failed to send admin review notification: ${notifError}`,
+      );
+    }
+
     return {
       id: updated.id,
       status: updated.status,

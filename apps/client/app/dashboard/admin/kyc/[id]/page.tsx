@@ -30,6 +30,9 @@ interface Vehicle {
   status: string;
   adminNotes?: string;
   createdAt: string;
+  documentAnalysisScore?: number | null;
+  documentAnalysisFlags?: string[];
+  documentAnalyzedAt?: string | null;
 }
 
 interface ExtractedData {
@@ -107,6 +110,9 @@ interface VerificationDetail {
     certificateNumber?: string;
     submittedAt?: string;
     createdAt: string;
+    documentAnalysisScore?: number | null;
+    documentAnalysisFlags?: string[];
+    documentAnalyzedAt?: string | null;
   };
   vehicles?: Vehicle[];
 }
@@ -128,6 +134,97 @@ function statusColor(s: string) {
     return "bg-green-500/20 text-green-300";
   if (s === "REJECTED" || s === "FAILED") return "bg-red-500/20 text-red-300";
   return "bg-[var(--surface-alt)] text-[var(--muted-text)]";
+}
+
+function riskLevel(score: number | null | undefined): {
+  label: string;
+  color: string;
+} {
+  if (score === null || score === undefined)
+    return { label: "Not Analyzed", color: "text-[var(--muted-text)]" };
+  if (score < 0)
+    return { label: "Unavailable", color: "text-[var(--muted-text)]" };
+  if (score < 30) return { label: "High Risk", color: "text-red-400" };
+  if (score < 60) return { label: "Medium Risk", color: "text-orange-400" };
+  if (score < 80) return { label: "Low Risk", color: "text-yellow-400" };
+  return { label: "Clean", color: "text-green-400" };
+}
+
+function AnalysisBadge({
+  score,
+  flags,
+  analyzedAt,
+}: {
+  score?: number | null;
+  flags?: string[];
+  analyzedAt?: string | null;
+}) {
+  if (score === null || score === undefined) {
+    return (
+      <div className="rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--background)] p-3">
+        <p className="text-xs text-[var(--muted-text)]">
+          Document analysis not yet available. It runs automatically after
+          upload.
+        </p>
+      </div>
+    );
+  }
+
+  const risk = riskLevel(score);
+  const hasFlags = flags && flags.length > 0;
+
+  return (
+    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--background)] p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-text)]">
+          Document Analysis (Google Cloud Vision)
+        </p>
+        {analyzedAt && (
+          <p className="text-[10px] text-[var(--muted-text)]">
+            Analyzed {formatDate(analyzedAt)}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl font-bold text-[var(--foreground)]">
+            {score < 0 ? "—" : score}
+          </span>
+          <span className="text-xs text-[var(--muted-text)]">/ 100</span>
+        </div>
+        <span
+          className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+            score < 30
+              ? "bg-red-500/20 text-red-300"
+              : score < 60
+                ? "bg-orange-500/20 text-orange-300"
+                : score < 80
+                  ? "bg-yellow-500/20 text-yellow-300"
+                  : "bg-green-500/20 text-green-300"
+          }`}
+        >
+          {risk.label}
+        </span>
+      </div>
+      {hasFlags && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-text)] mb-1.5">
+            Flags
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {flags.map((flag) => (
+              <span
+                key={flag}
+                className="inline-block rounded-md bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] text-red-300"
+              >
+                {flag.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatDate(d: string) {
@@ -1917,6 +2014,13 @@ export default function KYCDetailPage() {
                     </p>
                   </div>
                 )}
+                <div className="mt-3">
+                  <AnalysisBadge
+                    score={v.documentAnalysisScore}
+                    flags={v.documentAnalysisFlags}
+                    analyzedAt={v.documentAnalyzedAt}
+                  />
+                </div>
               </Section>
             ))
           )}
@@ -1976,6 +2080,11 @@ export default function KYCDetailPage() {
                   )}
                 </div>
               )}
+              <AnalysisBadge
+                score={data.backgroundCheck.documentAnalysisScore}
+                flags={data.backgroundCheck.documentAnalysisFlags}
+                analyzedAt={data.backgroundCheck.documentAnalyzedAt}
+              />
             </div>
           ) : (
             <p className="text-xs text-[var(--muted-text)]">

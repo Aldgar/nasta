@@ -1,12 +1,35 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 import { chatUploadConfig } from './config/file-upload.config';
 
 @Injectable()
 export class ChatFileUploadService {
+  private readonly logger = new Logger(ChatFileUploadService.name);
+  private readonly useCloudinary: boolean;
+
   constructor() {
-    this.ensureUploadDirectoryExists();
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    this.useCloudinary = !!(cloudName && apiKey && apiSecret);
+
+    if (this.useCloudinary) {
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        secure: true,
+      });
+      this.logger.log('Cloudinary configured for chat file uploads');
+    } else {
+      this.logger.warn(
+        'Cloudinary not configured – falling back to local disk for chat uploads.',
+      );
+      this.ensureUploadDirectoryExists();
+    }
   }
 
   private ensureUploadDirectoryExists() {
@@ -24,19 +47,13 @@ export class ChatFileUploadService {
     }
 
     if (type === 'image') {
-      const imageTypes = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-      ];
+      const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       if (!imageTypes.includes(file.mimetype)) {
         throw new BadRequestException(
           'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP',
         );
       }
     } else {
-      // For documents, allow all configured types
       if (!chatUploadConfig.allowedMimeTypes.includes(file.mimetype)) {
         throw new BadRequestException(
           'Invalid file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, TXT, Images',
@@ -50,6 +67,46 @@ export class ChatFileUploadService {
     type: 'image' | 'document',
   ): Promise<string> {
     this.validateFile(file, type);
+
+    if (this.useCloudinary) {
+      return this.uploadToCloudinary(file, type);
+    }
+    return this.saveToLocalDisk(file, type);
+  }
+
+  private async uploadToCloudinary(
+    file: Express.Multer.File,
+    type: 'image' | 'document',
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const resourceType = type === 'image' ? 'image' : 'raw';
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'nasta/chat',
+          resource_type: resourceType,
+          ...(type === 'image'
+            ? {
+                transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+              }
+            : {}),
+        },
+        (error, result) => {
+          if (error || !result) {
+            this.logger.error('Cloudinary chat upload failed', error);
+            reject(new BadRequestException('Failed to upload file'));
+            return;
+          }
+          resolve(result.secure_url);
+        },
+      );
+      uploadStream.end(file.buffer);
+    });
+  }
+
+  private async saveToLocalDisk(
+    file: Express.Multer.File,
+    type: 'image' | 'document',
+  ): Promise<string> {
     const filename = chatUploadConfig.generateFileName(file.originalname, type);
     const filePath = path.join(chatUploadConfig.uploadPath, filename);
     try {
@@ -60,4 +117,3 @@ export class ChatFileUploadService {
     }
   }
 }
-

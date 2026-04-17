@@ -45,6 +45,7 @@ export const Colors = {
     inputBorder: "rgba(184, 130, 42, 0.3)",
     placeholder: "#94a3b8",
     subtle: "rgba(184, 130, 42, 0.06)",
+    danger: "#EF4444",
   },
   dark: {
     text: "#F0E8D5",
@@ -82,6 +83,7 @@ export const Colors = {
     inputBorder: "rgba(201, 150, 63, 0.2)",
     placeholder: "#9ca3af",
     subtle: "rgba(201, 150, 63, 0.08)",
+    danger: "#EF4444",
   },
 };
 

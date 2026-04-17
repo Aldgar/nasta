@@ -2072,7 +2072,7 @@ export default function JobDetailScreen() {
         <ScrollView
           style={styles.content}
           contentContainerStyle={{
-            paddingBottom: Platform.OS === "android" ? 40 : 20,
+            paddingBottom: Platform.OS === "android" ? 80 : 20,
           }}
           showsVerticalScrollIndicator={true}
           nestedScrollEnabled={Platform.OS === "android"}

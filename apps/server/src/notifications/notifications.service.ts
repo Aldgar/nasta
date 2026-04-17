@@ -716,6 +716,93 @@ export class NotificationsService {
     `.trim();
   }
 
+  getKycVerificationHtml(
+    greeting: string,
+    header: string,
+    message: string,
+    steps: { label: string; items: string[] },
+    language: 'en' | 'pt' = 'en',
+    t: (key: string, params?: any) => string,
+    variant: 'success' | 'error' | 'info' = 'info',
+  ): string {
+    const accentColor =
+      variant === 'success'
+        ? '#2ECC71'
+        : variant === 'error'
+          ? '#E74C3C'
+          : '#C9963F';
+    const statusIcon =
+      variant === 'success' ? '✓' : variant === 'error' ? '✗' : '⏳';
+    return `
+<!DOCTYPE html>
+<html lang="${language}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${header}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #080F1E;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #080F1E;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #0D1A30; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 1px rgba(201, 150, 63, 0.2);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid ${accentColor}; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0; color: #F5E6C8; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">${t('email.common.brandName')}</h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <!-- Status Icon -->
+              <div style="text-align: center; margin-bottom: 24px;">
+                <span style="display: inline-block; width: 56px; height: 56px; line-height: 56px; font-size: 28px; border-radius: 50%; background-color: ${accentColor}20; color: ${accentColor}; border: 2px solid ${accentColor};">${statusIcon}</span>
+              </div>
+
+              <h2 style="margin: 0 0 20px; color: #F5E6C8; font-size: 24px; font-weight: 600; text-align: center;">${header}</h2>
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${greeting}
+              </p>
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${message}
+              </p>
+
+              <!-- Steps -->
+              <div style="margin: 32px 0; padding: 20px; background-color: #0E1B32; border-radius: 8px;">
+                <p style="margin: 0 0 12px; color: #F5E6C8; font-size: 16px; font-weight: 600;">
+                  ${steps.label}:
+                </p>
+                <ol style="margin: 0; padding-left: 20px; color: #B8A88A; font-size: 14px; line-height: 1.8;">
+                  ${steps.items.map((s) => `<li style="margin-bottom: 8px;">${s}</li>`).join('\n                  ')}
+                </ol>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px 40px; background-color: #0E1B32; border-radius: 0 0 12px 12px; border-top: 1px solid #1E3048;">
+              <p style="margin: 0; color: #8B7A5E; font-size: 14px; line-height: 1.6;">
+                ${t('email.common.supportMessage')}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer Text -->
+        <p style="margin: 24px 0 0; color: #5C4F3A; font-size: 12px; text-align: center;">
+          ${t('email.common.copyright', { year: new Date().getFullYear().toString() })}
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
+
   private getEmailVerifiedHtml(
     firstName: string,
     t: (key: string, params?: any) => string,

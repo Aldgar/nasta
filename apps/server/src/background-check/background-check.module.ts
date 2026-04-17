@@ -5,9 +5,10 @@ import { FileUploadService } from './file-upload.service'; // Add this import
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminGuard } from './guards/admin.guard'; // Add this import
 import { NotificationsModule } from '../notifications/notifications.module';
+import { DocumentAnalysisModule } from '../document-analysis/document-analysis.module';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, DocumentAnalysisModule],
   controllers: [BackgroundCheckController],
   providers: [
     BackgroundCheckService,

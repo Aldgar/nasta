@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -8,6 +14,8 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -54,7 +62,7 @@ export default function LegalAcceptanceScreen() {
         key: "platform_rules",
       },
     ],
-    [t, language]
+    [t, language],
   );
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -62,6 +70,9 @@ export default function LegalAcceptanceScreen() {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const contentHeightRef = useRef(0);
+  const layoutHeightRef = useRef(0);
 
   useEffect(() => {
     // Always start from the first page when component mounts
@@ -168,6 +179,9 @@ export default function LegalAcceptanceScreen() {
       if (currentPageIndex < legalPages.length - 1) {
         setCurrentPageIndex(currentPageIndex + 1);
         setScrolledToBottom(false);
+        contentHeightRef.current = 0;
+        layoutHeightRef.current = 0;
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       } else {
         // All pages accepted, proceed to registration
         handleAllAccepted();
@@ -189,14 +203,48 @@ export default function LegalAcceptanceScreen() {
     }
   };
 
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 100;
-    const isAtBottom =
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom;
-    setScrolledToBottom(isAtBottom);
-  };
+  const checkIfContentFits = useCallback(() => {
+    // If content fits entirely on screen, no scrolling needed
+    if (
+      contentHeightRef.current > 0 &&
+      layoutHeightRef.current > 0 &&
+      contentHeightRef.current <= layoutHeightRef.current + 20
+    ) {
+      setScrolledToBottom(true);
+    }
+  }, []);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } =
+        event.nativeEvent;
+      const paddingToBottom = 80;
+      const isAtBottom =
+        layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - paddingToBottom;
+      // Latch: once scrolled to bottom, stay enabled until page changes
+      if (isAtBottom) {
+        setScrolledToBottom(true);
+      }
+    },
+    [],
+  );
+
+  const handleContentSizeChange = useCallback(
+    (_w: number, h: number) => {
+      contentHeightRef.current = h;
+      checkIfContentFits();
+    },
+    [checkIfContentFits],
+  );
+
+  const handleLayout = useCallback(
+    (event: any) => {
+      layoutHeightRef.current = event.nativeEvent.layout.height;
+      checkIfContentFits();
+    },
+    [checkIfContentFits],
+  );
 
   const parseMarkdown = (text: string) => {
     const lines = text.split("\n");
@@ -215,26 +263,26 @@ export default function LegalAcceptanceScreen() {
         elements.push(
           <Text key={key++} style={[styles.h1, { color: colors.text }]}>
             {trimmed.substring(2)}
-          </Text>
+          </Text>,
         );
       } else if (trimmed.startsWith("## ")) {
         elements.push(
           <Text key={key++} style={[styles.h2, { color: colors.text }]}>
             {trimmed.substring(3)}
-          </Text>
+          </Text>,
         );
       } else if (trimmed.startsWith("### ")) {
         elements.push(
           <Text key={key++} style={[styles.h3, { color: colors.text }]}>
             {trimmed.substring(4)}
-          </Text>
+          </Text>,
         );
       } else if (trimmed.startsWith("**") && trimmed.endsWith("**")) {
         const boldText = trimmed.substring(2, trimmed.length - 2);
         elements.push(
           <Text key={key++} style={[styles.bold, { color: colors.text }]}>
             {boldText}
-          </Text>
+          </Text>,
         );
       } else if (trimmed.startsWith("- ")) {
         const listText = trimmed.substring(2);
@@ -249,7 +297,7 @@ export default function LegalAcceptanceScreen() {
             >
               {listText}
             </Text>
-          </View>
+          </View>,
         );
       } else {
         elements.push(
@@ -261,7 +309,7 @@ export default function LegalAcceptanceScreen() {
             ]}
           >
             {trimmed}
-          </Text>
+          </Text>,
         );
       }
     });
@@ -318,9 +366,12 @@ export default function LegalAcceptanceScreen() {
 
         {/* Content */}
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           onScroll={handleScroll}
+          onContentSizeChange={handleContentSizeChange}
+          onLayout={handleLayout}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={true}
         >
@@ -643,7 +694,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sectionTitle: {
-    fontSize: 20, letterSpacing: 1.2, textTransform: "uppercase" as const,
+    fontSize: 20,
+    letterSpacing: 1.2,
+    textTransform: "uppercase" as const,
     fontWeight: "700",
     marginBottom: 20,
   },

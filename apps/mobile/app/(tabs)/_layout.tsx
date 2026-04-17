@@ -1,5 +1,7 @@
 import { Tabs } from "expo-router";
 import React, { useState } from "react";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { Colors } from "@/constants/theme";
@@ -14,6 +16,7 @@ export default function TabLayout() {
   const { colorScheme } = useTheme();
   const { t } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
+  const insets = useSafeAreaInsets();
 
   const fetchUnreadCount = async () => {
     try {
@@ -87,6 +90,10 @@ export default function TabLayout() {
               ? "rgba(201, 150, 63, 0.2)"
               : "rgba(212, 162, 78, 0.3)",
           borderTopWidth: 1,
+          ...(Platform.OS === "android" && {
+            paddingBottom: Math.max(insets.bottom, 12),
+            height: 60 + Math.max(insets.bottom, 12),
+          }),
         },
       }}
     >

@@ -3,19 +3,24 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { BackgroundCheckResult, BackgroundCheckStatus } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FileUploadService } from './file-upload.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DocumentAnalysisService } from '../document-analysis/document-analysis.service';
 
 @Injectable()
 export class BackgroundCheckService {
+  private readonly logger = new Logger(BackgroundCheckService.name);
+
   constructor(
     private prisma: PrismaService,
     private fileUploadService: FileUploadService,
-    private notifications: NotificationsService, // Change to type-only import
+    private notifications: NotificationsService,
+    private documentAnalysis: DocumentAnalysisService,
   ) {}
 
   async initiate(
@@ -118,6 +123,56 @@ export class BackgroundCheckService {
     return check.uploadedDocument ?? null;
   }
 
+  async getDocumentAnalysis(checkId: string) {
+    const check = await this.prisma.backgroundCheck.findUnique({
+      where: { id: checkId },
+      select: {
+        id: true,
+        status: true,
+        documentAnalysisScore: true,
+        documentAnalysisFlags: true,
+        documentAnalysisRaw: true,
+        documentAnalyzedAt: true,
+      },
+    });
+    if (!check) {
+      throw new NotFoundException('Background check not found');
+    }
+
+    // Parse the raw JSON for the admin to see structured details
+    let analysisDetails: unknown = null;
+    if (check.documentAnalysisRaw) {
+      try {
+        analysisDetails = JSON.parse(check.documentAnalysisRaw);
+      } catch {
+        analysisDetails = check.documentAnalysisRaw;
+      }
+    }
+
+    return {
+      checkId: check.id,
+      status: check.status,
+      analysis: {
+        trustScore: check.documentAnalysisScore,
+        flags: check.documentAnalysisFlags,
+        analyzedAt: check.documentAnalyzedAt,
+        details: analysisDetails,
+        riskLevel:
+          check.documentAnalysisScore === null
+            ? 'NOT_ANALYZED'
+            : check.documentAnalysisScore < 0
+              ? 'UNAVAILABLE'
+              : check.documentAnalysisScore < 30
+                ? 'HIGH_RISK'
+                : check.documentAnalysisScore < 60
+                  ? 'MEDIUM_RISK'
+                  : check.documentAnalysisScore < 80
+                    ? 'LOW_RISK'
+                    : 'CLEAN',
+      },
+    };
+  }
+
   async uploadDocument(
     checkId: string,
     file: Express.Multer.File,
@@ -160,6 +215,14 @@ export class BackgroundCheckService {
         },
       });
 
+      // Run document analysis in background (don't block the upload response)
+      this.runDocumentAnalysis(checkId, filePath).catch((err) => {
+        this.logger.error(
+          `Background document analysis failed for check ${checkId}:`,
+          err,
+        );
+      });
+
       // Update user status
       await this.prisma.user.update({
         where: { id: backgroundCheck.userId },
@@ -188,6 +251,48 @@ export class BackgroundCheckService {
       );
     }
   }
+
+  /**
+   * Run GCV document analysis on an uploaded criminal record certificate.
+   * Stores results in DB for admin review.
+   */
+  private async runDocumentAnalysis(
+    checkId: string,
+    documentPath: string,
+  ): Promise<void> {
+    if (!this.documentAnalysis.isAvailable()) {
+      this.logger.warn('Document analysis skipped — GCV not configured');
+      return;
+    }
+
+    this.logger.log(
+      `Starting document analysis for background check ${checkId}`,
+    );
+    const result =
+      await this.documentAnalysis.analyzeCriminalRecord(documentPath);
+
+    await this.prisma.backgroundCheck.update({
+      where: { id: checkId },
+      data: {
+        documentAnalysisScore: result.trustScore,
+        documentAnalysisFlags: result.flags,
+        documentAnalysisRaw: result.raw,
+        documentAnalyzedAt: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `Document analysis complete for check ${checkId}: score=${result.trustScore}, flags=${result.flags.join(', ') || 'none'}`,
+    );
+
+    // If trust score is very low, auto-flag for admin attention
+    if (result.trustScore >= 0 && result.trustScore < 30) {
+      this.logger.warn(
+        `LOW TRUST SCORE (${result.trustScore}) for background check ${checkId} — possible fraud`,
+      );
+    }
+  }
+
   async getUserStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -299,6 +404,44 @@ export class BackgroundCheckService {
       },
     });
 
+    // Notify user of background check decision
+    try {
+      const user = backgroundCheck.user;
+      if (isApproved) {
+        await this.notifications.createNotification({
+          userId: backgroundCheck.userId,
+          type: 'SYSTEM',
+          title: 'Background Check Approved',
+          body: 'Your criminal record certificate has been reviewed and approved.',
+        });
+        if (user?.email) {
+          await this.notifications.sendEmail(
+            user.email,
+            'Background Check Approved',
+            `Hi ${user.firstName || 'there'}, your criminal record certificate has been reviewed and approved. You're one step closer to applying for jobs on Nasta!`,
+          );
+        }
+      } else {
+        await this.notifications.createNotification({
+          userId: backgroundCheck.userId,
+          type: 'SYSTEM',
+          title: 'Background Check Rejected',
+          body: reviewData.rejectionReason
+            ? `Your criminal record certificate was not approved: ${reviewData.rejectionReason}. Please re-submit.`
+            : 'Your criminal record certificate was not approved. Please re-submit a valid certificate.',
+        });
+        if (user?.email) {
+          await this.notifications.sendEmail(
+            user.email,
+            'Background Check Rejected — Action Required',
+            `Hi ${user.firstName || 'there'}, your criminal record certificate was not approved.${reviewData.rejectionReason ? ` Reason: ${reviewData.rejectionReason}.` : ''} Please log in to re-submit.`,
+          );
+        }
+      }
+    } catch {
+      // Don't fail the review if notification fails
+    }
+
     return {
       id: updatedCheck.id,
       status: updatedCheck.status,
@@ -326,9 +469,10 @@ export class BackgroundCheckService {
           },
         },
       },
-      orderBy: {
-        submittedAt: 'asc', // Oldest first
-      },
+      orderBy: [
+        { documentAnalysisScore: 'asc' }, // Show lowest trust scores first
+        { submittedAt: 'asc' },
+      ],
     });
   }
 
@@ -348,7 +492,10 @@ export class BackgroundCheckService {
 
     return this.prisma.backgroundCheck.findMany({
       where,
-      orderBy: { submittedAt: 'asc' },
+      orderBy: [
+        { documentAnalysisScore: 'asc' }, // Lowest trust scores first
+        { submittedAt: 'asc' },
+      ],
       select: {
         id: true,
         status: true,
@@ -358,6 +505,9 @@ export class BackgroundCheckService {
         assignedTo: true,
         assignedCapability: true,
         assignedAt: true,
+        documentAnalysisScore: true,
+        documentAnalysisFlags: true,
+        documentAnalyzedAt: true,
         user: {
           select: {
             id: true,

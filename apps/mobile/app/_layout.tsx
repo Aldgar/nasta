@@ -412,6 +412,10 @@ function RootLayoutNav() {
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="verify-email" options={{ headerShown: false }} />
         <Stack.Screen
+          name="kyc"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen
           name="kyc-start"
           options={{ headerShown: false, gestureEnabled: false }}
         />

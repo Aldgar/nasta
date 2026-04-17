@@ -917,26 +917,89 @@ export class JobsService {
         reason,
       });
 
+      const lang = language?.toLowerCase().startsWith('pt') ? 'pt' : 'en';
+
       const emailHtml = `
-        <!DOCTYPE html>
-        <html lang="${language}">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #080F1E; color: #B8A88A;">
-          <h2 style="color: #C9963F;">${t('email.jobs.jobNoLongerAvailableTitle')}</h2>
-          <p>${t('email.jobs.greeting', { applicantName })}</p>
-          <p>${t('email.jobs.jobNoLongerAvailableMessage', { jobTitle })}</p>
-          <div style="background-color: #0E1B32; padding: 16px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>${t('email.jobs.reason')}:</strong> ${reason}</p>
-          </div>
-          <p>${t('email.jobs.jobNoLongerAvailableBrowse')}</p>
-          <p>${t('email.jobs.jobNoLongerAvailableAppreciate')}</p>
-          <p>${t('email.common.bestRegards')}<br>${t('email.common.nestaTeam')}</p>
-        </body>
-        </html>
-      `;
+<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t('email.jobs.jobNoLongerAvailableTitle')}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #080F1E;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #080F1E;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #0D1A30; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 1px rgba(201, 150, 63, 0.2);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #0D1A30 0%, #162540 50%, #0D1A30 100%); border-top: 3px solid #C9963F; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0; color: #F5E6C8; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">${t('email.common.brandName')}</h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <!-- Icon -->
+              <div style="text-align: center; margin-bottom: 24px;">
+                <span style="display: inline-block; width: 56px; height: 56px; line-height: 56px; font-size: 28px; border-radius: 50%; background-color: rgba(201, 150, 63, 0.15); color: #C9963F; border: 2px solid rgba(201, 150, 63, 0.3);">📋</span>
+              </div>
+
+              <h2 style="margin: 0 0 20px; color: #F5E6C8; font-size: 24px; font-weight: 600; text-align: center;">${t('email.jobs.jobNoLongerAvailableTitle')}</h2>
+
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.jobs.greeting', { applicantName })}
+              </p>
+
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.jobs.jobNoLongerAvailableMessage', { jobTitle })}
+              </p>
+
+              <!-- Reason Card -->
+              <div style="margin: 24px 0; padding: 16px 20px; background-color: #0E1B32; border-radius: 8px; border-left: 4px solid #C9963F;">
+                <p style="margin: 0; color: #F5E6C8; font-size: 15px;">
+                  <strong>${t('email.jobs.reason')}:</strong>
+                  <span style="color: #B8A88A;"> ${reason}</span>
+                </p>
+              </div>
+
+              <p style="margin: 24px 0 16px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.jobs.jobNoLongerAvailableBrowse')}
+              </p>
+
+              <p style="margin: 0 0 24px; color: #B8A88A; font-size: 16px; line-height: 1.6;">
+                ${t('email.jobs.jobNoLongerAvailableAppreciate')}
+              </p>
+
+              <p style="margin: 0; color: #8B7A5E; font-size: 15px; line-height: 1.6;">
+                ${t('email.common.bestRegards')}<br>
+                <strong style="color: #F5E6C8;">${t('email.common.nestaTeam')}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px 40px; background-color: #0E1B32; border-radius: 0 0 12px 12px; border-top: 1px solid #1E3048;">
+              <p style="margin: 0; color: #8B7A5E; font-size: 14px; line-height: 1.6;">
+                ${t('email.common.supportMessage')}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Copyright -->
+        <p style="margin: 24px 0 0; color: #5C4F3A; font-size: 12px; text-align: center;">
+          ${t('email.common.copyright', { year: new Date().getFullYear().toString() })}
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `.trim();
 
       return this.notifications.sendEmail(
         applicant.email,

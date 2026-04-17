@@ -21,6 +21,7 @@ export class VerifiedForJobsGuard implements CanActivate {
       id: string;
       role?: 'JOB_SEEKER' | 'EMPLOYER' | 'ADMIN';
       isBackgroundVerified?: boolean;
+      isIdVerified?: boolean;
     };
     if (user?.role === 'ADMIN') {
       const allow = this.config.get<string>('DEV_ALLOW_ADMIN_APPLY');
@@ -29,10 +30,25 @@ export class VerifiedForJobsGuard implements CanActivate {
       }
       throw new ForbiddenException('Admins are not allowed to apply to jobs');
     }
-    const bgOk = !!user?.isBackgroundVerified;
-    if (!user?.id || !bgOk)
+
+    if (!user?.id) {
+      throw new ForbiddenException('Authentication required');
+    }
+
+    // Fetch fresh verification status from DB (JWT may be stale after admin approval)
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isBackgroundVerified: true, isIdVerified: true },
+    });
+
+    if (!dbUser?.isIdVerified)
       throw new ForbiddenException(
-        'You must verify email, phone, and pass background check to apply for jobs',
+        'You must complete ID verification before applying for jobs. Complete verification in your KYC settings.',
+      );
+
+    if (!dbUser?.isBackgroundVerified)
+      throw new ForbiddenException(
+        'You must pass background check before applying for jobs. Upload your criminal record certificate in KYC settings.',
       );
 
     const vt = (
@@ -69,11 +85,11 @@ export class VerifiedForJobsGuard implements CanActivate {
       where: { userId: user.id },
       select: { avatarUrl: true },
     });
-    const dbUser = await this.prisma.user.findUnique({
+    const userRecord = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { avatar: true },
     });
-    if (!profile?.avatarUrl && !dbUser?.avatar) {
+    if (!profile?.avatarUrl && !userRecord?.avatar) {
       throw new ForbiddenException(
         'You must upload a profile photo before applying for jobs',
       );

@@ -5549,6 +5549,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 20,
   },
+  modalInput: {
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(201, 150, 63, 0.2)",
+    padding: 12,
+    fontSize: 15,
+    lineHeight: 22,
+  },
   rateInputCard: {
     padding: 16,
     borderRadius: 4,

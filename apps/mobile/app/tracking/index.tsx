@@ -122,7 +122,7 @@ export default function TrackingScreen() {
   }
 
   // Get translation function
-  let t: (key: string) => string = (key: string) => key;
+  let t: (key: string, options?: any) => string = (key: string) => key;
   try {
     const language = useLanguage();
     t = language.t;

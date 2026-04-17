@@ -496,6 +496,15 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 0,
   },
+  ledDotSmall: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 2,
+    elevation: 0,
+  },
   ledLabel: {
     fontSize: 9,
     fontWeight: "700",

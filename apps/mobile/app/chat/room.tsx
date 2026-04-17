@@ -734,12 +734,12 @@ export default function ChatRoom() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        mediaTypes: ["images"],
+        allowsEditing: Platform.OS === "ios",
         quality: 0.8,
         ...(Platform.OS === "ios"
           ? ({ preferredAssetRepresentationMode: "compatible" } as any)
-          : null),
+          : {}),
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -779,7 +779,7 @@ export default function ChatRoom() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
+        allowsEditing: Platform.OS === "ios",
         quality: 0.8,
       });
 

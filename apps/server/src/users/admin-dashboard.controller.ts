@@ -153,6 +153,11 @@ export class AdminDashboardController {
     return this.vehiclesService.getVehicleForAdmin(id);
   }
 
+  @Get('dashboard/vehicles/:id/analysis')
+  async getVehicleAnalysis(@Param('id') id: string) {
+    return this.vehiclesService.getVehicleAnalysis(id);
+  }
+
   @Patch('dashboard/vehicles/:id/review')
   async reviewVehicle(
     @Req() req: any,

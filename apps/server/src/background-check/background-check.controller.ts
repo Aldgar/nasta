@@ -170,6 +170,16 @@ export class BackgroundCheckController {
     return this.streamFileOr404(relPath);
   }
 
+  // Admin: Get document fraud analysis for a background check
+  @Get('admin/:checkId/analysis')
+  @Public()
+  @UseGuards(AdminJwtGuard, AdminCapabilityGuard)
+  @RequireCapability('BACKGROUND_CHECK_REVIEWER')
+  async getDocumentAnalysis(@Param('checkId') checkId: string) {
+    this.ensureValidObjectId(checkId, 'checkId');
+    return this.backgroundCheckService.getDocumentAnalysis(checkId);
+  }
+
   // Admin: Assign/unassign reviews
   @Post('admin/:checkId/assign')
   @Public()

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { api } from "../../../../lib/api";
+import { api, resolveAvatarUrl } from "../../../../lib/api";
 
 interface Participant {
   userId: string;
@@ -616,21 +616,56 @@ export default function AdminChatPage() {
                       {msg.payload &&
                         typeof msg.payload === "object" &&
                         "fileUrl" in msg.payload && (
-                          <a
-                            href={String(msg.payload.fileUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`mt-1 inline-block text-xs underline ${
-                              isAdmin
-                                ? "text-white/80"
-                                : "text-[var(--primary)]"
-                            }`}
-                          >
-                            {String(
-                              (msg.payload as Record<string, unknown>)
-                                .fileName || "Attachment",
+                          <div className="mt-2">
+                            {(String(
+                              (msg.payload as Record<string, unknown>).type,
+                            ) === "image" ||
+                              /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(
+                                String(
+                                  (msg.payload as Record<string, unknown>)
+                                    .fileName || "",
+                                ),
+                              )) && (
+                              <a
+                                href={resolveAvatarUrl(
+                                  String(msg.payload.fileUrl),
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src={resolveAvatarUrl(
+                                    String(
+                                      (msg.payload as Record<string, unknown>)
+                                        .imageUrl || msg.payload.fileUrl,
+                                    ),
+                                  )}
+                                  alt={String(
+                                    (msg.payload as Record<string, unknown>)
+                                      .fileName || "Image",
+                                  )}
+                                  className="max-w-[280px] max-h-[280px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                />
+                              </a>
                             )}
-                          </a>
+                            <a
+                              href={resolveAvatarUrl(
+                                String(msg.payload.fileUrl),
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`mt-1 inline-block text-xs underline ${
+                                isAdmin
+                                  ? "text-white/80"
+                                  : "text-[var(--primary)]"
+                              }`}
+                            >
+                              {String(
+                                (msg.payload as Record<string, unknown>)
+                                  .fileName || "Attachment",
+                              )}
+                            </a>
+                          </div>
                         )}
                     </div>
                   </div>
