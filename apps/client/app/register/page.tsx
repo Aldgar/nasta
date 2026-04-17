@@ -129,14 +129,14 @@ export default function RegisterPage() {
               width={140}
               height={140}
               priority
-              className="animate-float-slow"
+              className="animate-float-slow drop-shadow-[0_4px_24px_rgba(184,130,42,0.45)]"
             />
           </Link>
         </div>
 
         {/* Card */}
         <div className="glass-surface rounded-2xl p-8">
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--gentle-peach)]">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--primary)]">
             {t("web.register.createAccount", "Create your account")}
           </h1>
           <p className="mt-1 text-sm text-[var(--muted-text)]">

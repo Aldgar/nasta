@@ -1135,6 +1135,14 @@ export class UsersService {
       lng?: number;
     },
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const userData: Record<string, unknown> = {};
     const profileData: Record<string, unknown> = {};
 
@@ -1233,7 +1241,7 @@ export class UsersService {
       },
     });
 
-    const user = await this.prisma.user.findUnique({
+    const userLegacy = await this.prisma.user.findUnique({
       where: { id: currentUserId },
       select: {
         location: true,
@@ -1246,7 +1254,7 @@ export class UsersService {
     return {
       profile: {
         ...profile,
-        ...user,
+        ...userLegacy,
       },
       message: 'Address updated',
     };

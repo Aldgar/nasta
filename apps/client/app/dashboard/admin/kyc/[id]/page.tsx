@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, API_BASE } from "../../../../../lib/api";
 import Avatar from "../../../../../components/Avatar";
@@ -127,12 +127,16 @@ function resolveUrl(raw?: string | null): string {
 }
 
 function statusColor(s: string) {
-  if (s === "PENDING") return "bg-yellow-500/20 text-yellow-300";
-  if (s === "IN_PROGRESS") return "bg-blue-500/20 text-blue-300";
-  if (s === "MANUAL_REVIEW") return "bg-orange-500/20 text-orange-300";
+  if (s === "PENDING")
+    return "bg-yellow-200 text-yellow-900 font-semibold border border-yellow-400";
+  if (s === "IN_PROGRESS")
+    return "bg-blue-200 text-blue-900 font-semibold border border-blue-400";
+  if (s === "MANUAL_REVIEW")
+    return "bg-orange-200 text-orange-900 font-semibold border border-orange-400";
   if (s === "APPROVED" || s === "VERIFIED")
-    return "bg-green-500/20 text-green-300";
-  if (s === "REJECTED" || s === "FAILED") return "bg-red-500/20 text-red-300";
+    return "bg-green-200 text-green-900 font-semibold border border-green-400";
+  if (s === "REJECTED" || s === "FAILED")
+    return "bg-red-200 text-red-900 font-semibold border border-red-400";
   return "bg-[var(--surface-alt)] text-[var(--muted-text)]";
 }
 
@@ -767,10 +771,10 @@ function ServiceProviderInfoTab({
   return (
     <div className="space-y-5">
       {/* Instructions */}
-      <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
+      <div className="rounded-xl border border-blue-300 bg-blue-50 p-4">
         <div className="flex items-start gap-3">
           <svg
-            className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400"
+            className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -783,10 +787,10 @@ function ServiceProviderInfoTab({
             />
           </svg>
           <div>
-            <p className="text-sm font-medium text-blue-300">
+            <p className="text-sm font-medium text-blue-800">
               Document Scanning &amp; Data Extraction
             </p>
-            <p className="mt-1 text-xs text-blue-300/80">
+            <p className="mt-1 text-xs text-blue-700">
               Use &quot;Scan MRZ from Document&quot; to automatically read the
               Machine Readable Zone and fill in personal details. Review the
               auto-filled data, make corrections if needed, then enter any
@@ -1217,6 +1221,7 @@ function ServiceProviderInfoTab({
 /* ─── Main Component ─── */
 export default function KYCDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<VerificationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewAction, setReviewAction] = useState<
@@ -1324,11 +1329,33 @@ export default function KYCDetailPage() {
             {user.phone ? ` · ${user.phone}` : ""}
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusColor(data.status)}`}
-        >
-          {data.status.replace(/_/g, " ")}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() =>
+              router.push(`/dashboard/admin/chat?startChat=${user.id}`)
+            }
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-alt)] transition-colors"
+            title="Chat with user"
+          >
+            💬 Chat
+          </button>
+          <button
+            onClick={() =>
+              router.push(
+                `/dashboard/admin/chat?startEmail=${user.id}&emailContext=KYC`,
+              )
+            }
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-alt)] transition-colors"
+            title="Email user"
+          >
+            ✉️ Email
+          </button>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusColor(data.status)}`}
+          >
+            {data.status.replace(/_/g, " ")}
+          </span>
+        </div>
       </div>
 
       {/* User Summary Card */}

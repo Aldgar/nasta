@@ -1296,3 +1296,22 @@ enum VehicleVerificationStatus {
   VERIFIED
   REJECTED
 }
+
+// ─── Admin Emails ───────────────────────────────────────────
+model AdminEmail {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  from      String   @default("support@nasta.app")
+  to        String
+  subject   String
+  body      String
+  htmlBody  String?
+  userId    String?  @db.ObjectId
+  direction String   @default("OUTBOUND") // OUTBOUND | INBOUND
+  context   String?  // e.g. "KYC", "SUPPORT", "GENERAL"
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([to])
+  @@index([userId])
+  @@map("admin_emails")
+}

@@ -53,6 +53,9 @@ export default function AdminKYCPage() {
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<"all" | "mine" | "unassigned">("all");
   const [tab, setTab] = useState<"identity" | "vehicles">("identity");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "manual_review"
+  >("all");
 
   // Vehicle detail modal
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleReview | null>(
@@ -116,14 +119,31 @@ export default function AdminKYCPage() {
   };
 
   const statusColor = (s: string) => {
-    if (s === "PENDING") return "bg-yellow-500/20 text-yellow-300";
-    if (s === "IN_PROGRESS") return "bg-blue-500/20 text-blue-300";
-    if (s === "MANUAL_REVIEW") return "bg-orange-500/20 text-orange-300";
+    if (s === "PENDING")
+      return "bg-yellow-200 text-yellow-900 font-semibold border border-yellow-400";
+    if (s === "IN_PROGRESS")
+      return "bg-blue-200 text-blue-900 font-semibold border border-blue-400";
+    if (s === "MANUAL_REVIEW")
+      return "bg-orange-200 text-orange-900 font-semibold border border-orange-400";
     if (s === "APPROVED" || s === "VERIFIED")
-      return "bg-green-500/20 text-green-300";
-    if (s === "REJECTED" || s === "FAILED") return "bg-red-500/20 text-red-300";
-    return "bg-[var(--surface-alt)] text-[var(--muted-text)]";
+      return "bg-green-200 text-green-900 font-semibold border border-green-400";
+    if (s === "REJECTED" || s === "FAILED")
+      return "bg-red-200 text-red-900 font-semibold border border-red-400";
+    return "bg-[var(--surface-alt)] text-[var(--foreground)]";
   };
+
+  const filteredVerifications = verifications.filter((v) => {
+    if (statusFilter === "pending") return v.status === "PENDING";
+    if (statusFilter === "manual_review") return v.status === "MANUAL_REVIEW";
+    return true;
+  });
+
+  const pendingCount = verifications.filter(
+    (v) => v.status === "PENDING",
+  ).length;
+  const manualReviewCount = verifications.filter(
+    (v) => v.status === "MANUAL_REVIEW",
+  ).length;
 
   const totalCount = verifications.length + vehicles.length;
 
@@ -149,13 +169,13 @@ export default function AdminKYCPage() {
         <div className="flex rounded-lg border border-[var(--border-color)] bg-[var(--surface)] overflow-hidden">
           <button
             onClick={() => setTab("identity")}
-            className={`px-4 py-2 text-xs font-medium transition-colors ${tab === "identity" ? "bg-[var(--primary)] text-white" : "text-[var(--muted-text)] hover:bg-[var(--surface-alt)]"}`}
+            className={`px-4 py-2 text-xs font-medium transition-colors ${tab === "identity" ? "bg-[var(--primary)] text-white" : "text-[var(--foreground)]/70 hover:bg-[var(--surface-alt)]"}`}
           >
             Identity ({verifications.length})
           </button>
           <button
             onClick={() => setTab("vehicles")}
-            className={`px-4 py-2 text-xs font-medium transition-colors ${tab === "vehicles" ? "bg-[var(--primary)] text-white" : "text-[var(--muted-text)] hover:bg-[var(--surface-alt)]"}`}
+            className={`px-4 py-2 text-xs font-medium transition-colors ${tab === "vehicles" ? "bg-[var(--primary)] text-white" : "text-[var(--foreground)]/70 hover:bg-[var(--surface-alt)]"}`}
           >
             Vehicles ({vehicles.length})
           </button>
@@ -168,11 +188,35 @@ export default function AdminKYCPage() {
               <button
                 key={s}
                 onClick={() => setScope(s)}
-                className={`px-4 py-2 text-xs font-medium capitalize transition-colors ${scope === s ? "bg-[var(--primary)] text-white" : "text-[var(--muted-text)] hover:bg-[var(--surface-alt)]"}`}
+                className={`px-4 py-2 text-xs font-medium capitalize transition-colors ${scope === s ? "bg-[var(--primary)] text-white" : "text-[var(--foreground)]/70 hover:bg-[var(--surface-alt)]"}`}
               >
                 {s}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Status filter — only for identity tab */}
+        {tab === "identity" && (
+          <div className="flex rounded-lg border border-[var(--border-color)] bg-[var(--surface)] overflow-hidden">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-4 py-2 text-xs font-medium transition-colors ${statusFilter === "all" ? "bg-[var(--primary)] text-white" : "text-[var(--foreground)]/70 hover:bg-[var(--surface-alt)]"}`}
+            >
+              All ({verifications.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("pending")}
+              className={`px-4 py-2 text-xs font-medium transition-colors ${statusFilter === "pending" ? "bg-yellow-600 text-white" : "text-[var(--foreground)]/70 hover:bg-[var(--surface-alt)]"}`}
+            >
+              Pending ({pendingCount})
+            </button>
+            <button
+              onClick={() => setStatusFilter("manual_review")}
+              className={`px-4 py-2 text-xs font-medium transition-colors ${statusFilter === "manual_review" ? "bg-orange-600 text-white" : "text-[var(--foreground)]/70 hover:bg-[var(--surface-alt)]"}`}
+            >
+              Manual Review ({manualReviewCount})
+            </button>
           </div>
         )}
       </div>
@@ -183,13 +227,13 @@ export default function AdminKYCPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
         </div>
       ) : tab === "identity" ? (
-        verifications.length === 0 ? (
+        filteredVerifications.length === 0 ? (
           <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface)] p-12 text-center">
             <p className="text-[var(--muted-text)]">No verifications found</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {verifications.map((v) => (
+            {filteredVerifications.map((v) => (
               <Link
                 key={v.id}
                 href={`/dashboard/admin/kyc/${v.id}`}
@@ -213,10 +257,10 @@ export default function AdminKYCPage() {
                     <p className="mt-1 text-xs text-[var(--muted-text)]">
                       {v.user?.email || "N/A"}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--foreground)]/70">
+                    <p className="mt-1 text-xs text-[var(--foreground)]/80">
                       Type: {v.verificationType?.replace("_", " ") || "N/A"}
                     </p>
-                    <div className="mt-2 flex items-center gap-4 text-[10px] text-[var(--muted-text)]">
+                    <div className="mt-2 flex items-center gap-4 text-[10px] text-[var(--foreground)]/60">
                       <span>
                         Submitted:{" "}
                         {new Date(v.createdAt).toLocaleDateString("en-GB", {
