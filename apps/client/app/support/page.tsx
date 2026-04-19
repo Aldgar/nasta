@@ -40,7 +40,7 @@ function ContactForm() {
               className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                 dept === d
                   ? "border-[var(--primary)]/60 bg-[var(--primary)]/15 text-[var(--primary)]"
-                  : "border-[var(--border-color)]/20 bg-white/[0.02] text-[var(--muted-text)] hover:border-[var(--border-color)]/40"
+                  : "border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--muted-text)] hover:border-[var(--border-color)]"
               }`}
             >
               {d === "support" ? t("supportPage.generalSupport", "General Support") : t("supportPage.policyLegal", "Policy & Legal")}
@@ -280,7 +280,7 @@ export default function SupportPage() {
         <div className="mb-16 grid gap-4 sm:grid-cols-2">
           <Link
             href="/faq"
-            className="group flex items-center gap-4 rounded-2xl border border-[var(--border-color)]/20 bg-white/[0.02] p-6 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/30 hover:bg-white/[0.04]"
+            className="group flex items-center gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--card-bg)] p-6 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
           >
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] ring-1 ring-[var(--primary)]/15">
               <svg
@@ -306,7 +306,7 @@ export default function SupportPage() {
           </Link>
           <Link
             href="/delete-account"
-            className="group flex items-center gap-4 rounded-2xl border border-[var(--border-color)]/20 bg-white/[0.02] p-6 backdrop-blur-sm transition-all duration-300 hover:border-[var(--border-color)]/40 hover:bg-white/[0.04]"
+            className="group flex items-center gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--card-bg)] p-6 backdrop-blur-sm transition-all duration-300 hover:border-[var(--border-color)] hover:bg-[var(--card-hover-bg)]"
           >
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--alert-red)]/10 text-[var(--alert-red)] ring-1 ring-[var(--alert-red)]/15">
               <svg
@@ -357,7 +357,7 @@ export default function SupportPage() {
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[var(--border-color)]/20 bg-white/[0.02] p-6 backdrop-blur-sm sm:p-8">
+          <div className="form-card">
             <ContactForm />
           </div>
         </section>
@@ -389,7 +389,7 @@ export default function SupportPage() {
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[var(--border-color)]/20 bg-white/[0.02] p-6 backdrop-blur-sm sm:p-8">
+          <div className="form-card">
             <FeatureRequestForm />
           </div>
         </section>

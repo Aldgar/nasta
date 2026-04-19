@@ -10,13 +10,13 @@ export default function PlatformRulesPage() {
   const legal = getLegalText(language);
 
   return (
-    <div className="min-h-screen bg-brand-gradient text-white">
+    <div className="min-h-screen bg-brand-gradient text-[var(--foreground)]">
       <PublicTopbar />
       <main className="mx-auto max-w-4xl px-4 pt-24 pb-16">
         <div className="mb-6">
           <BackButton fallback="/" />
         </div>
-        <div className="rounded-2xl border border-white/15 bg-white/10 p-8 sm:p-12 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_20px_40px_-18px_rgba(0,0,0,0.35)]">
+        <div className="legal-card">
           <LegalContent content={legal.PLATFORM_RULES} />
         </div>
       </main>

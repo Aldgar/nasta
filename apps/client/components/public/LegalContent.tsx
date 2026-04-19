@@ -22,7 +22,7 @@ export default function LegalContent({ content }: LegalContentProps) {
         elements.push(
           <ul
             key={key++}
-            className="ml-6 mb-4 space-y-2 list-disc text-neutral-200"
+            className="ml-6 mb-4 space-y-2 list-disc text-[var(--muted-text)]"
           >
             {listItems.map((item, idx) => (
               <li key={idx}>{item}</li>
@@ -49,7 +49,7 @@ export default function LegalContent({ content }: LegalContentProps) {
       if (trimmed.startsWith("# ")) {
         flushList();
         elements.push(
-          <h1 key={key++} className="text-4xl font-bold mb-6 mt-8 text-white">
+          <h1 key={key++} className="text-4xl font-bold mb-6 mt-8 text-[var(--foreground)]">
             {trimmed.substring(2)}
           </h1>
         );
@@ -58,7 +58,7 @@ export default function LegalContent({ content }: LegalContentProps) {
         elements.push(
           <h2
             key={key++}
-            className="text-2xl font-semibold mb-4 mt-6 text-white"
+            className="text-2xl font-semibold mb-4 mt-6 text-[var(--foreground)]"
           >
             {trimmed.substring(3)}
           </h2>
@@ -68,7 +68,7 @@ export default function LegalContent({ content }: LegalContentProps) {
         elements.push(
           <h3
             key={key++}
-            className="text-xl font-semibold mb-3 mt-5 text-white"
+            className="text-xl font-semibold mb-3 mt-5 text-[var(--foreground)]"
           >
             {trimmed.substring(4)}
           </h3>
@@ -77,7 +77,7 @@ export default function LegalContent({ content }: LegalContentProps) {
         flushList();
         const boldText = trimmed.substring(2, trimmed.length - 2);
         elements.push(
-          <p key={key++} className="font-bold mb-2 text-white">
+          <p key={key++} className="font-bold mb-2 text-[var(--foreground)]">
             {boldText}
           </p>
         );
@@ -88,7 +88,7 @@ export default function LegalContent({ content }: LegalContentProps) {
       } else {
         flushList();
         elements.push(
-          <p key={key++} className="mb-3 text-neutral-200 leading-relaxed">
+          <p key={key++} className="mb-3 text-[var(--muted-text)] leading-relaxed">
             {trimmed}
           </p>
         );
@@ -101,7 +101,7 @@ export default function LegalContent({ content }: LegalContentProps) {
   }, [content]);
 
   return (
-    <div className="prose prose-invert max-w-none">
+    <div className="max-w-none">
       <div className="space-y-2">{parsedContent}</div>
     </div>
   );
