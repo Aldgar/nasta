@@ -53,14 +53,14 @@ function statusColor(s: string) {
   return "bg-[var(--muted-text)]/10 text-[var(--muted-text)]";
 }
 
-function fmtDate(iso?: string): string {
+function fmtDate(iso?: string, locale = "en-IE"): string {
   if (!iso) return "";
   const d = new Date(iso);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = (target.getTime() - today.getTime()) / 86400000;
-  const time = d.toLocaleTimeString("en-IE", {
+  const time = d.toLocaleTimeString(locale, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -68,7 +68,7 @@ function fmtDate(iso?: string): string {
   if (diff === 1) return `Tomorrow ${time}`;
   if (diff === -1) return `Yesterday ${time}`;
   return (
-    d.toLocaleDateString("en-IE", {
+    d.toLocaleDateString(locale, {
       weekday: "short",
       month: "short",
       day: "numeric",
@@ -78,8 +78,8 @@ function fmtDate(iso?: string): string {
   );
 }
 
-function fmtDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-IE", {
+function fmtDay(iso: string, locale = "en-IE"): string {
+  return new Date(iso).toLocaleDateString(locale, {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -150,7 +150,8 @@ export default function SchedulePage() {
   const [availLoading, setAvailLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === "pt" ? "pt-PT" : "en-IE";
 
   /* Fetch bookings */
   const fetchBookings = useCallback(async () => {
@@ -234,17 +235,29 @@ export default function SchedulePage() {
   );
   const firstDow = calDays[0].getDay();
   const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString(
-    "en-IE",
+    locale,
     { month: "long", year: "numeric" },
   );
   const todayYmd = toYmd(new Date());
+
+  const dayHeaders = useMemo(() => {
+    const sunday = new Date(2023, 0, 1); // Jan 1, 2023 is a Sunday
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(sunday);
+      d.setDate(sunday.getDate() + i);
+      return d
+        .toLocaleDateString(locale, { weekday: "short" })
+        .slice(0, 3)
+        .toUpperCase();
+    });
+  }, [locale]);
 
   /* Group bookings by date for agenda */
   const grouped = useMemo(() => {
     const map = new Map<string, BookingItem[]>();
     for (const b of bookings) {
       const key = b.startTime
-        ? new Date(b.startTime).toLocaleDateString("en-IE", {
+        ? new Date(b.startTime).toLocaleDateString(locale, {
             weekday: "long",
             month: "long",
             day: "numeric",
@@ -255,7 +268,7 @@ export default function SchedulePage() {
       map.get(key)!.push(b);
     }
     return map;
-  }, [bookings]);
+  }, [bookings, locale]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -363,7 +376,7 @@ export default function SchedulePage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs text-[var(--muted-text)]">
-                            {fmtDate(b.startTime)}
+                            {fmtDate(b.startTime, locale)}
                           </p>
                           <p className="truncate text-sm font-semibold text-[var(--foreground)]">
                             {b.job?.title ||
@@ -380,7 +393,10 @@ export default function SchedulePage() {
                       <span
                         className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${statusColor(b.status)}`}
                       >
-                        {b.status.replace(/_/g, " ")}
+                        {t(
+                          `agenda.status.${b.status.toLowerCase()}`,
+                          b.status.replace(/_/g, " "),
+                        )}
                       </span>
                     </div>
                   ))}
@@ -454,16 +470,14 @@ export default function SchedulePage() {
 
                 {/* Day headers */}
                 <div className="mb-1 grid grid-cols-7 text-center">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (d) => (
-                      <span
-                        key={d}
-                        className="py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-text)]"
-                      >
-                        {d}
-                      </span>
-                    ),
-                  )}
+                  {dayHeaders.map((d) => (
+                    <span
+                      key={d}
+                      className="py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-text)]"
+                    >
+                      {d}
+                    </span>
+                  ))}
                 </div>
 
                 {/* Calendar grid */}
@@ -518,8 +532,8 @@ export default function SchedulePage() {
                         className="rounded-lg bg-[var(--primary)]/10 px-3 py-1.5 text-xs font-medium text-[var(--primary)]"
                       >
                         {r.start === r.end
-                          ? fmtDay(r.start)
-                          : `${fmtDay(r.start)} - ${fmtDay(r.end)}`}
+                          ? fmtDay(r.start, locale)
+                          : `${fmtDay(r.start, locale)} - ${fmtDay(r.end, locale)}`}
                       </span>
                     ))}
                   </div>

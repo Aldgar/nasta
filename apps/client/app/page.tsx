@@ -1066,9 +1066,7 @@ export default function Home() {
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/download/ios"
                 className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-6 py-4 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
               >
                 <svg
@@ -1088,9 +1086,7 @@ export default function Home() {
                 </div>
               </a>
               <a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/download/android"
                 className="inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-6 py-4 backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
               >
                 <svg

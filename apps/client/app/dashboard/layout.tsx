@@ -816,6 +816,34 @@ export default function DashboardLayout({
           </ul>
         </nav>
 
+        {/* Usage guide link */}
+        <div className="shrink-0 border-t border-[var(--border-color)] px-2 pt-2 pb-1">
+          <p
+            className={`mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-text)] transition-opacity duration-200 ${expanded || hovered ? "opacity-100" : "lg:opacity-0 lg:h-0 lg:overflow-hidden lg:mb-0"}`}
+          >
+            {t("web.nav.usage", "Usage")}
+          </p>
+          <Link
+            href="/dashboard/usage"
+            title={
+              expanded || hovered ? undefined : t("guide.usage", "Usage Guide")
+            }
+            className="group relative flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs text-[var(--muted-text)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--foreground)]"
+          >
+            <IconDocument className="h-4 w-4 shrink-0" />
+            <span
+              className={`whitespace-nowrap transition-opacity duration-200 ${expanded || hovered ? "opacity-100" : "lg:opacity-0 lg:w-0 lg:overflow-hidden"}`}
+            >
+              {t("guide.usage", "Usage Guide")}
+            </span>
+            {!expanded && !hovered && (
+              <span className="pointer-events-none absolute left-full ml-2 hidden rounded-md bg-[var(--surface)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-lg border border-[var(--border-color)] opacity-0 transition-opacity group-hover:opacity-100 lg:block whitespace-nowrap z-50">
+                {t("guide.usage", "Usage Guide")}
+              </span>
+            )}
+          </Link>
+        </div>
+
         {/* Legal links */}
         <div className="shrink-0 border-t border-[var(--border-color)] px-2 pt-2 pb-1">
           <p
@@ -835,10 +863,6 @@ export default function DashboardLayout({
             {
               href: "/dashboard/legal/platform-rules",
               label: t("web.nav.platformRules", "Platform Rules"),
-            },
-            {
-              href: "/dashboard/legal/refund",
-              label: t("web.nav.refundPolicy", "Refund Policy"),
             },
           ].map((link) => (
             <Link

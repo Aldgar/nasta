@@ -115,9 +115,7 @@ export default function PublicTopbar() {
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/download/ios"
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-2.5 py-1.5 text-[var(--muted-text)] backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
             aria-label="Download on the App Store"
           >
@@ -127,9 +125,7 @@ export default function PublicTopbar() {
             <span className="text-xs font-medium">App Store</span>
           </a>
           <a
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/download/android"
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-2.5 py-1.5 text-[var(--muted-text)] backdrop-blur-sm transition-all duration-300 hover:border-[var(--primary)]/40 hover:bg-[var(--card-hover-bg)]"
             aria-label="Get it on Google Play"
           >
@@ -323,9 +319,7 @@ export default function PublicTopbar() {
             </Link>
             <div className="flex gap-2 pt-1">
               <a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/download/ios"
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-2.5 py-2 text-[var(--muted-text)]"
               >
                 <svg
@@ -338,9 +332,7 @@ export default function PublicTopbar() {
                 <span className="text-xs font-medium">App Store</span>
               </a>
               <a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/download/android"
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border-color)]/30 bg-[var(--card-bg)] px-2.5 py-2 text-[var(--muted-text)]"
               >
                 <svg

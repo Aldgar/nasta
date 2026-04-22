@@ -127,16 +127,29 @@ function statusColor(s: string): string {
   return "bg-[var(--muted-text)]/10 text-[var(--muted-text)]";
 }
 
-function timeAgo(iso?: string): string {
+function timeAgo(
+  iso?: string,
+  t?: (...args: unknown[]) => string,
+  locale = "en-IE",
+): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60)
+    return t
+      ? (t("jobs.minutesAgo", `${mins}m ago`, { count: mins }) as string)
+      : `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24)
+    return t
+      ? (t("jobs.hoursAgo", `${hrs}h ago`, { count: hrs }) as string)
+      : `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-IE", {
+  if (days < 30)
+    return t
+      ? (t("jobs.daysAgo", `${days}d ago`, { count: days }) as string)
+      : `${days}d ago`;
+  return new Date(iso).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -144,7 +157,8 @@ function timeAgo(iso?: string): string {
 }
 
 export default function JobDetailPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === "pt" ? "pt-PT" : "en-IE";
   const params = useParams();
   const router = useRouter();
   const jobId = params?.id as string;
@@ -358,10 +372,28 @@ export default function JobDetailPage() {
     [job.location, job.city, job.country].filter(Boolean).join(", ") ||
     "Remote";
   const isInstant = job.isInstantBook;
-  const typeLabel = job.type ? formatLabel(job.type) : "";
-  const modeLabel = job.workMode ? formatLabel(job.workMode) : "";
+  const typeLabel = job.type
+    ? t(`jobs.typeOptions.${job.type.toLowerCase()}`, formatLabel(job.type))
+    : "";
+  const modeLabel = job.workMode
+    ? t(
+        `jobs.workModeOptions.${job.workMode.toLowerCase()}`,
+        formatLabel(job.workMode),
+      )
+    : "";
   const rate = job.rateAmount;
-  const unit = job.paymentType ? formatLabel(job.paymentType) : "";
+  const unit = job.paymentType
+    ? t(
+        `jobs.paymentTypeOptions.${job.paymentType.toLowerCase()}`,
+        formatLabel(job.paymentType),
+      )
+    : "";
+  const perUnit = job.paymentType
+    ? t(
+        `jobs.perPaymentType.${job.paymentType.toLowerCase()}`,
+        `per ${formatLabel(job.paymentType).toLowerCase()}`,
+      )
+    : "";
   const hasSalary =
     (job.salaryMin && job.salaryMin > 0) ||
     (job.salaryMax && job.salaryMax > 0);
@@ -413,7 +445,10 @@ export default function JobDetailPage() {
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusColor(job.status)}`}
                 >
-                  {formatLabel(job.status)}
+                  {t(
+                    `jobs.status.${job.status.toLowerCase()}`,
+                    formatLabel(job.status),
+                  )}
                 </span>
               )}
             </div>
@@ -441,7 +476,7 @@ export default function JobDetailPage() {
                   </p>
                   {unit && (
                     <p className="mt-0.5 text-xs font-medium text-[var(--muted-text)]">
-                      per {unit.toLowerCase()}
+                      {perUnit}
                     </p>
                   )}
                 </>
@@ -525,12 +560,15 @@ export default function JobDetailPage() {
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${urgencyColor(job.urgency)}`}
             >
-              {formatLabel(job.urgency)}
+              {t(
+                `jobs.urgencyOptions.${job.urgency.toLowerCase()}`,
+                formatLabel(job.urgency),
+              )}
             </span>
           )}
           {job.createdAt && (
             <span className="text-[var(--muted-text)]">
-              {t("jobs.posted", "Posted")} {timeAgo(job.createdAt)}
+              {t("jobs.posted", "Posted")} {timeAgo(job.createdAt, t, locale)}
             </span>
           )}
         </div>
@@ -649,7 +687,7 @@ export default function JobDetailPage() {
                       {t("jobs.startDate", "Start Date")}
                     </p>
                     <p className="mt-0.5 text-sm font-medium text-[var(--foreground)]">
-                      {new Date(job.startDate).toLocaleDateString("en-IE", {
+                      {new Date(job.startDate).toLocaleDateString(locale, {
                         month: "long",
                         day: "numeric",
                         year: "numeric",
@@ -663,7 +701,7 @@ export default function JobDetailPage() {
                       {t("jobs.endDate", "End Date")}
                     </p>
                     <p className="mt-0.5 text-sm font-medium text-[var(--foreground)]">
-                      {new Date(job.endDate).toLocaleDateString("en-IE", {
+                      {new Date(job.endDate).toLocaleDateString(locale, {
                         month: "long",
                         day: "numeric",
                         year: "numeric",
@@ -799,7 +837,10 @@ export default function JobDetailPage() {
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${urgencyColor(job.urgency)}`}
                   >
-                    {formatLabel(job.urgency)}
+                    {t(
+                      `jobs.urgencyOptions.${job.urgency.toLowerCase()}`,
+                      formatLabel(job.urgency),
+                    )}
                   </span>
                 </div>
               )}
@@ -810,7 +851,7 @@ export default function JobDetailPage() {
                   </span>
                   <span className="font-medium text-[var(--foreground)]">
                     €{rate}
-                    {unit ? ` / ${unit.toLowerCase()}` : ""}
+                    {perUnit ? ` / ${perUnit}` : ""}
                   </span>
                 </div>
               )}
@@ -820,7 +861,7 @@ export default function JobDetailPage() {
                     {t("jobs.posted", "Posted")}
                   </span>
                   <span className="font-medium text-[var(--foreground)]">
-                    {timeAgo(job.createdAt)}
+                    {timeAgo(job.createdAt, t, locale)}
                   </span>
                 </div>
               )}
@@ -858,7 +899,7 @@ export default function JobDetailPage() {
                       <p className="mt-0.5 text-xs text-emerald-400/70">
                         {new Date(
                           job.myApplication.appliedAt,
-                        ).toLocaleDateString("en-IE", {
+                        ).toLocaleDateString(locale, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -866,7 +907,7 @@ export default function JobDetailPage() {
                         at{" "}
                         {new Date(
                           job.myApplication.appliedAt,
-                        ).toLocaleTimeString("en-IE", {
+                        ).toLocaleTimeString(locale, {
                           hour: "numeric",
                           minute: "2-digit",
                         })}
@@ -1233,7 +1274,10 @@ export default function JobDetailPage() {
                               className="rounded-lg bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]"
                             >
                               €{r.rate} /{" "}
-                              {formatLabel(r.paymentType).toLowerCase()}
+                              {t(
+                                `jobs.perPaymentType.${r.paymentType.toLowerCase()}`,
+                                formatLabel(r.paymentType).toLowerCase(),
+                              )}
                             </span>
                           ))}
                         </div>
@@ -1290,7 +1334,10 @@ export default function JobDetailPage() {
                                     className="rounded-lg bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]"
                                   >
                                     €{r.rate} /{" "}
-                                    {formatLabel(r.paymentType).toLowerCase()}
+                                    {t(
+                                      `jobs.perPaymentType.${r.paymentType.toLowerCase()}`,
+                                      formatLabel(r.paymentType).toLowerCase(),
+                                    )}
                                   </span>
                                 ))}
                               </div>
@@ -1357,10 +1404,11 @@ export default function JobDetailPage() {
                       {/* Date */}
                       {nr.suggestedAt && (
                         <p className="mt-2 text-[10px] text-[var(--muted-text)]">
-                          {new Date(nr.suggestedAt).toLocaleDateString(
-                            "en-IE",
-                            { day: "numeric", month: "short", year: "numeric" },
-                          )}
+                          {new Date(nr.suggestedAt).toLocaleDateString(locale, {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
                         </p>
                       )}
                     </div>

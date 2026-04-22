@@ -8,7 +8,10 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { setLanguage as setI18nLanguage } from "../lib/i18n";
+import {
+  setLanguage as setI18nLanguage,
+  getInitialLanguage,
+} from "../lib/i18n";
 
 interface LanguageContextValue {
   language: string;
@@ -25,11 +28,21 @@ const LanguageContext = createContext<LanguageContextValue>({
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
-  const [language, setLang] = useState(i18n.language || "en");
+  // Start with "en" to match SSR, then switch to saved language after hydration
+  const [language, setLang] = useState("en");
 
   const setLanguage = useCallback((lng: string) => {
     setI18nLanguage(lng);
     setLang(lng);
+  }, []);
+
+  // Apply saved/detected language after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const saved = getInitialLanguage();
+    if (saved !== "en") {
+      setI18nLanguage(saved);
+      setLang(saved);
+    }
   }, []);
 
   useEffect(() => {

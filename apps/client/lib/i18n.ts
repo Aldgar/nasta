@@ -22,11 +22,16 @@ function detectBrowserLanguage(): string {
 
 i18n.use(initReactI18next).init({
   resources: { en: { translation: en }, pt: { translation: pt } },
-  lng: getSavedLanguage(),
+  lng: "en", // always start with "en" so SSR and initial client render match
   fallbackLng: "en",
   interpolation: { escapeValue: false },
   compatibilityJSON: "v4",
 });
+
+/** Call this client-side (inside useEffect) to get the user's saved/detected language. */
+export function getInitialLanguage(): string {
+  return getSavedLanguage();
+}
 
 export function setLanguage(lng: string) {
   i18n.changeLanguage(lng);

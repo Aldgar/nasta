@@ -1053,7 +1053,7 @@ export default function ApplicationDetailPage() {
               </p>
               {job.paymentType && (
                 <p className="mt-0.5 text-xs font-medium text-[var(--muted-text)]">
-                  per {formatLabel(job.paymentType).toLowerCase()}
+                  {t(`jobs.perPaymentType.${job.paymentType.toLowerCase()}`, `per ${formatLabel(job.paymentType).toLowerCase()}`)}
                 </p>
               )}
             </div>
@@ -1118,7 +1118,7 @@ export default function ApplicationDetailPage() {
                     <div>
                       <p className="text-sm font-semibold text-[var(--foreground)]">
                         €{rate.rate.toFixed(2)} /{" "}
-                        {formatLabel(rate.paymentType).toLowerCase()}
+                        {t(`jobs.perPaymentType.${rate.paymentType.toLowerCase()}`, formatLabel(rate.paymentType).toLowerCase())}
                       </p>
                       {rate.description && (
                         <p className="text-xs text-[var(--muted-text)]">
@@ -1348,7 +1348,7 @@ export default function ApplicationDetailPage() {
                               className="rounded-lg bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]"
                             >
                               €{r.rate} /{" "}
-                              {formatLabel(r.paymentType).toLowerCase()}
+                              {t(`jobs.perPaymentType.${r.paymentType.toLowerCase()}`, formatLabel(r.paymentType).toLowerCase())}
                             </span>
                           ))}
                         </div>
@@ -1409,7 +1409,7 @@ export default function ApplicationDetailPage() {
                                     className="rounded-lg bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]"
                                   >
                                     €{r.rate} /{" "}
-                                    {formatLabel(r.paymentType).toLowerCase()}
+                                    {t(`jobs.perPaymentType.${r.paymentType.toLowerCase()}`, formatLabel(r.paymentType).toLowerCase())}
                                   </span>
                                 ))}
                               </div>
@@ -1546,7 +1546,7 @@ export default function ApplicationDetailPage() {
                               className={`text-sm font-medium ${isPaid ? "text-emerald-500" : isUnpaid ? "text-amber-500" : "text-[var(--foreground)]"}`}
                             >
                               €{rate.rate.toFixed(2)} /{" "}
-                              {formatLabel(rate.paymentType).toLowerCase()}
+                              {t(`jobs.perPaymentType.${rate.paymentType.toLowerCase()}`, formatLabel(rate.paymentType).toLowerCase())}
                             </p>
                             {(rate.description || rate.otherSpecification) && (
                               <p className="text-[10px] text-[var(--muted-text)]">
@@ -1598,7 +1598,7 @@ export default function ApplicationDetailPage() {
                               className={`text-sm font-medium ${isPaid ? "text-emerald-500" : isUnpaid ? "text-amber-500" : "text-[var(--foreground)]"}`}
                             >
                               €{rate.rate.toFixed(2)} /{" "}
-                              {formatLabel(rate.paymentType).toLowerCase()}{" "}
+                              {t(`jobs.perPaymentType.${rate.paymentType.toLowerCase()}`, formatLabel(rate.paymentType).toLowerCase())}{" "}
                               <span className="text-[10px]">
                                 ({t("applications.approved", "Approved")})
                               </span>
@@ -1648,7 +1648,7 @@ export default function ApplicationDetailPage() {
                               className={`text-sm font-medium ${isPaid ? "text-emerald-500" : isUnpaid ? "text-amber-500" : "text-[var(--foreground)]"}`}
                             >
                               €{rate.rate.toFixed(2)} /{" "}
-                              {formatLabel(rate.paymentType).toLowerCase()}{" "}
+                              {t(`jobs.perPaymentType.${rate.paymentType.toLowerCase()}`, formatLabel(rate.paymentType).toLowerCase())}{" "}
                               <span className="text-[10px]">
                                 (
                                 {t(
@@ -1769,7 +1769,7 @@ export default function ApplicationDetailPage() {
                               className="rounded-lg bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]"
                             >
                               €{r.rate} /{" "}
-                              {formatLabel(r.paymentType).toLowerCase()}
+                              {t(`jobs.perPaymentType.${r.paymentType.toLowerCase()}`, formatLabel(r.paymentType).toLowerCase())}
                             </span>
                           ))}
                         </div>
@@ -2346,7 +2346,7 @@ export default function ApplicationDetailPage() {
                                     : "bg-amber-500/10 text-amber-400"
                               }`}
                             >
-                              {formatLabel(tr.status)}
+                              {t(`applications.extensionStatus.${tr.status.toLowerCase()}`, formatLabel(tr.status))}
                             </span>
                           </div>
                           <p className="mt-1 text-xs text-[var(--foreground)]">

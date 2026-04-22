@@ -44,37 +44,46 @@ interface BookingReceipt {
   applicationId?: string;
 }
 
-function formatCents(cents: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("en-IE", { style: "currency", currency }).format(
+function formatCents(
+  cents: number,
+  currency = "EUR",
+  locale = "en-IE",
+): string {
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(
     cents / 100,
   );
 }
 
-function formatDate(iso?: string): string {
+function formatDate(iso?: string, locale = "en-IE"): string {
   if (!iso) return "-";
   const d = new Date(iso);
-  return d.toLocaleDateString("en-IE", {
+  return d.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 }
 
-function formatDateTime(iso?: string): string {
+function formatDateTime(
+  iso?: string,
+  locale = "en-IE",
+  atLabel = "at",
+): string {
   if (!iso) return "-";
   const d = new Date(iso);
   return (
-    d.toLocaleDateString("en-IE", {
+    d.toLocaleDateString(locale, {
       month: "short",
       day: "numeric",
       year: "numeric",
     }) +
-    " at " +
-    d.toLocaleTimeString("en-IE", { hour: "numeric", minute: "2-digit" })
+    ` ${atLabel} ` +
+    d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
   );
 }
 
 function PayoutBadge({ status }: { status?: string }) {
+  const { t } = useLanguage();
   if (!status)
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--muted-text)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--muted-text)]">
@@ -85,51 +94,52 @@ function PayoutBadge({ status }: { status?: string }) {
   if (s === "PAID" || s === "COMPLETED")
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--achievement-green)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--achievement-green)]">
-        PAID
+        {t("payments.status.paid", "PAID")}
       </span>
     );
   if (s === "PENDING" || s === "IN_TRANSIT")
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--fulfillment-gold)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--fulfillment-gold)]">
-        PENDING
+        {t("payments.status.pending", "PENDING")}
       </span>
     );
   if (s === "FAILED")
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--alert-red)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--alert-red)]">
-        FAILED
+        {t("payments.status.failed", "FAILED")}
       </span>
     );
   return (
     <span className="inline-flex items-center rounded-full bg-[var(--muted-text)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--muted-text)]">
-      {status}
+      {t(`payments.status.${status.toLowerCase()}`, status)}
     </span>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useLanguage();
   const s = status.toUpperCase();
   if (s === "COMPLETED" || s === "CAPTURED")
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--achievement-green)]/15 px-2.5 py-0.5 text-[10px] font-semibold text-[var(--achievement-green)]">
-        COMPLETED
+        {t("payments.status.completed", "COMPLETED")}
       </span>
     );
   if (s === "ACTIVE" || s === "IN_PROGRESS")
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--soft-blue)]/15 px-2.5 py-0.5 text-[10px] font-semibold text-[var(--soft-blue)]">
-        ACTIVE
+        {t("payments.status.active", "ACTIVE")}
       </span>
     );
   if (s === "CANCELLED" || s === "CANCELED")
     return (
       <span className="inline-flex items-center rounded-full bg-[var(--alert-red)]/15 px-2.5 py-0.5 text-[10px] font-semibold text-[var(--alert-red)]">
-        CANCELLED
+        {t("payments.status.cancelled", "CANCELLED")}
       </span>
     );
   return (
     <span className="inline-flex items-center rounded-full bg-[var(--muted-text)]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[var(--muted-text)]">
-      {status}
+      {t(`payments.status.${status.toLowerCase()}`, status)}
     </span>
   );
 }
@@ -142,7 +152,9 @@ export default function PaymentsPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<BookingReceipt | null>(
     null,
   );
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === "pt" ? "pt-PT" : "en-IE";
+  const atLabel = t("common.at", "at");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -269,7 +281,7 @@ export default function PaymentsPage() {
             {t("payments.totalEarnings", "Total Earnings")}
           </p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-            {formatCents(totalEarnings, currency)}
+            {formatCents(totalEarnings, currency, locale)}
           </p>
           <p className="mt-1 text-xs text-[var(--muted-text)]">
             {receipts.length}{" "}
@@ -283,7 +295,7 @@ export default function PaymentsPage() {
             {t("payments.pendingHolds", "Pending Holds")}
           </p>
           <p className="mt-2 text-3xl font-bold text-[var(--fulfillment-gold)]">
-            {formatCents(dashboard?.pendingHolds ?? 0, currency)}
+            {formatCents(dashboard?.pendingHolds ?? 0, currency, locale)}
           </p>
           <p className="mt-1 text-xs text-[var(--muted-text)]">
             {t("payments.awaitingJobCompletion", "Awaiting job completion")}
@@ -294,7 +306,7 @@ export default function PaymentsPage() {
             {t("payments.estimatedNet", "Estimated Net")}
           </p>
           <p className="mt-2 text-3xl font-bold text-[var(--achievement-green)]">
-            {formatCents(dashboard?.estimatedNet ?? 0, currency)}
+            {formatCents(dashboard?.estimatedNet ?? 0, currency, locale)}
           </p>
           <p className="mt-1 text-xs text-[var(--muted-text)]">
             {t("payments.afterPlatformFees", "After platform fees")}
@@ -390,10 +402,10 @@ export default function PaymentsPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-[var(--foreground)]">
-                        {formatCents(r.capturedAmount, cur)}
+                        {formatCents(r.capturedAmount, cur, locale)}
                       </p>
                       <p className="mt-0.5 text-[10px] text-[var(--muted-text)]">
-                        {formatDate(r.capturedAt)}
+                        {formatDate(r.capturedAt, locale)}
                       </p>
                     </div>
                   </div>
@@ -427,7 +439,7 @@ export default function PaymentsPage() {
                           {t("payments.amountReceived", "Amount Received")}
                         </p>
                         <p className="mt-0.5 text-sm font-bold text-[var(--foreground)]">
-                          {formatCents(r.capturedAmount, cur)}
+                          {formatCents(r.capturedAmount, cur, locale)}
                         </p>
                       </div>
                       <div>
@@ -436,8 +448,8 @@ export default function PaymentsPage() {
                         </p>
                         <p className="mt-0.5 text-sm text-[var(--foreground)]">
                           {r.startTime && r.endTime
-                            ? `${formatDateTime(r.startTime)} - ${formatDateTime(r.endTime)}`
-                            : formatDate(r.capturedAt)}
+                            ? `${formatDateTime(r.startTime, locale, atLabel)} - ${formatDateTime(r.endTime, locale, atLabel)}`
+                            : formatDate(r.capturedAt, locale)}
                         </p>
                       </div>
                       <div>
@@ -445,7 +457,7 @@ export default function PaymentsPage() {
                           {t("payments.paymentDate", "Payment Date")}
                         </p>
                         <p className="mt-0.5 text-sm text-[var(--foreground)]">
-                          {formatDateTime(r.capturedAt)}
+                          {formatDateTime(r.capturedAt, locale, atLabel)}
                         </p>
                       </div>
                       <div>
@@ -457,7 +469,7 @@ export default function PaymentsPage() {
                         </div>
                         {r.payoutDate && (
                           <p className="mt-0.5 text-xs text-[var(--muted-text)]">
-                            {formatDate(r.payoutDate)}
+                            {formatDate(r.payoutDate, locale)}
                           </p>
                         )}
                       </div>
